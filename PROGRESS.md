@@ -131,7 +131,9 @@
 - [x] Uses 2-space indentation as standard
 - [x] Supports glob patterns for multiple files
 - [x] Handles missing semicolons between declarations (intelligent lookahead)
-- **Note**: Current implementation has limitations (see TODO.md)
+- [x] **FIXED**: Preserves variable references in formatted output (@primary stays @primary)
+- [x] **FIXED**: Properly handles nested rule indentation
+- [x] **FIXED**: Improved blank line handling between declarations and nested rules
 
 ### ✅ Parser Improvements
 - [x] Made semicolons optional at end of declarations
@@ -140,10 +142,10 @@
 
 ## Next Session Action Plan
 
-### Priority 1: Fix Formatter Issues (See TODO.md)
-- [ ] Formatter doesn't properly handle nested rules with indentation
-- [ ] Formatter evaluates variables instead of preserving them
-- [ ] Need separate value rendering for formatting vs output
+### ✅ Priority 1: Fix Formatter Issues (COMPLETE)
+- [x] Formatter doesn't properly handle nested rules with indentation
+- [x] Formatter evaluates variables instead of preserving them
+- [x] Need separate value rendering for formatting vs output
 
 ### Priority 2: Implement Parametric Mixins
 - [ ] Parser support for parameters: `.mixin(@param1; @param2) { }`
