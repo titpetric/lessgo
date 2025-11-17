@@ -28,6 +28,7 @@ type Rule struct {
 	Position     Position
 	Parameters   []string // for parametric mixins: parameter names like ["@v", "@size"]
 	Guard        *Guard   // optional guard condition for mixins
+	Extends      []Extend // extends declarations (&:extend(.class))
 }
 
 func (r *Rule) node() {}
@@ -172,9 +173,17 @@ type GuardCondition struct {
 	Right    Value
 }
 
+// Extend represents a selector extend declaration (&:extend(.class) or .class:extend(.parent))
+type Extend struct {
+	Selector string // the selector being extended (e.g., ".parent", ".base")
+	All      bool   // true for :extend(.class all) - matches all parts
+}
+
 func (g *Guard) node() {}
 
 func (gc *GuardCondition) node() {}
+
+func (e *Extend) node() {}
 
 // Position tracks location in source for error reporting
 type Position struct {

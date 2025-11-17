@@ -14,24 +14,29 @@ import (
 
 // Renderer converts an AST to CSS
 type Renderer struct {
-	output bytes.Buffer
-	indent int
-	vars   *parser.Stack          // Stack-based variable scoping
-	mixins map[string][]*ast.Rule // Store mixin definitions by name (can have multiple variants with guards)
+	output  bytes.Buffer
+	indent  int
+	vars    *parser.Stack          // Stack-based variable scoping
+	mixins  map[string][]*ast.Rule // Store mixin definitions by name (can have multiple variants with guards)
+	extends map[string][]string    // Map from extended selector to list of extending selectors
+	allRules []*ast.Rule           // Track all rules for extend processing
 }
 
 // NewRenderer creates a new renderer
 func NewRenderer() *Renderer {
 	return &Renderer{
-		vars:   parser.NewStack(make(map[string]ast.Value)),
-		mixins: make(map[string][]*ast.Rule),
+		vars:     parser.NewStack(make(map[string]ast.Value)),
+		mixins:   make(map[string][]*ast.Rule),
+		extends:  make(map[string][]string),
+		allRules: []*ast.Rule{},
 	}
 }
 
 // Render renders the stylesheet to CSS
 func (r *Renderer) Render(stylesheet *ast.Stylesheet) string {
-	// First pass: collect mixin definitions
-	r.collectMixins(stylesheet)
+	// First pass: collect all rules, mixin definitions, and extends
+	r.collectRulesAndMixins(stylesheet)
+	r.collectExtends()
 
 	// Second pass: render all statements (mixins are just normal rules)
 	for _, rule := range stylesheet.Rules {
@@ -40,10 +45,14 @@ func (r *Renderer) Render(stylesheet *ast.Stylesheet) string {
 	return r.output.String()
 }
 
-// collectMixins finds all mixin definitions in the stylesheet
-func (r *Renderer) collectMixins(stylesheet *ast.Stylesheet) {
+// collectRulesAndMixins finds all rules and mixin definitions in the stylesheet
+func (r *Renderer) collectRulesAndMixins(stylesheet *ast.Stylesheet) {
 	for _, stmt := range stylesheet.Rules {
 		if rule, ok := stmt.(*ast.Rule); ok {
+			// Track all rules for extend processing
+			r.allRules = append(r.allRules, rule)
+			r.collectNestedRules(rule)
+			
 			// Check if this is a mixin definition (class or id selector that could be used as mixin)
 			if len(rule.Selector.Parts) == 1 {
 				selector := rule.Selector.Parts[0]
@@ -52,6 +61,29 @@ func (r *Renderer) collectMixins(stylesheet *ast.Stylesheet) {
 					name := selector[1:] // Remove . or #
 					r.mixins[name] = append(r.mixins[name], rule)
 				}
+			}
+		}
+	}
+}
+
+// collectNestedRules recursively collects all nested rules
+func (r *Renderer) collectNestedRules(rule *ast.Rule) {
+	for _, stmt := range rule.Rules {
+		if nestedRule, ok := stmt.(*ast.Rule); ok {
+			r.allRules = append(r.allRules, nestedRule)
+			r.collectNestedRules(nestedRule)
+		}
+	}
+}
+
+// collectExtends builds a map of which selectors are extended by which other selectors
+func (r *Renderer) collectExtends() {
+	for _, rule := range r.allRules {
+		for _, ext := range rule.Extends {
+			// For each rule that extends another, record that the extended selector
+			// should include the extending selector
+			for _, selector := range rule.Selector.Parts {
+				r.extends[ext.Selector] = append(r.extends[ext.Selector], selector)
 			}
 		}
 	}
@@ -86,6 +118,19 @@ func (r *Renderer) renderRule(rule *ast.Rule, parentSelector string) {
 	}
 
 	selector := r.buildSelector(rule.Selector, parentSelector)
+	
+	// Apply extends: add any selectors that extend this one
+	extendingSelectors := []string{}
+	for _, selectorPart := range rule.Selector.Parts {
+		if extenders, found := r.extends[selectorPart]; found {
+			extendingSelectors = append(extendingSelectors, extenders...)
+		}
+	}
+	
+	if len(extendingSelectors) > 0 {
+		// Add extending selectors to this rule's selector
+		selector = selector + ",\n" + strings.Join(extendingSelectors, ",\n")
+	}
 
 	// Build list of all declarations, with mixin declarations inserted at mixin call positions
 	// Note: rule.Declarations and rule.Rules are separate lists, but the parser preserves
@@ -148,7 +193,7 @@ func (r *Renderer) renderRule(rule *ast.Rule, parentSelector string) {
 	}
 }
 
-// buildSelector builds the full selector from nesting
+// buildSelector builds the full selector from nesting, applying extends
 func (r *Renderer) buildSelector(selector ast.Selector, parentSelector string) string {
 	if len(selector.Parts) == 0 {
 		return parentSelector

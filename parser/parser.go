@@ -110,6 +110,43 @@ func (p *Parser) parseRule() (ast.Statement, error) {
 			continue
 		}
 
+		// Check for &:extend(...) syntax
+		if p.check(TokenAmpersand) {
+			savedPos := p.pos
+			p.advance() // consume &
+			if p.check(TokenColon) {
+				p.advance() // consume :
+				// The lexer tokenizes 'extend(...)' as FUNCTION token
+				if p.check(TokenFunction) && p.peek().Value == "extend" {
+					// This is an extend declaration
+					p.pos = savedPos
+					extend, err := p.parseExtend()
+					if err != nil {
+						return nil, err
+					}
+					rule.Extends = append(rule.Extends, extend...)
+					p.match(TokenSemicolon)
+					continue
+				} else if p.check(TokenIdent) && p.peek().Value == "extend" {
+					// In case of separate tokenization
+					p.advance() // consume extend
+					if p.check(TokenLParen) {
+						// This is an extend declaration
+						p.pos = savedPos
+						extend, err := p.parseExtend()
+						if err != nil {
+							return nil, err
+						}
+						rule.Extends = append(rule.Extends, extend...)
+						p.match(TokenSemicolon)
+						continue
+					}
+				}
+			}
+			// Not an extend, reset and handle as nested rule
+			p.pos = savedPos
+		}
+
 		// Try to detect mixin call (.classname() or #namespace.classname())
 		if (p.check(TokenDot) || p.check(TokenHash)) && p.isMixinCall() {
 			mixin, err := p.parseMixinCall()
@@ -973,6 +1010,82 @@ func (p *Parser) parseGuard(isWhen bool) (*ast.Guard, error) {
 	}
 
 	return guard, nil
+}
+
+// parseExtend parses &:extend(.selector) or &:extend(.selector1, .selector2) syntax
+// Returns a slice of Extend nodes, one for each selector in the extend list
+func (p *Parser) parseExtend() ([]ast.Extend, error) {
+	if !p.match(TokenAmpersand) {
+		return nil, fmt.Errorf("expected '&' at start of extend at %v", p.peek())
+	}
+
+	if !p.match(TokenColon) {
+		return nil, fmt.Errorf("expected ':' after '&' in extend at %v", p.peek())
+	}
+
+	// Handle FUNCTION token (lexer produces this for "extend(...)")
+	if p.check(TokenFunction) && p.peek().Value == "extend" {
+		// The FUNCTION token just contains "extend", the ( is a separate token
+		p.advance() // consume 'extend' token
+	} else if p.check(TokenIdent) && p.peek().Value == "extend" {
+		// Alternative: separate IDENT and LPAREN tokens
+		p.advance() // consume 'extend'
+	} else {
+		return nil, fmt.Errorf("expected 'extend' keyword at %v", p.peek())
+	}
+
+	// Now expect opening paren
+	if !p.match(TokenLParen) {
+		return nil, fmt.Errorf("expected '(' in extend at %v", p.peek())
+	}
+
+	extends := []ast.Extend{}
+
+	// Parse selectors (can be comma-separated)
+	for !p.check(TokenRParen) && !p.isAtEnd() {
+		selector := ""
+
+		// Parse selector tokens until comma or )
+		for !p.check(TokenComma) && !p.check(TokenRParen) && !p.isAtEnd() {
+			tok := p.peek()
+			selector += tok.Value
+			p.advance()
+			// Add space if needed
+			if !p.check(TokenComma) && !p.check(TokenRParen) && !p.isAtEnd() {
+				nextTok := p.peek()
+				if tok.Type != TokenGreater && nextTok.Type != TokenGreater &&
+					needsSpaceBetween(tok, nextTok) {
+					selector += " "
+				}
+			}
+		}
+
+		selector = strings.TrimSpace(selector)
+		
+		// Check for 'all' keyword
+		all := false
+		if strings.HasSuffix(selector, " all") {
+			selector = strings.TrimSpace(strings.TrimSuffix(selector, "all"))
+			all = true
+		}
+
+		if selector != "" {
+			extends = append(extends, ast.Extend{
+				Selector: selector,
+				All:      all,
+			})
+		}
+
+		if !p.match(TokenComma) {
+			break
+		}
+	}
+
+	if !p.match(TokenRParen) {
+		return nil, fmt.Errorf("expected ')' in extend at %v", p.peek())
+	}
+
+	return extends, nil
 }
 
 // Helper methods
