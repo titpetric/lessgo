@@ -1,4 +1,4 @@
-package functions
+package renderer
 
 import (
 	"fmt"
@@ -838,19 +838,23 @@ func Contrast(colorStr string, args ...string) string {
 	}
 
 	dark := &Color{0, 0, 0, 1}
+	darkOption := "black"
 	light := &Color{255, 255, 255, 1}
+	lightOption := "white"
 
 	// Parse optional arguments
 	if len(args) > 0 && args[0] != "" {
 		d, err := ParseColor(args[0])
 		if err == nil {
 			dark = d
+			darkOption = args[0]
 		}
 	}
 	if len(args) > 1 && args[1] != "" {
 		l, err := ParseColor(args[1])
 		if err == nil {
 			light = l
+			lightOption = args[1]
 		}
 	}
 
@@ -861,9 +865,9 @@ func Contrast(colorStr string, args ...string) string {
 
 	// Return the color with greater contrast
 	if math.Abs(darkLuma-colorLuma) > math.Abs(lightLuma-colorLuma) {
-		return dark.ToHex()
+		return darkOption
 	}
-	return light.ToHex()
+	return lightOption
 }
 
 // Multiply blends two colors using multiply mode

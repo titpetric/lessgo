@@ -3,15 +3,12 @@ package renderer
 import (
 	"bytes"
 	"fmt"
-	"math"
-	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/sourcegraph/lessgo/ast"
 	"github.com/sourcegraph/lessgo/evaluator"
-	"github.com/sourcegraph/lessgo/functions"
 	"github.com/sourcegraph/lessgo/parser"
 )
 
@@ -23,7 +20,6 @@ type Renderer struct {
 	mixins   map[string][]*ast.Rule // Store mixin definitions by name (can have multiple variants with guards)
 	extends  map[string][]string    // Map from extended selector to list of extending selectors
 	allRules []*ast.Rule            // Track all rules for extend processing
-	funcs    functions.FuncMap      // Custom function map
 }
 
 // NewRenderer creates a new renderer
@@ -33,16 +29,7 @@ func NewRenderer() *Renderer {
 		mixins:   make(map[string][]*ast.Rule),
 		extends:  make(map[string][]string),
 		allRules: []*ast.Rule{},
-		funcs:    functions.DefaultFuncMap(),
 	}
-}
-
-// Funcs sets the function map for the renderer
-func (r *Renderer) Funcs(funcMap functions.FuncMap) *Renderer {
-	if funcMap != nil {
-		r.funcs = funcMap
-	}
-	return r
 }
 
 // Render renders the stylesheet to CSS
@@ -350,156 +337,331 @@ func (r *Renderer) renderFunctionCall(fn *ast.FunctionCall) string {
 	// Handle % format function - needs special wrapping
 	if fn.Name == "%" {
 		if len(args) > 0 {
-			result := functions.Format(args[0], args[1:]...)
+			result := Format(args[0], args[1:]...)
 			return `"` + result + `"`
 		}
 		return ""
 	}
 
-	// Evaluate color manipulation and other direct functions
-	result := r.evaluateColorFunction(fn.Name, args)
+	// Evaluate all direct functions
+	result := r.evaluateFunction(fn.Name, args)
 	if result != "" {
 		return result
 	}
 
-	// Try to find function in FuncMap and call it
-	if f, ok := r.funcs[fn.Name]; ok {
-		result := callFunction(f, args)
-		if result != "" {
-			return result
-		}
-	}
-
+	// No matching function found, output literally
 	return fn.Name + "(" + strings.Join(args, ", ") + ")"
 }
 
-// evaluateColorFunction handles color manipulation and other evaluation functions
-func (r *Renderer) evaluateColorFunction(name string, args []string) string {
+// evaluateFunction evaluates all built-in LESS functions
+func (r *Renderer) evaluateFunction(name string, args []string) string {
 	switch name {
-	// Color manipulation - preserve format
-	case "greyscale":
+	// Math functions
+	case "ceil":
 		if len(args) > 0 {
-			return functions.Greyscale(args[0])
+			return Ceil(args[0])
 		}
+	case "floor":
+		if len(args) > 0 {
+			return Floor(args[0])
+		}
+	case "round":
+		if len(args) > 0 {
+			return Round(args[0])
+		}
+	case "abs":
+		if len(args) > 0 {
+			return Abs(args[0])
+		}
+	case "sqrt":
+		if len(args) > 0 {
+			return Sqrt(args[0])
+		}
+	case "pow":
+		if len(args) >= 2 {
+			return Pow(args[0], args[1])
+		}
+	case "min":
+		return Min(args...)
+	case "max":
+		return Max(args...)
+	case "mod":
+		if len(args) >= 2 {
+			return Mod(args[0], args[1])
+		}
+	case "sin":
+		if len(args) > 0 {
+			return Sin(args[0])
+		}
+	case "cos":
+		if len(args) > 0 {
+			return Cos(args[0])
+		}
+	case "tan":
+		if len(args) > 0 {
+			return Tan(args[0])
+		}
+	case "asin":
+		if len(args) > 0 {
+			return Asin(args[0])
+		}
+	case "acos":
+		if len(args) > 0 {
+			return Acos(args[0])
+		}
+	case "atan":
+		if len(args) > 0 {
+			return Atan(args[0])
+		}
+	case "pi":
+		return Pi()
+	case "percentage":
+		if len(args) > 0 {
+			return Percentage(args[0])
+		}
+
+	// String functions
+	case "replace":
+		if len(args) >= 3 {
+			if len(args) > 3 {
+				return Replace(args[0], args[1], args[2], args[3])
+			}
+			return Replace(args[0], args[1], args[2])
+		}
+	case "escape":
+		if len(args) > 0 {
+			return Escape(args[0])
+		}
+	case "e":
+		if len(args) > 0 {
+			return E(args[0])
+		}
+	case "format":
+		if len(args) > 0 {
+			return Format(args[0], args[1:]...)
+		}
+
+	// List functions
+	case "length":
+		if len(args) > 0 {
+			return Length(args[0])
+		}
+	case "extract":
+		if len(args) >= 2 {
+			return Extract(args[0], args[1])
+		}
+	case "range":
+		if len(args) >= 1 {
+			if len(args) >= 3 {
+				return Range(args[0], args[1], args[2])
+			} else if len(args) >= 2 {
+				return Range(args[0], args[1])
+			}
+			return Range(args[0], "")
+		}
+
+	// Color definition functions
+	case "rgb":
+		if len(args) >= 3 {
+			return RGB(args[0], args[1], args[2])
+		}
+	case "rgba":
+		if len(args) >= 4 {
+			return RGBA(args[0], args[1], args[2], args[3])
+		}
+	case "hsl":
+		if len(args) >= 3 {
+			return HSL(args[0], args[1], args[2])
+		}
+	case "hsla":
+		if len(args) >= 4 {
+			return HSLA(args[0], args[1], args[2], args[3])
+		}
+
+	// Color channel extraction functions
+	case "hue":
+		if len(args) > 0 {
+			return Hue(args[0])
+		}
+	case "saturation":
+		if len(args) > 0 {
+			return Saturation(args[0])
+		}
+	case "lightness":
+		if len(args) > 0 {
+			return Lightness(args[0])
+		}
+	case "red":
+		if len(args) > 0 {
+			return Red(args[0])
+		}
+	case "green":
+		if len(args) > 0 {
+			return Green(args[0])
+		}
+	case "blue":
+		if len(args) > 0 {
+			return Blue(args[0])
+		}
+	case "alpha":
+		if len(args) > 0 {
+			return Alpha(args[0])
+		}
+	case "luma":
+		if len(args) > 0 {
+			return LumaFunction(args[0])
+		}
+	case "luminance":
+		if len(args) > 0 {
+			return Luminance(args[0])
+		}
+
+	// Color manipulation functions
 	case "lighten":
 		if len(args) >= 2 {
-			return functions.Lighten(args[0], args[1])
+			return Lighten(args[0], args[1])
 		}
 	case "darken":
 		if len(args) >= 2 {
-			return functions.Darken(args[0], args[1])
+			return Darken(args[0], args[1])
 		}
 	case "saturate":
 		if len(args) >= 2 {
-			return functions.Saturate(args[0], args[1])
+			return Saturate(args[0], args[1])
 		}
 	case "desaturate":
 		if len(args) >= 2 {
-			return functions.Desaturate(args[0], args[1])
+			return Desaturate(args[0], args[1])
 		}
 	case "spin":
 		if len(args) >= 2 {
-			return functions.Spin(args[0], args[1])
+			return Spin(args[0], args[1])
 		}
 	case "mix":
 		if len(args) >= 2 {
 			if len(args) >= 3 {
-				return functions.Mix(args[0], args[1], args[2])
+				return Mix(args[0], args[1], args[2])
 			}
-			return functions.Mix(args[0], args[1])
+			return Mix(args[0], args[1])
 		}
 	case "tint":
 		if len(args) >= 2 {
-			return functions.Tint(args[0], args[1])
+			return Tint(args[0], args[1])
 		}
 	case "shade":
 		if len(args) >= 2 {
-			return functions.Shade(args[0], args[1])
+			return Shade(args[0], args[1])
 		}
-	case "contrast":
-		if len(args) >= 1 {
-			color, err := functions.ParseColor(args[0])
-			if err != nil {
-				return ""
-			}
-			colorLuma := color.Luma()
-
-			dark := &functions.Color{0, 0, 0, 1}
-			darkOption := "black"
-			if len(args) > 1 && args[1] != "" {
-				d, err := functions.ParseColor(args[1])
-				if err == nil {
-					dark = d
-					darkOption = args[1]
-				}
-			}
-
-			light := &functions.Color{255, 255, 255, 1}
-			lightOption := "white"
-			if len(args) > 2 && args[2] != "" {
-				l, err := functions.ParseColor(args[2])
-				if err == nil {
-					light = l
-					lightOption = args[2]
-				}
-			}
-
-			darkLuma := dark.Luma()
-			lightLuma := light.Luma()
-
-			// Return the option with greater contrast
-			if math.Abs(darkLuma-colorLuma) > math.Abs(lightLuma-colorLuma) {
-				return darkOption
-			}
-			return lightOption
-		}
-	case "hsv":
-		if len(args) >= 3 {
-			return functions.HSV(args[0], args[1], args[2])
-		}
-	case "hsva":
-		if len(args) >= 4 {
-			return functions.HSVA(args[0], args[1], args[2], args[3])
-		}
-	case "argb":
-		if len(args) >= 1 {
-			return functions.ARGB(args[0])
-		}
-	case "hsvhue":
-		if len(args) >= 1 {
-			return functions.HSVHue(args[0])
-		}
-	case "hsvsaturation":
-		if len(args) >= 1 {
-			return functions.HSVSaturation(args[0])
-		}
-	case "hsvvalue":
-		if len(args) >= 1 {
-			return functions.HSVValue(args[0])
-		}
-	case "fadein":
-		if len(args) >= 2 {
-			return functions.Fadein(args[0], args[1])
-		}
-	case "fadeout":
-		if len(args) >= 2 {
-			return functions.Fadeout(args[0], args[1])
+	case "greyscale":
+		if len(args) > 0 {
+			return Greyscale(args[0])
 		}
 	case "fade":
 		if len(args) >= 2 {
-			return functions.Fade(args[0], args[1])
+			return Fade(args[0], args[1])
+		}
+	case "fadein":
+		if len(args) >= 2 {
+			return Fadein(args[0], args[1])
+		}
+	case "fadeout":
+		if len(args) >= 2 {
+			return Fadeout(args[0], args[1])
+		}
+	case "contrast":
+		if len(args) >= 1 {
+			return Contrast(args[0], args[1:]...)
+		}
+
+	// HSV color functions
+	case "hsv":
+		if len(args) >= 3 {
+			return HSV(args[0], args[1], args[2])
+		}
+	case "hsva":
+		if len(args) >= 4 {
+			return HSVA(args[0], args[1], args[2], args[3])
+		}
+	case "hsvhue":
+		if len(args) >= 1 {
+			return HSVHue(args[0])
+		}
+	case "hsvsaturation":
+		if len(args) >= 1 {
+			return HSVSaturation(args[0])
+		}
+	case "hsvvalue":
+		if len(args) >= 1 {
+			return HSVValue(args[0])
+		}
+	case "argb":
+		if len(args) >= 1 {
+			return ARGB(args[0])
+		}
+
+	// Color blending functions
+	case "multiply":
+		if len(args) >= 2 {
+			return Multiply(args[0], args[1])
+		}
+	case "screen":
+		if len(args) >= 2 {
+			return Screen(args[0], args[1])
 		}
 	case "overlay":
 		if len(args) >= 2 {
-			return functions.Overlay(args[0], args[1])
+			return Overlay(args[0], args[1])
 		}
 	case "softlight":
 		if len(args) >= 2 {
-			return functions.Softlight(args[0], args[1])
+			return Softlight(args[0], args[1])
 		}
 	case "hardlight":
 		if len(args) >= 2 {
-			return functions.Hardlight(args[0], args[1])
+			return Hardlight(args[0], args[1])
+		}
+	case "difference":
+		if len(args) >= 2 {
+			return Difference(args[0], args[1])
+		}
+	case "exclusion":
+		if len(args) >= 2 {
+			return Exclusion(args[0], args[1])
+		}
+	case "average":
+		if len(args) >= 2 {
+			return Average(args[0], args[1])
+		}
+	case "negation":
+		if len(args) >= 2 {
+			return Negation(args[0], args[1])
+		}
+
+	// Logical functions
+	case "if":
+		if len(args) >= 3 {
+			return If(args[0], args[1], args[2])
+		}
+
+	// Utility functions
+	case "color":
+		if len(args) > 0 {
+			return ColorFunction(args[0])
+		}
+	case "unit":
+		if len(args) > 0 {
+			if len(args) > 1 {
+				return Unit(args[0], args[1])
+			}
+			return Unit(args[0], "")
+		}
+	case "get-unit":
+		if len(args) > 0 {
+			return GetUnit(args[0])
+		}
+	case "convert":
+		if len(args) >= 2 {
+			return Convert(args[0], args[1])
 		}
 	}
 	return ""
@@ -608,32 +770,32 @@ func (r *Renderer) evaluateTypeCheckingFunction(fn *ast.FunctionCall) string {
 		if len(args) != 1 {
 			return ""
 		}
-		return functions.IsURLFunction(args[0])
+		return IsURLFunction(args[0])
 	case "ispixel":
 		if len(args) != 1 {
 			return ""
 		}
-		return functions.IsPixelFunction(args[0])
+		return IsPixelFunction(args[0])
 	case "isem":
 		if len(args) != 1 {
 			return ""
 		}
-		return functions.IsEmFunction(args[0])
+		return IsEmFunction(args[0])
 	case "ispercentage":
 		if len(args) != 1 {
 			return ""
 		}
-		return functions.IsPercentageFunction(args[0])
+		return IsPercentageFunction(args[0])
 	case "isunit":
 		if len(args) != 2 {
 			return ""
 		}
-		return functions.IsUnitFunction(args[0], args[1])
+		return IsUnitFunction(args[0], args[1])
 	case "isruleset":
 		if len(args) != 1 {
 			return ""
 		}
-		return functions.IsRulesetFunction(args[0])
+		return IsRulesetFunction(args[0])
 	case "islist":
 		if len(astArgs) != 1 {
 			return ""
@@ -653,7 +815,7 @@ func (r *Renderer) evaluateTypeCheckingFunction(fn *ast.FunctionCall) string {
 			return exprResult
 		}
 		// Fall back to simple boolean evaluation
-		return functions.Boolean(args[0])
+		return Boolean(args[0])
 	case "length":
 		if len(args) != 1 {
 			return ""
@@ -704,7 +866,7 @@ func (r *Renderer) isColorAST(v ast.Value) bool {
 		}
 		// Check if it's a named color keyword
 		if val.Type == ast.KeywordLiteral {
-			return functions.IsColor(val.Value)
+			return IsColor(val.Value)
 		}
 		return false
 	default:
@@ -809,11 +971,10 @@ func (r *Renderer) evaluateExpressionValue(val ast.Value) string {
 		switch fn.Name {
 		case "luma":
 			if len(args) == 1 {
-				if f, ok := r.funcs[fn.Name]; ok {
-					if result := callFunction(f, args); result != "" {
-						// Extract just the number from "0.00%" format
-						return strings.TrimSuffix(result, "%")
-					}
+				result := LumaFunction(args[0])
+				if result != "" {
+					// Extract just the number from "0.00%" format
+					return strings.TrimSuffix(result, "%")
 				}
 			}
 		case "lighten", "darken", "saturate", "desaturate":
@@ -1273,61 +1434,4 @@ func (r *Renderer) renderMixinCall(call *ast.MixinCall) {
 	// Note: We don't output anything for mixin calls directly.
 	// The declarations from the mixin are applied by the parent rule rendering.
 	// This is handled in renderRule where we process nested rules/mixins.
-}
-
-// callFunction calls a function from the FuncMap using reflection
-func callFunction(f interface{}, args []string) string {
-	if f == nil {
-		return ""
-	}
-
-	v := reflect.ValueOf(f)
-	if v.Kind() != reflect.Func {
-		return ""
-	}
-
-	// Build argument values
-	var callArgs []reflect.Value
-	numArgs := v.Type().NumIn()
-	isVariadic := v.Type().IsVariadic()
-
-	if isVariadic {
-		// Variadic function - need at least (numArgs - 1) required params
-		// (numArgs includes the variadic slice as one parameter)
-		requiredArgs := numArgs - 1
-		for i := 0; i < len(args); i++ {
-			if i < len(args) {
-				callArgs = append(callArgs, reflect.ValueOf(args[i]))
-			}
-		}
-		// Pad with empty strings if needed
-		for len(callArgs) < requiredArgs {
-			callArgs = append(callArgs, reflect.ValueOf(""))
-		}
-	} else {
-		// Non-variadic - only pass what the function expects
-		for i := 0; i < numArgs && i < len(args); i++ {
-			callArgs = append(callArgs, reflect.ValueOf(args[i]))
-		}
-	}
-
-	// Call the function
-	results := v.Call(callArgs)
-	if len(results) == 0 {
-		return ""
-	}
-
-	// Convert result to string
-	result := results[0]
-	switch result.Kind() {
-	case reflect.String:
-		return result.String()
-	case reflect.Bool:
-		if result.Bool() {
-			return "true"
-		}
-		return "false"
-	default:
-		return result.String()
-	}
 }
