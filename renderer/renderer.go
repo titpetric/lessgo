@@ -643,6 +643,16 @@ func (r *Renderer) evaluateColorFunction(name string, args []string) string {
 			return ""
 		}
 		return r.evalGreyscale(args[0])
+	case "luma":
+		if len(args) != 1 {
+			return ""
+		}
+		return r.evalLuma(args[0])
+	case "if":
+		if len(args) < 2 {
+			return ""
+		}
+		return r.evalIf(args)
 	case "ceil":
 		if len(args) != 1 {
 			return ""
@@ -777,28 +787,34 @@ func (r *Renderer) evaluateColorFunction(name string, args []string) string {
 	return ""
 }
 
-// evaluateBooleanExpression evaluates a boolean expression like @v > 0
+// evaluateBooleanExpression evaluates a boolean expression like @v > 0 or luma(@v) > 50%
 // Returns "true" or "false" if the expression can be evaluated, empty string otherwise
 func (r *Renderer) evaluateBooleanExpression(value ast.Value) string {
 	// Check if this is an expression (binary operation, comparison, etc)
-	// For now, we'll check if it's a BinaryOp (comparison)
 	binOp, ok := value.(*ast.BinaryOp)
 	if !ok {
 		// Not an expression, return empty to fall back to simple evaluation
 		return ""
 	}
 
-	// Get all variable values as strings for the evaluator
+	// Build the expression string, evaluating function calls
+	// Do this BEFORE building varMap to avoid infinite recursion
+	leftStr := r.evaluateExpressionValue(binOp.Left)
+	rightStr := r.evaluateExpressionValue(binOp.Right)
+
+	exprStr := leftStr + " " + binOp.Operator + " " + rightStr
+
+	// Get variable values as strings, but only render simple values
+	// to avoid infinite recursion with circular variable references
 	varMap := make(map[string]string)
 	envMap := r.vars.EnvMap()
 	for varName, varValue := range envMap {
-		varMap[varName] = r.renderValue(varValue)
+		// Only include simple values, skip function calls and complex expressions
+		switch varValue.(type) {
+		case *ast.Literal:
+			varMap[varName] = r.renderValue(varValue)
+		}
 	}
-
-	// Build the expression string
-	exprStr := r.renderValue(binOp.Left)
-	exprStr += " " + binOp.Operator + " "
-	exprStr += r.renderValue(binOp.Right)
 
 	// Use the evaluator to evaluate the expression
 	eval := evaluator.NewEvaluator(varMap)
@@ -812,6 +828,33 @@ func (r *Renderer) evaluateBooleanExpression(value ast.Value) string {
 		return "true"
 	}
 	return "false"
+}
+
+// evaluateExpressionValue evaluates a value that may contain function calls for use in expressions
+func (r *Renderer) evaluateExpressionValue(val ast.Value) string {
+	// Check if it's a function call that should be evaluated
+	if fn, ok := val.(*ast.FunctionCall); ok {
+		// Try to evaluate the function
+		args := []string{}
+		for _, arg := range fn.Arguments {
+			args = append(args, r.renderValue(arg))
+		}
+
+		// Evaluate color functions that return values usable in comparisons
+		switch fn.Name {
+		case "luma":
+			if len(args) == 1 {
+				if result := r.evalLuma(args[0]); result != "" {
+					// Extract just the number from "0.00%" format
+					return strings.TrimSuffix(result, "%")
+				}
+			}
+		case "lighten", "darken", "saturate", "desaturate":
+			// These return colors, not directly comparable numerically
+			return r.renderValue(val)
+		}
+	}
+	return r.renderValue(val)
 }
 
 func (r *Renderer) evalRGB(args []string) string {
@@ -904,6 +947,42 @@ func (r *Renderer) evalGreyscale(colorStr string) string {
 
 	result := c.Greyscale()
 	return result.ToHex()
+}
+
+func (r *Renderer) evalLuma(colorStr string) string {
+	c, err := functions.ParseColor(colorStr)
+	if err != nil {
+		return ""
+	}
+
+	luma := c.Luma()
+	// Return as percentage string
+	return fmt.Sprintf("%.2f%%", luma)
+}
+
+func (r *Renderer) evalIf(args []string) string {
+	if len(args) < 2 {
+		return ""
+	}
+
+	// First argument should be a boolean or condition
+	condition := args[0]
+
+	// Normalize boolean values
+	condition = strings.TrimSpace(condition)
+	isTruthy := condition == "true" || (condition != "" && condition != "false")
+
+	// If true, return second argument; otherwise third (or empty)
+	if isTruthy {
+		if len(args) > 1 {
+			return args[1]
+		}
+	} else {
+		if len(args) > 2 {
+			return args[2]
+		}
+	}
+	return ""
 }
 
 // renderBinaryOp evaluates and renders a binary operation
