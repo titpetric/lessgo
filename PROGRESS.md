@@ -152,12 +152,15 @@
 - [x] Updated Taskfile.yml to include testdata tests in main test task
 - [x] Fixed extend test fixture (015) to have actual extend syntax
 - [x] All tests now complete in <1s with proper timeout handling
+- [x] Fixed string literal rendering to preserve quotes
+- [x] Added edge case test fixture (018) with attribute selectors, pseudo-classes, nested operators
+- [x] **All 21 fixture tests passing**
 
 ### Known Issues to Address
-- [ ] Comment preservation in formatter (comments dropped during parsing)
-- [ ] Escaped strings in double quotes need lexer fix (`\"` handling)
-- [ ] Some edge cases with complex selectors in functions
-- [ ] Performance: Comments are stripped from AST (cannot preserve in formatter)
+- [ ] Comment preservation in formatter (comments dropped during parsing - design issue)
+- [ ] Escaped strings in double quotes need lexer fix (`\"` handling in strings)
+- [ ] Attribute selector rendering adds spaces around `=` (renderer issue)
+- [ ] Selector spacing with combinators (>, +) inconsistent (renderer issue)
 
 ## Features Added Previous Session
 
@@ -271,26 +274,23 @@
 
 ## Next Session Action Plan
 
-### ✅ Priority 1: Fix Formatter Issues (COMPLETE)
-- [x] Formatter doesn't properly handle nested rules with indentation
-- [x] Formatter evaluates variables instead of preserving them
-- [x] Need separate value rendering for formatting vs output
+### Priority 1: Fix Renderer Issues (for CSS3 compatibility)
+- [ ] Attribute selector spacing: `[data-test = value ]` should be `[data-test="value"]`
+- [ ] Selector combinator spacing: `.parent > .child` should preserve spaces around > and +
+- [ ] String escaping: properly handle escaped quotes in strings
+- [ ] Comment preservation: requires AST changes to track comments
 
-### ✅ Priority 2: Implement Parametric Mixins (COMPLETE)
-- [x] Parser support for parameters: `.mixin(@param1; @param2) { }`
-- [x] Renderer parameter binding when applying mixins
-- [x] Test fixtures for parametric mixins
+### Priority 2: Parser Edge Cases
+- [ ] Support calc() function special handling (don't evaluate arithmetic inside calc)
+- [ ] Improve selector parsing to handle all CSS combinators correctly
+- [ ] Better error messages with line/column information
+- [ ] Handle escaped characters in selectors and strings
 
-### Priority 3: Additional Parser Improvements
-- [ ] Consider NEWLINE tokenization for better declaration boundary detection
-- [ ] Improve error messages with line/column info
-- [ ] Add support for mixin guards (@when, @unless)
-
-### Priority 4: More Built-in Functions
-- [ ] Type checking functions (isnumber, isstring, iscolor, islist)
-- [ ] String functions (escape, e, @{interpolation})
-- [ ] Unit functions (unit, percentage)
-- [ ] Advanced color functions (hsla, hsl, etc.)
+### Priority 3: Advanced Features (Lower Priority)
+- [ ] List functions: each() for iteration
+- [ ] Detached rulesets as values
+- [ ] Maps/objects
+- [ ] @plugin system
 
 ## Current Code Quality Notes
 
