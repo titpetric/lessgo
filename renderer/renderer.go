@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/sourcegraph/lessgo/ast"
+	"github.com/sourcegraph/lessgo/functions"
 )
 
 // Renderer converts an AST to CSS
@@ -129,7 +130,115 @@ func (r *Renderer) renderFunctionCall(fn *ast.FunctionCall) string {
 	for _, arg := range fn.Arguments {
 		args = append(args, r.renderValue(arg))
 	}
+
+	// Try to evaluate color functions
+	if result := r.evaluateColorFunction(fn.Name, args); result != "" {
+		return result
+	}
+
 	return fn.Name + "(" + strings.Join(args, ", ") + ")"
+}
+
+// evaluateColorFunction evaluates color functions
+func (r *Renderer) evaluateColorFunction(name string, args []string) string {
+	switch name {
+	case "lighten":
+		if len(args) != 2 {
+			return ""
+		}
+		return r.evalLighten(args[0], args[1])
+	case "darken":
+		if len(args) != 2 {
+			return ""
+		}
+		return r.evalDarken(args[0], args[1])
+	case "saturate":
+		if len(args) != 2 {
+			return ""
+		}
+		return r.evalSaturate(args[0], args[1])
+	case "desaturate":
+		if len(args) != 2 {
+			return ""
+		}
+		return r.evalDesaturate(args[0], args[1])
+	case "spin":
+		if len(args) != 2 {
+			return ""
+		}
+		return r.evalSpin(args[0], args[1])
+	case "greyscale":
+		if len(args) != 1 {
+			return ""
+		}
+		return r.evalGreyscale(args[0])
+	}
+	return ""
+}
+
+func (r *Renderer) evalLighten(colorStr, amountStr string) string {
+	c, err := functions.ParseColor(colorStr)
+	if err != nil {
+		return ""
+	}
+
+	amount := parsePercentage(amountStr)
+	result := c.Lighten(amount)
+	return result.ToHex()
+}
+
+func (r *Renderer) evalDarken(colorStr, amountStr string) string {
+	c, err := functions.ParseColor(colorStr)
+	if err != nil {
+		return ""
+	}
+
+	amount := parsePercentage(amountStr)
+	result := c.Darken(amount)
+	return result.ToHex()
+}
+
+func (r *Renderer) evalSaturate(colorStr, amountStr string) string {
+	c, err := functions.ParseColor(colorStr)
+	if err != nil {
+		return ""
+	}
+
+	amount := parsePercentage(amountStr)
+	result := c.Saturate(amount)
+	return result.ToHex()
+}
+
+func (r *Renderer) evalDesaturate(colorStr, amountStr string) string {
+	c, err := functions.ParseColor(colorStr)
+	if err != nil {
+		return ""
+	}
+
+	amount := parsePercentage(amountStr)
+	result := c.Desaturate(amount)
+	return result.ToHex()
+}
+
+func (r *Renderer) evalSpin(colorStr, degreesStr string) string {
+	c, err := functions.ParseColor(colorStr)
+	if err != nil {
+		return ""
+	}
+
+	degrees, _ := strconv.ParseFloat(strings.TrimSuffix(degreesStr, "deg"), 64)
+	result := c.Spin(degrees)
+	return result.ToHex()
+}
+
+func (r *Renderer) evalGreyscale(colorStr string) string {
+	c, err := functions.ParseColor(colorStr)
+	if err != nil {
+		return ""
+	}
+
+	result := c.Greyscale()
+	return result.ToHex()
 }
 
 // renderBinaryOp evaluates and renders a binary operation
@@ -254,4 +363,19 @@ func parseNumberWithUnit(s string) (*float64, string) {
 	}
 
 	return &num, unit
+}
+
+// parsePercentage parses a percentage value and returns it as a decimal (0-1)
+func parsePercentage(s string) float64 {
+	s = strings.TrimSpace(s)
+	num, unit := parseNumberWithUnit(s)
+	if num == nil {
+		return 0
+	}
+
+	if unit == "%" {
+		return *num / 100
+	}
+
+	return *num / 100 // assume percentage if no unit
 }
