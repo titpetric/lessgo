@@ -108,6 +108,46 @@ func compileLESS(lessSource string) (string, error) {
 	return css, nil
 }
 
+// CompareCSS compares two CSS strings, ignoring blank lines and extra whitespace
+func CompareCSS(expected, actual string) error {
+	// Remove leading/trailing whitespace
+	expected = strings.TrimSpace(expected)
+	actual = strings.TrimSpace(actual)
+
+	// Split into lines
+	expectedLines := strings.Split(expected, "\n")
+	actualLines := strings.Split(actual, "\n")
+
+	// Filter out blank lines and trim each line
+	expectedLines = filterBlankLines(expectedLines)
+	actualLines = filterBlankLines(actualLines)
+
+	// Compare
+	if len(expectedLines) != len(actualLines) {
+		return fmt.Errorf("line count mismatch: expected %d, got %d", len(expectedLines), len(actualLines))
+	}
+
+	for i := range expectedLines {
+		if expectedLines[i] != actualLines[i] {
+			return fmt.Errorf("line %d mismatch:\nexpected: %s\ngot:      %s", i+1, expectedLines[i], actualLines[i])
+		}
+	}
+
+	return nil
+}
+
+// filterBlankLines removes blank lines and trims whitespace from each line
+func filterBlankLines(lines []string) []string {
+	var result []string
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
+}
+
 // normalizeCSS normalizes CSS for comparison by removing extra whitespace
 func normalizeCSS(css string) string {
 	// Remove leading/trailing whitespace

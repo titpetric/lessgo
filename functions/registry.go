@@ -1,5 +1,10 @@
 package functions
 
+import (
+	"fmt"
+	"strings"
+)
+
 // FuncMap is a map of function name to callable function.
 // It works similarly to html/template.FuncMap for registering custom functions.
 type FuncMap map[string]interface{}
@@ -114,8 +119,13 @@ func DefaultFuncMap() FuncMap {
 		"if": func(cond, trueVal, falseVal string) string { return If(cond, trueVal, falseVal) },
 
 		// Utility functions
-		"color":    func(c string) string { return ColorFunction(c) },
-		"unit":     func(v, u string) string { return Unit(v, u) },
+		"color": func(c string) string { return ColorFunction(c) },
+		"unit": func(v string, args ...string) string {
+			if len(args) > 0 {
+				return Unit(v, args[0])
+			}
+			return Unit(v, "")
+		},
 		"get-unit": func(v string) string { return GetUnit(v) },
 		"convert":  func(v, u string) string { return Convert(v, u) },
 	}
@@ -195,6 +205,22 @@ func greyscale(colorStr string) string {
 		return colorStr
 	}
 	result := color.Greyscale()
+
+	// Preserve color format
+	if strings.HasPrefix(colorStr, "hsl") {
+		h, s, l := result.ToHSL()
+		if strings.HasPrefix(colorStr, "hsla") {
+			return fmt.Sprintf("hsla(%g, %g%%, %g%%, %g)", h, s*100, l*100, result.A)
+		}
+		return fmt.Sprintf("hsl(%g, %g%%, %g%%)", h, s*100, l*100)
+	}
+	if strings.HasPrefix(colorStr, "rgb") {
+		if strings.HasPrefix(colorStr, "rgba") {
+			return fmt.Sprintf("rgba(%d, %d, %d, %g)", uint8(result.R), uint8(result.G), uint8(result.B), result.A)
+		}
+		return fmt.Sprintf("rgb(%d, %d, %d)", uint8(result.R), uint8(result.G), uint8(result.B))
+	}
+
 	return result.ToHex()
 }
 

@@ -12,6 +12,12 @@ func Replace(str, pattern, replacement string, flags ...string) string {
 	pattern = strings.TrimSpace(pattern)
 	replacement = strings.TrimSpace(replacement)
 
+	// Track the original quote character
+	quoteChar := "\""
+	if len(str) >= 2 && str[0] == '\'' && str[len(str)-1] == '\'' {
+		quoteChar = "'"
+	}
+
 	// Remove quotes from string if present
 	if len(str) >= 2 && ((str[0] == '"' && str[len(str)-1] == '"') ||
 		(str[0] == '\'' && str[len(str)-1] == '\'')) {
@@ -30,8 +36,9 @@ func Replace(str, pattern, replacement string, flags ...string) string {
 		replacement = replacement[1 : len(replacement)-1]
 	}
 
-	// Check for global flag (default is to replace all)
-	global := true
+	// Check for global and case-insensitive flags
+	global := true // default: replace all occurrences
+	caseInsensitive := false
 	if len(flags) > 0 {
 		f := strings.TrimSpace(flags[0])
 		// Remove quotes from flag
@@ -39,25 +46,39 @@ func Replace(str, pattern, replacement string, flags ...string) string {
 			(f[0] == '\'' && f[len(f)-1] == '\'')) {
 			f = f[1 : len(f)-1]
 		}
-		global = !strings.Contains(f, "g")
+		// Check flags: 'g' = global (on by default), 'i' = case-insensitive
+		if strings.Contains(f, "i") {
+			caseInsensitive = true
+		}
+		// 'g' flag means global, no 'g' means just first match
+		if !strings.Contains(f, "g") {
+			global = false
+		}
 	}
 
+	var result string
 	// Use regex replace if pattern looks like regex (contains regex metacharacters)
 	// Otherwise do simple string replacement
-	if hasRegexMetacharacters(pattern) {
-		regex, err := regexp.Compile(pattern)
+	if hasRegexMetacharacters(pattern) || caseInsensitive {
+		patternStr := pattern
+		if caseInsensitive {
+			patternStr = "(?i)" + patternStr
+		}
+		regex, err := regexp.Compile(patternStr)
 		if err != nil {
 			// If regex is invalid, fall back to string replacement
-			return stringReplace(str, pattern, replacement, global)
-		}
-		if global {
-			return regex.ReplaceAllString(str, replacement)
+			result = stringReplace(str, pattern, replacement, global)
+		} else if global {
+			result = regex.ReplaceAllString(str, replacement)
 		} else {
-			return regexReplaceFirst(regex, str, replacement)
+			result = regexReplaceFirst(regex, str, replacement)
 		}
 	} else {
-		return stringReplace(str, pattern, replacement, global)
+		result = stringReplace(str, pattern, replacement, global)
 	}
+
+	// Return with quotes preserved
+	return quoteChar + result + quoteChar
 }
 
 // hasRegexMetacharacters checks if a string contains regex metacharacters

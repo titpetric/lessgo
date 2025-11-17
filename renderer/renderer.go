@@ -3,6 +3,8 @@ package renderer
 import (
 	"bytes"
 	"fmt"
+	"math"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -299,7 +301,11 @@ func (r *Renderer) renderValue(value ast.Value) string {
 	case *ast.Literal:
 		// StringLiteral should be quoted
 		if v.Type == ast.StringLiteral {
-			return `"` + v.Value + `"`
+			quote := v.QuoteChar
+			if quote == "" {
+				quote = `"`
+			}
+			return quote + v.Value + quote
 		}
 		return v.Value
 	case *ast.Variable:
@@ -341,7 +347,7 @@ func (r *Renderer) renderFunctionCall(fn *ast.FunctionCall) string {
 		args = append(args, r.renderValue(arg))
 	}
 
-	// Handle % format function
+	// Handle % format function - needs special wrapping
 	if fn.Name == "%" {
 		if len(args) > 0 {
 			result := functions.Format(args[0], args[1:]...)
@@ -350,12 +356,105 @@ func (r *Renderer) renderFunctionCall(fn *ast.FunctionCall) string {
 		return ""
 	}
 
-	// Try to evaluate color functions
-	if result := r.evaluateColorFunction(fn.Name, args); result != "" {
+	// Evaluate color manipulation and other direct functions
+	result := r.evaluateColorFunction(fn.Name, args)
+	if result != "" {
 		return result
 	}
 
+	// Try to find function in FuncMap and call it
+	if f, ok := r.funcs[fn.Name]; ok {
+		result := callFunction(f, args)
+		if result != "" {
+			return result
+		}
+	}
+
 	return fn.Name + "(" + strings.Join(args, ", ") + ")"
+}
+
+// evaluateColorFunction handles color manipulation and other evaluation functions
+func (r *Renderer) evaluateColorFunction(name string, args []string) string {
+	switch name {
+	// Color manipulation - preserve format
+	case "greyscale":
+		if len(args) > 0 {
+			return functions.Greyscale(args[0])
+		}
+	case "lighten":
+		if len(args) >= 2 {
+			return functions.Lighten(args[0], args[1])
+		}
+	case "darken":
+		if len(args) >= 2 {
+			return functions.Darken(args[0], args[1])
+		}
+	case "saturate":
+		if len(args) >= 2 {
+			return functions.Saturate(args[0], args[1])
+		}
+	case "desaturate":
+		if len(args) >= 2 {
+			return functions.Desaturate(args[0], args[1])
+		}
+	case "spin":
+		if len(args) >= 2 {
+			return functions.Spin(args[0], args[1])
+		}
+	case "mix":
+		if len(args) >= 2 {
+			if len(args) >= 3 {
+				return functions.Mix(args[0], args[1], args[2])
+			}
+			return functions.Mix(args[0], args[1])
+		}
+	case "tint":
+		if len(args) >= 2 {
+			return functions.Tint(args[0], args[1])
+		}
+	case "shade":
+		if len(args) >= 2 {
+			return functions.Shade(args[0], args[1])
+		}
+	case "contrast":
+		if len(args) >= 1 {
+			color, err := functions.ParseColor(args[0])
+			if err != nil {
+				return ""
+			}
+			colorLuma := color.Luma()
+
+			dark := &functions.Color{0, 0, 0, 1}
+			darkOption := "black"
+			if len(args) > 1 && args[1] != "" {
+				d, err := functions.ParseColor(args[1])
+				if err == nil {
+					dark = d
+					darkOption = args[1]
+				}
+			}
+
+			light := &functions.Color{255, 255, 255, 1}
+			lightOption := "white"
+			if len(args) > 2 && args[2] != "" {
+				l, err := functions.ParseColor(args[2])
+				if err == nil {
+					light = l
+					lightOption = args[2]
+				}
+			}
+
+			darkLuma := dark.Luma()
+			lightLuma := light.Luma()
+
+			// Return the option with greater contrast
+			if math.Abs(darkLuma-colorLuma) > math.Abs(lightLuma-colorLuma) {
+				return darkOption
+			}
+			return lightOption
+		}
+	}
+	return ""
 }
 
 // resolveVariableValue resolves a variable to its value, if it's a variable
@@ -369,11 +468,11 @@ func (r *Renderer) resolveVariableValue(v ast.Value) ast.Value {
 }
 
 // isTypeCheckingFunction returns true if the function is a type checking function
+// Type-checking functions need special AST-based evaluation to work with LESS type system
 func isTypeCheckingFunction(name string) bool {
 	switch name {
 	case "isnumber", "isstring", "iscolor", "iskeyword", "isurl", "ispixel",
-		"isem", "ispercentage", "isunit", "isruleset", "islist", "boolean",
-		"length", "extract", "range", "escape", "e":
+		"isem", "ispercentage", "isunit", "isruleset", "islist", "boolean", "length":
 		return true
 	}
 	return false
@@ -417,7 +516,8 @@ func (r *Renderer) evaluateTypeCheckingFunction(fn *ast.FunctionCall) string {
 	// Special handling: if a variable argument expanded to a list, output function call literally
 	// This happens when you pass a list variable to a function expecting a single argument
 	// Example: islist(@list) where @list: 1, 2, 3 should output islist(1, 2, 3) literally
-	if expandedFromVar && len(expandedArgs) != len(astArgs) {
+	// EXCEPT for functions that actually operate on lists (like length)
+	if expandedFromVar && len(expandedArgs) != len(astArgs) && fn.Name != "length" {
 		// Variable expanded to multiple arguments - output function call literally
 		return fn.Name + "(" + strings.Join(expandedArgs, ", ") + ")"
 	}
@@ -511,29 +611,6 @@ func (r *Renderer) evaluateTypeCheckingFunction(fn *ast.FunctionCall) string {
 			return ""
 		}
 		return r.lengthAST(astArgs[0])
-	case "extract":
-		if len(args) != 2 {
-			return ""
-		}
-		return functions.Extract(args[0], args[1])
-	case "range":
-		if len(args) < 2 {
-			return ""
-		}
-		if len(args) == 2 {
-			return functions.Range(args[0], args[1])
-		}
-		return functions.Range(args[0], args[1], args[2])
-	case "escape":
-		if len(args) != 1 {
-			return ""
-		}
-		return functions.Escape(args[0])
-	case "e":
-		if len(args) != 1 {
-			return ""
-		}
-		return functions.E(args[0])
 	}
 	return ""
 }
@@ -619,193 +696,6 @@ func (r *Renderer) lengthAST(v ast.Value) string {
 	}
 }
 
-// evaluateColorFunction evaluates color and math functions
-func (r *Renderer) evaluateColorFunction(name string, args []string) string {
-	switch name {
-	case "rgb":
-		if len(args) != 3 {
-			return ""
-		}
-		return r.evalRGB(args)
-	case "rgba":
-		if len(args) != 4 {
-			return ""
-		}
-		return r.evalRGBA(args)
-	case "lighten":
-		if len(args) != 2 {
-			return ""
-		}
-		return r.evalLighten(args[0], args[1])
-	case "darken":
-		if len(args) != 2 {
-			return ""
-		}
-		return r.evalDarken(args[0], args[1])
-	case "saturate":
-		if len(args) != 2 {
-			return ""
-		}
-		return r.evalSaturate(args[0], args[1])
-	case "desaturate":
-		if len(args) != 2 {
-			return ""
-		}
-		return r.evalDesaturate(args[0], args[1])
-	case "spin":
-		if len(args) != 2 {
-			return ""
-		}
-		return r.evalSpin(args[0], args[1])
-	case "greyscale":
-		if len(args) != 1 {
-			return ""
-		}
-		return r.evalGreyscale(args[0])
-	case "luma":
-		if len(args) != 1 {
-			return ""
-		}
-		return r.evalLuma(args[0])
-	case "if":
-		if len(args) < 2 {
-			return ""
-		}
-		return r.evalIf(args)
-	case "ceil":
-		if len(args) != 1 {
-			return ""
-		}
-		return functions.Ceil(args[0])
-	case "floor":
-		if len(args) != 1 {
-			return ""
-		}
-		return functions.Floor(args[0])
-	case "round":
-		if len(args) != 1 {
-			return ""
-		}
-		return functions.Round(args[0])
-	case "abs":
-		if len(args) != 1 {
-			return ""
-		}
-		return functions.Abs(args[0])
-	case "sqrt":
-		if len(args) != 1 {
-			return ""
-		}
-		return functions.Sqrt(args[0])
-	case "pow":
-		if len(args) != 2 {
-			return ""
-		}
-		return functions.Pow(args[0], args[1])
-	case "min":
-		if len(args) < 1 {
-			return ""
-		}
-		return functions.Min(args...)
-	case "max":
-		if len(args) < 1 {
-			return ""
-		}
-		return functions.Max(args...)
-	case "isnumber":
-		if len(args) != 1 {
-			return ""
-		}
-		return functions.IsNumberFunction(args[0])
-	case "isstring":
-		if len(args) != 1 {
-			return ""
-		}
-		return functions.IsStringFunction(args[0])
-	case "iscolor":
-		if len(args) != 1 {
-			return ""
-		}
-		return functions.IsColorFunction(args[0])
-	case "iskeyword":
-		if len(args) != 1 {
-			return ""
-		}
-		return functions.IsKeywordFunction(args[0])
-	case "isurl":
-		if len(args) != 1 {
-			return ""
-		}
-		return functions.IsURLFunction(args[0])
-	case "ispixel":
-		if len(args) != 1 {
-			return ""
-		}
-		return functions.IsPixelFunction(args[0])
-	case "isem":
-		if len(args) != 1 {
-			return ""
-		}
-		return functions.IsEmFunction(args[0])
-	case "ispercentage":
-		if len(args) != 1 {
-			return ""
-		}
-		return functions.IsPercentageFunction(args[0])
-	case "isunit":
-		if len(args) != 2 {
-			return ""
-		}
-		return functions.IsUnitFunction(args[0], args[1])
-	case "isruleset":
-		if len(args) != 1 {
-			return ""
-		}
-		return functions.IsRulesetFunction(args[0])
-	case "boolean":
-		// Note: This case should not be reached as boolean() is handled in evaluateTypeCheckingFunction
-		// But keep it here as a fallback
-		if len(args) != 1 {
-			return ""
-		}
-		return functions.Boolean(args[0])
-	case "length":
-		if len(args) != 1 {
-			return ""
-		}
-		return functions.Length(args[0])
-	case "extract":
-		if len(args) != 2 {
-			return ""
-		}
-		return functions.Extract(args[0], args[1])
-	case "range":
-		if len(args) < 2 {
-			return ""
-		}
-		if len(args) == 2 {
-			return functions.Range(args[0], args[1])
-		}
-		return functions.Range(args[0], args[1], args[2])
-	case "escape":
-		if len(args) != 1 {
-			return ""
-		}
-		return functions.Escape(args[0])
-	case "e":
-		if len(args) != 1 {
-			return ""
-		}
-		return functions.E(args[0])
-	case "%":
-		if len(args) < 1 {
-			return ""
-		}
-		return functions.Format(args[0], args[1:]...)
-	}
-	return ""
-}
-
 // evaluateBooleanExpression evaluates a boolean expression like @v > 0 or luma(@v) > 50%
 // Returns "true" or "false" if the expression can be evaluated, empty string otherwise
 func (r *Renderer) evaluateBooleanExpression(value ast.Value) string {
@@ -859,13 +749,15 @@ func (r *Renderer) evaluateExpressionValue(val ast.Value) string {
 			args = append(args, r.renderValue(arg))
 		}
 
-		// Evaluate color functions that return values usable in comparisons
+		// Evaluate functions that return values usable in comparisons
 		switch fn.Name {
 		case "luma":
 			if len(args) == 1 {
-				if result := r.evalLuma(args[0]); result != "" {
-					// Extract just the number from "0.00%" format
-					return strings.TrimSuffix(result, "%")
+				if f, ok := r.funcs[fn.Name]; ok {
+					if result := callFunction(f, args); result != "" {
+						// Extract just the number from "0.00%" format
+						return strings.TrimSuffix(result, "%")
+					}
 				}
 			}
 		case "lighten", "darken", "saturate", "desaturate":
@@ -876,143 +768,76 @@ func (r *Renderer) evaluateExpressionValue(val ast.Value) string {
 	return r.renderValue(val)
 }
 
-func (r *Renderer) evalRGB(args []string) string {
-	if len(args) != 3 {
-		return ""
-	}
-
-	r1, _ := strconv.ParseFloat(strings.TrimSpace(args[0]), 64)
-	g1, _ := strconv.ParseFloat(strings.TrimSpace(args[1]), 64)
-	b1, _ := strconv.ParseFloat(strings.TrimSpace(args[2]), 64)
-
-	c := &functions.Color{R: r1, G: g1, B: b1, A: 1.0}
-	return c.ToHex()
-}
-
-func (r *Renderer) evalRGBA(args []string) string {
-	if len(args) != 4 {
-		return ""
-	}
-
-	r1, _ := strconv.ParseFloat(strings.TrimSpace(args[0]), 64)
-	g1, _ := strconv.ParseFloat(strings.TrimSpace(args[1]), 64)
-	b1, _ := strconv.ParseFloat(strings.TrimSpace(args[2]), 64)
-	a1, _ := strconv.ParseFloat(strings.TrimSpace(args[3]), 64)
-
-	c := &functions.Color{R: r1, G: g1, B: b1, A: a1}
-	return c.ToRGB()
-}
-
-func (r *Renderer) evalLighten(colorStr, amountStr string) string {
-	c, err := functions.ParseColor(colorStr)
-	if err != nil {
-		return ""
-	}
-
-	amount := parsePercentage(amountStr)
-	result := c.Lighten(amount)
-	return result.ToHex()
-}
-
-func (r *Renderer) evalDarken(colorStr, amountStr string) string {
-	c, err := functions.ParseColor(colorStr)
-	if err != nil {
-		return ""
-	}
-
-	amount := parsePercentage(amountStr)
-	result := c.Darken(amount)
-	return result.ToHex()
-}
-
-func (r *Renderer) evalSaturate(colorStr, amountStr string) string {
-	c, err := functions.ParseColor(colorStr)
-	if err != nil {
-		return ""
-	}
-
-	amount := parsePercentage(amountStr)
-	result := c.Saturate(amount)
-	return result.ToHex()
-}
-
-func (r *Renderer) evalDesaturate(colorStr, amountStr string) string {
-	c, err := functions.ParseColor(colorStr)
-	if err != nil {
-		return ""
-	}
-
-	amount := parsePercentage(amountStr)
-	result := c.Desaturate(amount)
-	return result.ToHex()
-}
-
-func (r *Renderer) evalSpin(colorStr, degreesStr string) string {
-	c, err := functions.ParseColor(colorStr)
-	if err != nil {
-		return ""
-	}
-
-	degrees, _ := strconv.ParseFloat(strings.TrimSuffix(degreesStr, "deg"), 64)
-	result := c.Spin(degrees)
-	return result.ToHex()
-}
-
-func (r *Renderer) evalGreyscale(colorStr string) string {
-	c, err := functions.ParseColor(colorStr)
-	if err != nil {
-		return ""
-	}
-
-	result := c.Greyscale()
-	return result.ToHex()
-}
-
-func (r *Renderer) evalLuma(colorStr string) string {
-	c, err := functions.ParseColor(colorStr)
-	if err != nil {
-		return ""
-	}
-
-	luma := c.Luma()
-	// Return as percentage string
-	return fmt.Sprintf("%.2f%%", luma)
-}
-
-func (r *Renderer) evalIf(args []string) string {
-	if len(args) < 2 {
-		return ""
-	}
-
-	// First argument should be a boolean or condition
-	condition := args[0]
-
-	// Normalize boolean values
-	condition = strings.TrimSpace(condition)
-	isTruthy := condition == "true" || (condition != "" && condition != "false")
-
-	// If true, return second argument; otherwise third (or empty)
-	if isTruthy {
-		if len(args) > 1 {
-			return args[1]
-		}
-	} else {
-		if len(args) > 2 {
-			return args[2]
-		}
-	}
-	return ""
-}
-
 // renderBinaryOp evaluates and renders a binary operation
 func (r *Renderer) renderBinaryOp(op *ast.BinaryOp) string {
-	// Try to evaluate the operation
+	leftStr := r.renderValue(op.Left)
+	rightStr := r.renderValue(op.Right)
+
+	// For comparison operators, evaluate numerically if possible
+	if isComparisonOperator(op.Operator) {
+		leftNum, _ := parseNumberWithUnit(leftStr)
+		rightNum, _ := parseNumberWithUnit(rightStr)
+
+		if leftNum != nil && rightNum != nil {
+			// Compare as numbers
+			var result bool
+			switch op.Operator {
+			case ">":
+				result = *leftNum > *rightNum
+			case "<":
+				result = *leftNum < *rightNum
+			case ">=":
+				result = *leftNum >= *rightNum
+			case "<=":
+				result = *leftNum <= *rightNum
+			case "==":
+				result = *leftNum == *rightNum
+			case "!=":
+				result = *leftNum != *rightNum
+			}
+			if result {
+				return "true"
+			}
+			return "false"
+		}
+		// Compare as strings if not numbers
+		var result bool
+		switch op.Operator {
+		case ">":
+			result = leftStr > rightStr
+		case "<":
+			result = leftStr < rightStr
+		case ">=":
+			result = leftStr >= rightStr
+		case "<=":
+			result = leftStr <= rightStr
+		case "==":
+			result = leftStr == rightStr
+		case "!=":
+			result = leftStr != rightStr
+		}
+		if result {
+			return "true"
+		}
+		return "false"
+	}
+
+	// Try to evaluate the operation for arithmetic
 	result := r.evaluateBinaryOp(op)
 	if result != "" {
 		return result
 	}
 	// Fallback to rendering as-is if we can't evaluate
-	return r.renderValue(op.Left) + " " + op.Operator + " " + r.renderValue(op.Right)
+	return leftStr + " " + op.Operator + " " + rightStr
+}
+
+// isComparisonOperator checks if an operator is a comparison operator
+func isComparisonOperator(op string) bool {
+	switch op {
+	case ">", "<", ">=", "<=", "==", "!=":
+		return true
+	}
+	return false
 }
 
 // evaluateBinaryOp evaluates a binary operation and returns the result, or empty string if not evaluable
@@ -1020,7 +845,7 @@ func (r *Renderer) evaluateBinaryOp(op *ast.BinaryOp) string {
 	leftStr := r.renderValue(op.Left)
 	rightStr := r.renderValue(op.Right)
 
-	// Try to parse as numbers with units
+	// Try to parse as numbers with units for arithmetic operators
 	leftNum, leftUnit := parseNumberWithUnit(leftStr)
 	rightNum, rightUnit := parseNumberWithUnit(rightStr)
 
@@ -1408,4 +1233,61 @@ func (r *Renderer) renderMixinCall(call *ast.MixinCall) {
 	// Note: We don't output anything for mixin calls directly.
 	// The declarations from the mixin are applied by the parent rule rendering.
 	// This is handled in renderRule where we process nested rules/mixins.
+}
+
+// callFunction calls a function from the FuncMap using reflection
+func callFunction(f interface{}, args []string) string {
+	if f == nil {
+		return ""
+	}
+
+	v := reflect.ValueOf(f)
+	if v.Kind() != reflect.Func {
+		return ""
+	}
+
+	// Build argument values
+	var callArgs []reflect.Value
+	numArgs := v.Type().NumIn()
+	isVariadic := v.Type().IsVariadic()
+
+	if isVariadic {
+		// Variadic function - need at least (numArgs - 1) required params
+		// (numArgs includes the variadic slice as one parameter)
+		requiredArgs := numArgs - 1
+		for i := 0; i < len(args); i++ {
+			if i < len(args) {
+				callArgs = append(callArgs, reflect.ValueOf(args[i]))
+			}
+		}
+		// Pad with empty strings if needed
+		for len(callArgs) < requiredArgs {
+			callArgs = append(callArgs, reflect.ValueOf(""))
+		}
+	} else {
+		// Non-variadic - only pass what the function expects
+		for i := 0; i < numArgs && i < len(args); i++ {
+			callArgs = append(callArgs, reflect.ValueOf(args[i]))
+		}
+	}
+
+	// Call the function
+	results := v.Call(callArgs)
+	if len(results) == 0 {
+		return ""
+	}
+
+	// Convert result to string
+	result := results[0]
+	switch result.Kind() {
+	case reflect.String:
+		return result.String()
+	case reflect.Bool:
+		if result.Bool() {
+			return "true"
+		}
+		return "false"
+	default:
+		return result.String()
+	}
 }

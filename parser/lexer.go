@@ -70,11 +70,12 @@ const (
 
 // Token represents a lexical token
 type Token struct {
-	Type   TokenType
-	Value  string
-	Line   int
-	Column int
-	Offset int
+	Type      TokenType
+	Value     string
+	Line      int
+	Column    int
+	Offset    int
+	QuoteChar string // For TokenString: " or ' (empty for other types)
 }
 
 // Lexer tokenizes LESS source code
@@ -327,11 +328,12 @@ func (l *Lexer) readString() Token {
 	}
 
 	return Token{
-		Type:   TokenString,
-		Value:  value,
-		Line:   startLine,
-		Column: startCol,
-		Offset: l.start,
+		Type:      TokenString,
+		Value:     value,
+		Line:      startLine,
+		Column:    startCol,
+		Offset:    l.start,
+		QuoteChar: string(quote),
 	}
 }
 

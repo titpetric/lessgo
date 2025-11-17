@@ -733,7 +733,7 @@ func (p *Parser) parseSimpleValue() (ast.Value, error) {
 	switch tok.Type {
 	case TokenString:
 		p.advance()
-		return &ast.Literal{Type: ast.StringLiteral, Value: tok.Value}, nil
+		return &ast.Literal{Type: ast.StringLiteral, Value: tok.Value, QuoteChar: tok.QuoteChar}, nil
 
 	case TokenNumber:
 		p.advance()

@@ -2,6 +2,7 @@ package evaluator
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -61,6 +62,8 @@ func extractNumber(value string) interface{} {
 func (e *Evaluator) Eval(expression string) (interface{}, error) {
 	// Preprocess expression to handle LESS values with units
 	processedExpr := preprocessExpression(expression)
+
+	fmt.Fprintf(os.Stderr, "[expr] Evaluating: %q (processed: %q)\n", expression, processedExpr)
 
 	program, err := expr.Compile(processedExpr, expr.AllowUndefinedVariables())
 	if err != nil {

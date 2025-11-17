@@ -65,8 +65,9 @@ type Value interface {
 
 // Literal represents a literal CSS value (color, number, string, keyword)
 type Literal struct {
-	Type  LiteralType
-	Value string
+	Type      LiteralType
+	Value     string
+	QuoteChar string // For StringLiterals: " or ' (empty for non-string literals)
 }
 
 func (l *Literal) node()  {}

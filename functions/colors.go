@@ -12,7 +12,7 @@ type Color struct {
 	R, G, B, A float64 // values 0-255 for RGB, 0-1 for A
 }
 
-// ParseColor parses a color from a hex string, rgb(a) function, or CSS keyword
+// ParseColor parses a color from a hex string, rgb(a) function, hsl(a) function, or CSS keyword
 func ParseColor(s string) (*Color, error) {
 	s = strings.TrimSpace(s)
 
@@ -24,6 +24,11 @@ func ParseColor(s string) (*Color, error) {
 	// Handle rgb() and rgba()
 	if strings.HasPrefix(s, "rgb") {
 		return ParseRGB(s)
+	}
+
+	// Handle hsl() and hsla()
+	if strings.HasPrefix(s, "hsl") {
+		return ParseHSL(s)
 	}
 
 	// Handle CSS color keywords
@@ -266,6 +271,60 @@ func ParseRGB(s string) (*Color, error) {
 	return &Color{r, g, b, a}, nil
 }
 
+// ParseHSL parses hsl() or hsla() format
+func ParseHSL(input string) (*Color, error) {
+	var hsla bool
+	s := input
+	if strings.HasPrefix(s, "hsla") {
+		hsla = true
+		s = s[5 : len(s)-1] // remove "hsla(" and ")"
+	} else if strings.HasPrefix(s, "hsl") {
+		s = s[4 : len(s)-1] // remove "hsl(" and ")"
+	} else {
+		return nil, fmt.Errorf("invalid hsl color: %s", input)
+	}
+
+	parts := strings.Split(s, ",")
+	if hsla && len(parts) != 4 {
+		if !hsla && len(parts) != 3 {
+			return nil, fmt.Errorf("invalid hsl color format")
+		}
+	}
+
+	// Trim spaces and remove % from parts
+	for i := range parts {
+		parts[i] = strings.TrimSpace(parts[i])
+		parts[i] = strings.TrimSuffix(parts[i], "%")
+	}
+
+	h, err := strconv.ParseFloat(parts[0], 64)
+	if err != nil {
+		return nil, err
+	}
+	sat, err := strconv.ParseFloat(parts[1], 64)
+	if err != nil {
+		return nil, err
+	}
+	l, err := strconv.ParseFloat(parts[2], 64)
+	if err != nil {
+		return nil, err
+	}
+
+	a := 1.0
+	if hsla && len(parts) > 3 {
+		a, err = strconv.ParseFloat(parts[3], 64)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Convert HSL percentages to 0-1 range
+	sat = sat / 100.0
+	l = l / 100.0
+
+	return HSLToColor(h, sat, l, a), nil
+}
+
 func parseHexDigit(h string) float64 {
 	n, _ := strconv.ParseInt(h, 16, 64)
 	return float64(n)
@@ -433,8 +492,8 @@ func HSLToColor(h, s, l float64, a float64) *Color {
 
 // Greyscale returns the greyscale version of the color
 func (c *Color) Greyscale() *Color {
-	h, _, l := c.ToHSL()
-	return HSLToColor(h, 0, l, c.A)
+	_, _, l := c.ToHSL()
+	return HSLToColor(0, 0, l, c.A)
 }
 
 // Luma returns the perceived brightness (luminance) of the color as a percentage
@@ -485,24 +544,43 @@ func RGBA(r, g, b, a string) string {
 }
 
 // HSL creates a color from HSL components (hue 0-360, saturation 0-100, lightness 0-100)
+// Returns in hsl() format, not hex
 func HSL(h, s, l string) string {
 	hNum := parseNumber(h)
 	sNum := parseNumber(s) / 100.0 // Convert from percentage to 0-1
 	lNum := parseNumber(l) / 100.0 // Convert from percentage to 0-1
 
-	color := HSLToColor(hNum, sNum, lNum, 1.0)
-	return color.ToHex()
+	// Clamp values to valid ranges
+	hNum = math.Mod(hNum, 360)
+	if hNum < 0 {
+		hNum += 360
+	}
+	sNum = math.Max(0, math.Min(1, sNum))
+	lNum = math.Max(0, math.Min(1, lNum))
+
+	// Return in hsl() format
+	return fmt.Sprintf("hsl(%g, %g%%, %g%%)", hNum, sNum*100, lNum*100)
 }
 
 // HSLA creates a color from HSLA components (hue 0-360, saturation 0-100, lightness 0-100, alpha 0-1)
+// Returns in hsla() format
 func HSLA(h, s, l, a string) string {
 	hNum := parseNumber(h)
 	sNum := parseNumber(s) / 100.0 // Convert from percentage to 0-1
 	lNum := parseNumber(l) / 100.0 // Convert from percentage to 0-1
 	aNum := parseAlpha(a)
 
-	color := HSLToColor(hNum, sNum, lNum, aNum)
-	return color.ToRGB()
+	// Clamp values to valid ranges
+	hNum = math.Mod(hNum, 360)
+	if hNum < 0 {
+		hNum += 360
+	}
+	sNum = math.Max(0, math.Min(1, sNum))
+	lNum = math.Max(0, math.Min(1, lNum))
+	aNum = math.Max(0, math.Min(1, aNum))
+
+	// Return in hsla() format
+	return fmt.Sprintf("hsla(%g, %g%%, %g%%, %g)", hNum, sNum*100, lNum*100, aNum)
 }
 
 // Hue extracts the hue component (0-360) from a color
@@ -692,11 +770,12 @@ func Contrast(colorStr string, args ...string) string {
 	}
 
 	// Calculate luma of all colors to determine contrast
-	darkLuma := color.Luma()
+	colorLuma := color.Luma()
+	darkLuma := dark.Luma()
 	lightLuma := light.Luma()
 
 	// Return the color with greater contrast
-	if math.Abs(darkLuma-color.Luma()) > math.Abs(lightLuma-color.Luma()) {
+	if math.Abs(darkLuma-colorLuma) > math.Abs(lightLuma-colorLuma) {
 		return dark.ToHex()
 	}
 	return light.ToHex()
@@ -900,6 +979,13 @@ func Negation(color1Str, color2Str string) string {
 
 // ColorFunction parses a string as a color
 func ColorFunction(colorStr string) string {
+	// Remove quotes if present
+	colorStr = strings.TrimSpace(colorStr)
+	if len(colorStr) >= 2 && ((colorStr[0] == '"' && colorStr[len(colorStr)-1] == '"') ||
+		(colorStr[0] == '\'' && colorStr[len(colorStr)-1] == '\'')) {
+		colorStr = colorStr[1 : len(colorStr)-1]
+	}
+
 	color, err := ParseColor(colorStr)
 	if err != nil {
 		return colorStr
@@ -908,18 +994,35 @@ func ColorFunction(colorStr string) string {
 }
 
 // Unit removes or changes the unit of a dimension
+// unit(value) returns dimensionless number
+// unit(value, newUnit) returns the number part of value with the new unit
 func Unit(value string, newUnit string) string {
 	value = strings.TrimSpace(value)
 	newUnit = strings.TrimSpace(newUnit)
+
+	// Extract the numeric part first
+	num := parseNumber(value)
+
+	// If no new unit specified, return dimensionless number
+	if newUnit == "" {
+		// Return just the number without any unit
+		if num == math.Floor(num) && num >= -1e15 && num <= 1e15 {
+			return strconv.FormatInt(int64(num), 10)
+		}
+
+		result := strconv.FormatFloat(num, 'f', -1, 64)
+		if strings.Contains(result, ".") {
+			result = strings.TrimRight(result, "0")
+			result = strings.TrimRight(result, ".")
+		}
+		return result
+	}
 
 	// Remove quotes from newUnit if present
 	if len(newUnit) >= 2 && ((newUnit[0] == '"' && newUnit[len(newUnit)-1] == '"') ||
 		(newUnit[0] == '\'' && newUnit[len(newUnit)-1] == '\'')) {
 		newUnit = newUnit[1 : len(newUnit)-1]
 	}
-
-	// Extract the numeric part
-	num := parseNumber(value)
 
 	// Format with new unit
 	if num == math.Floor(num) && num >= -1e15 && num <= 1e15 {
@@ -934,16 +1037,63 @@ func Unit(value string, newUnit string) string {
 	return result + newUnit
 }
 
-// GetUnit returns the unit of a dimension as a string
+// GetUnit returns the unit of a dimension as a string (without quotes)
 func GetUnit(value string) string {
 	value = strings.TrimSpace(value)
 	unit := extractUnit(value)
-	return "\"" + unit + "\""
+	return unit
 }
 
 // Convert converts a number to a different unit
+// Supports: px, cm, mm, in, pt, pc, em, ex, ch, rem, vw, vh, vmin, vmax, %
 func Convert(value string, targetUnit string) string {
-	return Unit(value, targetUnit)
+	value = strings.TrimSpace(value)
+	targetUnit = strings.TrimSpace(targetUnit)
+
+	// Remove quotes from targetUnit if present
+	if len(targetUnit) >= 2 && ((targetUnit[0] == '"' && targetUnit[len(targetUnit)-1] == '"') ||
+		(targetUnit[0] == '\'' && targetUnit[len(targetUnit)-1] == '\'')) {
+		targetUnit = targetUnit[1 : len(targetUnit)-1]
+	}
+
+	// Parse the input number and unit
+	num := parseNumber(value)
+	sourceUnit := extractUnit(value)
+
+	// Define conversion factors to mm (as base unit)
+	conversionToMM := map[string]float64{
+		"mm": 1,
+		"cm": 10,
+		"in": 25.4,
+		"pt": 25.4 / 72,
+		"pc": 25.4 / 6,
+		"px": 0.264583, // Standard web conversion
+	}
+
+	// Get conversion factors
+	sourceFactor, ok1 := conversionToMM[sourceUnit]
+	targetFactor, ok2 := conversionToMM[targetUnit]
+
+	if !ok1 || !ok2 {
+		// If we can't convert, just use the Unit function
+		return Unit(value, targetUnit)
+	}
+
+	// Convert through mm
+	valueInMM := num * sourceFactor
+	targetValue := valueInMM / targetFactor
+
+	// Format the result
+	if targetValue == math.Floor(targetValue) && targetValue >= -1e15 && targetValue <= 1e15 {
+		return strconv.FormatInt(int64(targetValue), 10) + targetUnit
+	}
+
+	result := strconv.FormatFloat(targetValue, 'f', -1, 64)
+	if strings.Contains(result, ".") {
+		result = strings.TrimRight(result, "0")
+		result = strings.TrimRight(result, ".")
+	}
+	return result + targetUnit
 }
 
 // parseChannelNumber parses a number in the range 0-255
@@ -958,4 +1108,190 @@ func parseAlpha(s string) float64 {
 	s = strings.TrimSpace(s)
 	num, _ := strconv.ParseFloat(s, 64)
 	return math.Max(0, math.Min(1, num))
+}
+
+// Public wrapper functions for use by renderer
+
+// Lighten lightens a color by a percentage
+func Lighten(colorStr, amount string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return colorStr
+	}
+	amountVal := parseNumber(amount) / 100.0
+	result := color.Lighten(amountVal)
+
+	// Preserve color format
+	if strings.HasPrefix(colorStr, "hsl") {
+		h, s, l := result.ToHSL()
+		if strings.HasPrefix(colorStr, "hsla") {
+			return fmt.Sprintf("hsla(%g, %g%%, %g%%, %g)", h, s*100, l*100, result.A)
+		}
+		return fmt.Sprintf("hsl(%g, %g%%, %g%%)", h, s*100, l*100)
+	}
+	if strings.HasPrefix(colorStr, "rgb") {
+		if strings.HasPrefix(colorStr, "rgba") {
+			return fmt.Sprintf("rgba(%d, %d, %d, %g)", uint8(result.R), uint8(result.G), uint8(result.B), result.A)
+		}
+		return fmt.Sprintf("rgb(%d, %d, %d)", uint8(result.R), uint8(result.G), uint8(result.B))
+	}
+
+	return result.ToHex()
+}
+
+// Darken darkens a color by a percentage
+func Darken(colorStr, amount string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return colorStr
+	}
+	amountVal := parseNumber(amount) / 100.0
+	result := color.Darken(amountVal)
+
+	// Preserve color format
+	if strings.HasPrefix(colorStr, "hsl") {
+		h, s, l := result.ToHSL()
+		if strings.HasPrefix(colorStr, "hsla") {
+			return fmt.Sprintf("hsla(%g, %g%%, %g%%, %g)", h, s*100, l*100, result.A)
+		}
+		return fmt.Sprintf("hsl(%g, %g%%, %g%%)", h, s*100, l*100)
+	}
+	if strings.HasPrefix(colorStr, "rgb") {
+		if strings.HasPrefix(colorStr, "rgba") {
+			return fmt.Sprintf("rgba(%d, %d, %d, %g)", uint8(result.R), uint8(result.G), uint8(result.B), result.A)
+		}
+		return fmt.Sprintf("rgb(%d, %d, %d)", uint8(result.R), uint8(result.G), uint8(result.B))
+	}
+
+	return result.ToHex()
+}
+
+// Saturate increases saturation
+func Saturate(colorStr, amount string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return colorStr
+	}
+	amountVal := parseNumber(amount) / 100.0
+	result := color.Saturate(amountVal)
+
+	// Preserve color format
+	if strings.HasPrefix(colorStr, "hsl") {
+		h, s, l := result.ToHSL()
+		if strings.HasPrefix(colorStr, "hsla") {
+			return fmt.Sprintf("hsla(%g, %g%%, %g%%, %g)", h, s*100, l*100, result.A)
+		}
+		return fmt.Sprintf("hsl(%g, %g%%, %g%%)", h, s*100, l*100)
+	}
+	if strings.HasPrefix(colorStr, "rgb") {
+		if strings.HasPrefix(colorStr, "rgba") {
+			return fmt.Sprintf("rgba(%d, %d, %d, %g)", uint8(result.R), uint8(result.G), uint8(result.B), result.A)
+		}
+		return fmt.Sprintf("rgb(%d, %d, %d)", uint8(result.R), uint8(result.G), uint8(result.B))
+	}
+
+	return result.ToHex()
+}
+
+// Desaturate decreases saturation
+func Desaturate(colorStr, amount string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return colorStr
+	}
+	amountVal := parseNumber(amount) / 100.0
+	result := color.Desaturate(amountVal)
+
+	// Preserve color format
+	if strings.HasPrefix(colorStr, "hsl") {
+		h, s, l := result.ToHSL()
+		if strings.HasPrefix(colorStr, "hsla") {
+			return fmt.Sprintf("hsla(%g, %g%%, %g%%, %g)", h, s*100, l*100, result.A)
+		}
+		return fmt.Sprintf("hsl(%g, %g%%, %g%%)", h, s*100, l*100)
+	}
+	if strings.HasPrefix(colorStr, "rgb") {
+		if strings.HasPrefix(colorStr, "rgba") {
+			return fmt.Sprintf("rgba(%d, %d, %d, %g)", uint8(result.R), uint8(result.G), uint8(result.B), result.A)
+		}
+		return fmt.Sprintf("rgb(%d, %d, %d)", uint8(result.R), uint8(result.G), uint8(result.B))
+	}
+
+	return result.ToHex()
+}
+
+// Spin rotates the hue
+func Spin(colorStr, degrees string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return colorStr
+	}
+	angleVal := parseNumber(degrees)
+	result := color.Spin(angleVal)
+
+	// Preserve color format
+	if strings.HasPrefix(colorStr, "hsl") {
+		h, s, l := result.ToHSL()
+		if strings.HasPrefix(colorStr, "hsla") {
+			return fmt.Sprintf("hsla(%g, %g%%, %g%%, %g)", h, s*100, l*100, result.A)
+		}
+		return fmt.Sprintf("hsl(%g, %g%%, %g%%)", h, s*100, l*100)
+	}
+	if strings.HasPrefix(colorStr, "rgb") {
+		if strings.HasPrefix(colorStr, "rgba") {
+			return fmt.Sprintf("rgba(%d, %d, %d, %g)", uint8(result.R), uint8(result.G), uint8(result.B), result.A)
+		}
+		return fmt.Sprintf("rgb(%d, %d, %d)", uint8(result.R), uint8(result.G), uint8(result.B))
+	}
+
+	return result.ToHex()
+}
+
+// Mix mixes two colors
+func Mix(color1Str, color2Str string, args ...string) string {
+	c1, err1 := ParseColor(color1Str)
+	c2, err2 := ParseColor(color2Str)
+	if err1 != nil || err2 != nil {
+		return color1Str
+	}
+
+	weightVal := 0.5
+	if len(args) > 0 && args[0] != "" {
+		weightVal = parseNumber(args[0]) / 100.0
+		if weightVal < 0 {
+			weightVal = 0
+		}
+		if weightVal > 1 {
+			weightVal = 1
+		}
+	}
+
+	result := c1.Mix(c2, weightVal)
+	return result.ToHex()
+}
+
+// Greyscale returns the greyscale version of the color
+func Greyscale(colorStr string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return colorStr
+	}
+	result := color.Greyscale()
+
+	// Preserve color format
+	if strings.HasPrefix(colorStr, "hsl") {
+		h, s, l := result.ToHSL()
+		if strings.HasPrefix(colorStr, "hsla") {
+			return fmt.Sprintf("hsla(%g, %g%%, %g%%, %g)", h, s*100, l*100, result.A)
+		}
+		return fmt.Sprintf("hsl(%g, %g%%, %g%%)", h, s*100, l*100)
+	}
+	if strings.HasPrefix(colorStr, "rgb") {
+		if strings.HasPrefix(colorStr, "rgba") {
+			return fmt.Sprintf("rgba(%d, %d, %d, %g)", uint8(result.R), uint8(result.G), uint8(result.B), result.A)
+		}
+		return fmt.Sprintf("rgb(%d, %d, %d)", uint8(result.R), uint8(result.G), uint8(result.B))
+	}
+
+	return result.ToHex()
 }

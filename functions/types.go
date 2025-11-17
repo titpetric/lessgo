@@ -43,6 +43,29 @@ func IsString(value string) bool {
 		(value[0] == '\'' && value[len(value)-1] == '\'')
 }
 
+// parseNumberWithUnits extracts numeric value from a string with units (e.g., "10px" -> 10)
+func parseNumberWithUnits(value string) float64 {
+	value = strings.TrimSpace(value)
+
+	// Remove common CSS units
+	units := []string{"px", "em", "rem", "%", "pt", "cm", "mm", "in", "pc", "ex", "ch", "vw", "vh", "vmin", "vmax"}
+	for _, unit := range units {
+		if strings.HasSuffix(value, unit) {
+			numStr := strings.TrimSuffix(value, unit)
+			if num, err := strconv.ParseFloat(numStr, 64); err == nil {
+				return num
+			}
+		}
+	}
+
+	// Try direct float parse
+	if num, err := strconv.ParseFloat(value, 64); err == nil {
+		return num
+	}
+
+	return 0
+}
+
 // IsColor checks if a value is a color
 func IsColor(value string) bool {
 	value = strings.TrimSpace(value)
@@ -372,29 +395,44 @@ func Extract(list string, index string) string {
 		return ""
 	}
 
-	// Try space-separated first
-	items := strings.Fields(list)
-	if len(items) >= idx {
-		return items[idx-1]
-	}
-
-	// Try comma-separated
-	items = strings.Split(list, ",")
-	if len(items) >= idx {
-		return strings.TrimSpace(items[idx-1])
+	// Determine if this is comma-separated or space-separated
+	// If there are commas at the top level (not inside quotes), it's comma-separated
+	if strings.Contains(list, ",") {
+		// Comma-separated list
+		items := strings.Split(list, ",")
+		if len(items) >= idx {
+			return strings.TrimSpace(items[idx-1])
+		}
+	} else {
+		// Space-separated list
+		items := strings.Fields(list)
+		if len(items) >= idx {
+			return items[idx-1]
+		}
 	}
 
 	return ""
 }
 
 // Range generates a comma-separated list of numbers from start to end
+// Supports: range(end), range(start, end), range(start, end, step)
 func Range(start string, end string, step ...string) string {
-	s, _ := strconv.ParseFloat(strings.TrimSpace(start), 64)
-	e, _ := strconv.ParseFloat(strings.TrimSpace(end), 64)
+	// Handle single argument case: range(4) means 1 to 4
+	if strings.TrimSpace(end) == "" {
+		end = start
+		start = "1"
+	}
+
+	startTrimmed := strings.TrimSpace(start)
+	endTrimmed := strings.TrimSpace(end)
+
+	// Extract numeric values, handling units
+	s := parseNumberWithUnits(startTrimmed)
+	e := parseNumberWithUnits(endTrimmed)
 
 	stepVal := 1.0
 	if len(step) > 0 && step[0] != "" {
-		stepVal, _ = strconv.ParseFloat(strings.TrimSpace(step[0]), 64)
+		stepVal = parseNumberWithUnits(strings.TrimSpace(step[0]))
 	}
 
 	if stepVal == 0 {
@@ -404,19 +442,11 @@ func Range(start string, end string, step ...string) string {
 	var result []string
 	if s <= e {
 		for i := s; i <= e; i += stepVal {
-			if i == float64(int64(i)) {
-				result = append(result, strconv.FormatInt(int64(i), 10))
-			} else {
-				result = append(result, strconv.FormatFloat(i, 'f', -1, 64))
-			}
+			result = append(result, formatNumber(i, startTrimmed))
 		}
 	} else {
 		for i := s; i >= e; i -= stepVal {
-			if i == float64(int64(i)) {
-				result = append(result, strconv.FormatInt(int64(i), 10))
-			} else {
-				result = append(result, strconv.FormatFloat(i, 'f', -1, 64))
-			}
+			result = append(result, formatNumber(i, startTrimmed))
 		}
 	}
 
