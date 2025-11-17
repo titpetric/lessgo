@@ -64,7 +64,6 @@ func DefaultFuncMap() FuncMap {
 		"isunit":       func(v, u string) string { return IsUnitFunction(v, u) },
 		"isruleset":    func(v string) string { return IsRulesetFunction(v) },
 		"islist":       func(v string) string { return IsListFunction(v) },
-		"isdefined":    func(v string) bool { return IsDefined(v) },
 		"boolean":      func(v string) string { return Boolean(v) },
 
 		// Color definition functions
