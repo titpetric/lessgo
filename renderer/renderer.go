@@ -822,8 +822,7 @@ func (r *Renderer) evaluateTypeCheckingFunction(fn *ast.FunctionCall) string {
 		}
 		return r.lengthAST(astArgs[0])
 	case "isdefined":
-		// isdefined() is just output literally with variable substitution
-		// Build the function call with the resolved arguments
+		// isdefined(@var) resolves the variable and returns the variable value wrapped in isdefined()
 		argStrs := []string{}
 		for _, arg := range fn.Arguments {
 			argStrs = append(argStrs, r.renderValue(arg))
