@@ -197,12 +197,18 @@ func (p *Parser) parseDeclaration() (*ast.Declaration, error) {
 
 // parseValue parses a CSS value (handles operators and comma-separated lists)
 func (p *Parser) parseValue() (ast.Value, error) {
-	return p.parseCommaList()
+	return p.parseCommaListWithSpaces(true)
 }
 
-// parseCommaList parses comma-separated values
-func (p *Parser) parseCommaList() (ast.Value, error) {
+// parseCommaListNoSpaces parses comma-separated values without space-separated values
+func (p *Parser) parseCommaListNoSpaces() (ast.Value, error) {
+	return p.parseCommaListWithSpaces(false)
+}
+
+// parseCommaListWithSpaces parses comma-separated or optionally space-separated values
+func (p *Parser) parseCommaListWithSpaces(allowSpaces bool) (ast.Value, error) {
 	values := []ast.Value{}
+	separator := " " // default to space-separated
 
 	for !p.check(TokenSemicolon) && !p.check(TokenRBrace) && !p.isAtEnd() {
 		val, err := p.parseBinaryOp()
@@ -214,9 +220,32 @@ func (p *Parser) parseCommaList() (ast.Value, error) {
 		}
 		values = append(values, val)
 
-		if !p.match(TokenComma) {
+		// Check for comma separator - commas are only allowed when allowSpaces=true
+		// (in property values, not in function arguments)
+		if allowSpaces && p.match(TokenComma) {
+			separator = ", " // use comma separator
+			continue
+		}
+
+		// Check if there's another value following (space-separated)
+		// Only for allowSpaces=true (property values, not function arguments)
+		if !allowSpaces {
 			break
 		}
+
+		// Stop if we hit end-of-value markers
+		if p.check(TokenSemicolon) || p.check(TokenRBrace) || p.isAtEnd() {
+			break
+		}
+
+		// Look ahead to see if the next token could start a value
+		nextTok := p.peek()
+		if isValueStart(nextTok.Type) {
+			// Continue to parse space-separated values
+			separator = " " // ensure we use space separator for space-separated values
+			continue
+		}
+		break
 	}
 
 	if len(values) == 0 {
@@ -227,10 +256,16 @@ func (p *Parser) parseCommaList() (ast.Value, error) {
 		return values[0], nil
 	}
 
+	// Return list with appropriate separator
 	return &ast.List{
 		Values:    values,
-		Separator: ", ",
+		Separator: separator,
 	}, nil
+}
+
+// parseCommaList is for backwards compatibility
+func (p *Parser) parseCommaList() (ast.Value, error) {
+	return p.parseCommaListWithSpaces(true)
 }
 
 // parseBinaryOp parses binary operations (+ - * /)
@@ -324,7 +359,8 @@ func (p *Parser) parseFunctionCall() (*ast.FunctionCall, error) {
 	args := []ast.Value{}
 
 	for !p.check(TokenRParen) && !p.isAtEnd() {
-		arg, err := p.parseValue()
+		// Parse single argument without space-separated values
+		arg, err := p.parseCommaListNoSpaces()
 		if err != nil {
 			return nil, err
 		}
@@ -446,6 +482,17 @@ func (p *Parser) check(t TokenType) bool {
 
 func (p *Parser) checkIdent() bool {
 	return p.check(TokenIdent) || p.check(TokenProperty)
+}
+
+// isValueStart checks if a token type can start a value
+func isValueStart(tt TokenType) bool {
+	switch tt {
+	case TokenString, TokenNumber, TokenColor, TokenVariable,
+		TokenFunction, TokenIdent, TokenLParen:
+		return true
+	default:
+		return false
+	}
 }
 
 func (p *Parser) checkOperator() bool {
