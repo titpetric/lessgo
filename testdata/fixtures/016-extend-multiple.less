@@ -1,0 +1,22 @@
+.base {
+  padding: 10px;
+}
+
+.error {
+  color: red;
+}
+
+.success {
+  color: green;
+}
+
+.alert {
+  &:extend(.base);
+  &:extend(.error);
+  font-weight: bold;
+}
+
+.good-news {
+  &:extend(.base, .success);
+  text-decoration: underline;
+}

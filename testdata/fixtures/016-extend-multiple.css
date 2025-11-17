@@ -1,0 +1,19 @@
+.base,
+.alert,
+.good-news {
+  padding: 10px;
+}
+.error,
+.alert {
+  color: red;
+}
+.success,
+.good-news {
+  color: green;
+}
+.alert {
+  font-weight: bold;
+}
+.good-news {
+  text-decoration: underline;
+}

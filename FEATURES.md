@@ -112,7 +112,10 @@
   - [x] .less files
   - [x] .css files
   - [x] Import options (reference, inline, less, css, once, multiple, optional)
-- [ ] Extend - [Selector Extension](docs/feat-extend.md)
+- [x] Extend - [Selector Extension](docs/feat-extend.md)
+  - [x] Basic extends with &:extend(.class)
+  - [x] Multiple extends in single declaration
+  - [x] Multiple extend statements
 - [ ] Maps - [Using Maps](docs/feat-maps.md)
 - [ ] Detached Rulesets
 - [ ] CSS Guards - [Conditional Selectors](docs/feat-css-guards.md)

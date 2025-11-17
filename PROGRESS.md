@@ -110,7 +110,7 @@
 
 ### Test Status
 - ✅ All lexer tests passing (6/6 test groups pass)
-- ✅ All fixture tests passing (16/16)
+- ✅ All fixture tests passing (18/18)
   - 001-basic-css
   - 002-variables
   - 003-nesting
@@ -126,13 +126,27 @@
   - 012-type-functions
   - 013-interpolation
   - 014-nested-media
+  - 015-extend-basic
+  - 016-extend-multiple
   - ✅ lessc integration tests: 15/15 passing (100%)
 - ✅ Parser handles space-separated and comma-separated values correctly
 - ✅ Color manipulation functions working (lighten, darken, etc.)
 - ✅ Basic mixin support - declarations from .mixin() calls applied to calling rules
 - ✅ Parametric mixin support - arguments bound to parameters in separate variable scope
 
-## Features Added This Session (Latest)
+## Features Added This Session (Current Session)
+
+### ✅ Extend/Inheritance Feature
+- [x] Added Extend AST node type for &:extend(.selector) declarations
+- [x] Parser support for extend syntax within rules
+- [x] Handle both FUNCTION and IDENT tokenization of 'extend'
+- [x] Renderer applies extends by merging selectors
+- [x] Track all rules and extends for proper selector composition
+- [x] Test fixtures for basic and multiple extends (015, 016)
+- [x] **All 18 fixture tests pass including new extend tests**
+- [x] Extends work with multiple selectors: &:extend(.class1, .class2)
+
+## Features Added Previous Session
 
 ### ✅ Nested @media Rules with Bare Declarations Support
 - [x] Added DeclarationStmt AST node type to wrap declarations as statements
