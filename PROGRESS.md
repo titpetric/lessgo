@@ -85,34 +85,26 @@
 
 ## Known Issues & Blockers
 
-### Critical Lexer Bugs (MUST FIX FIRST)
-1. **Color Detection** - `#fff` and `#ffffff` being tokenized as HASH instead of COLOR
-   - Location: `parser/lexer.go` line ~249 in `nextToken()` 
-   - Issue: Color check at line 201 happens before we handle `#` in switch, needs to check digit after `#`
-   - Fix: Move color detection logic or improve the hash handling
+### ✅ LEXER FIXED - All 4 Critical Bugs Resolved
+1. **Color Detection** - FIXED ✓
+   - Moved color check to switch statement for `#` before it returns HASH
+   - Now correctly detects 3, 4, 6, and 8 digit hex colors
 
-2. **Negative Numbers** - `-10` being tokenized as MINUS + NUMBER instead of single NUMBER token
-   - Location: `parser/lexer.go` lines ~210-216 (minus handling in switch)
-   - Issue: When we see `-`, we check if next char is digit, but `isDigit` might not be working or logic is inverted
-   - Fix: Ensure `-` followed by digit immediately calls `readNumber()` without intermediate steps
+2. **Negative Numbers** - FIXED ✓
+   - Updated readNumber() to accept hasMinusPrefix parameter
+   - Properly captures `-` when followed by digit
 
-3. **Variable Token** - Variables with hyphens like `@primary-color` may not be fully captured
-   - Location: `parser/lexer.go` lines ~276-286 in `readVariable()`
-   - Issue: Already handles hyphens in loop condition, but verify loop is working correctly
-   - Status: May be working, verify with tests
+3. **Variable Token** - FIXED ✓
+   - Moved variable check to switch statement for `@` 
+   - Now correctly captures full @variable-name tokens
 
-4. **String Escape Sequences** - `"\n"` becoming literal `n` instead of newline
-   - Location: `parser/lexer.go` lines ~262-271 in `readString()`
-   - Issue: Escape handling reads next char but doesn't interpret it (e.g., `\n` should be newline)
-   - Fix: Create escape sequence map or handle common escapes: `\n`, `\t`, `\\`, `\"`, `\'`
+4. **String Escape Sequences** - FIXED ✓
+   - Added proper escape sequence handling: \n, \t, \r, \\, \", \'
+   - Strings now correctly interpret escape sequences
 
 ### Test Status
-- Tests created: `parser/lexer_test.go` with 6 test groups
-- Failing tests:
-  - TestLexerBasics/variable - expects 5 tokens, gets 7 (variable parsing issue)
-  - TestLexerStrings/string_with_escapes - escape sequences not interpreted
-  - TestLexerNumbers/negative_number - minus sign separated from number
-  - TestLexerColors/* - all 3 color tests fail (hash vs color token)
+- ✅ All lexer tests passing (6/6 test groups pass)
+- Next: Fix parser, then test with fixture tests
 
 ### Fixture Tests Not Yet Run
 - 3 fixtures created (basic-css, variables, nesting)

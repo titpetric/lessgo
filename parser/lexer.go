@@ -159,20 +159,30 @@ func (l *Lexer) nextToken() Token {
 		}
 		return l.makeToken(TokenDot, ".")
 	case '#':
-		l.advance()
 		// Check for #{ for interpolation
-		if l.peek() == '{' {
+		if l.peekAhead(1) == '{' {
+			l.advance()
 			l.advance()
 			return l.makeToken(TokenInterp, "#{")
 		}
+		// Check for color literal (#fff, #ffffff)
+		if isHexDigit(l.peekAhead(1)) {
+			return l.readColor()
+		}
+		l.advance()
 		return l.makeToken(TokenHash, "#")
 	case '@':
-		l.advance()
 		// Check for @{ for interpolation
-		if l.peek() == '{' {
+		if l.peekAhead(1) == '{' {
+			l.advance()
 			l.advance()
 			return l.makeToken(TokenInterp, "@{")
 		}
+		// Check for variable (@var)
+		if isLetter(l.peekAhead(1)) || l.peekAhead(1) == '_' {
+			return l.readVariable()
+		}
+		l.advance()
 		return l.makeToken(TokenAt, "@")
 	case '~':
 		l.advance()
@@ -188,11 +198,12 @@ func (l *Lexer) nextToken() Token {
 		}
 		return l.makeToken(TokenPlus, "+")
 	case '-':
-		l.advance()
 		// Could be minus operator or start of number
-		if isDigit(l.peek()) {
-			return l.readNumber()
+		if isDigit(l.peekAhead(1)) {
+			l.advance() // consume the '-'
+			return l.readNumber(true)
 		}
+		l.advance()
 		return l.makeToken(TokenMinus, "-")
 	case '*':
 		l.advance()
@@ -243,17 +254,7 @@ func (l *Lexer) nextToken() Token {
 
 	// Numbers
 	if isDigit(ch) {
-		return l.readNumber()
-	}
-
-	// Colors (#fff, #ffffff)
-	if ch == '#' && l.peekAhead(1) != '{' {
-		return l.readColor()
-	}
-
-	// Variables (@var)
-	if ch == '@' && (isLetter(l.peekAhead(1)) || l.peekAhead(1) == '_') {
-		return l.readVariable()
+		return l.readNumber(false)
 	}
 
 	// Identifiers and keywords
@@ -279,7 +280,24 @@ func (l *Lexer) readString() Token {
 		if l.peek() == '\\' {
 			l.advance()
 			if l.pos < len(l.input) {
-				value += string(l.peek())
+				// Handle escape sequences
+				switch l.peek() {
+				case 'n':
+					value += "\n"
+				case 't':
+					value += "\t"
+				case 'r':
+					value += "\r"
+				case '\\':
+					value += "\\"
+				case '"':
+					value += "\""
+				case '\'':
+					value += "'"
+				default:
+					// For unknown escapes, include the backslash
+					value += "\\" + string(l.peek())
+				}
 				l.advance()
 			}
 		} else {
@@ -306,13 +324,15 @@ func (l *Lexer) readString() Token {
 }
 
 // readNumber reads a number (integer or float) with optional unit
-func (l *Lexer) readNumber() Token {
-	startPos := l.pos
-	startCol := l.column
-
-	// Handle negative numbers
-	if l.peek() == '-' {
-		l.advance()
+// hasMinusPrefix: true if the '-' has already been consumed before calling this
+func (l *Lexer) readNumber(hasMinusPrefix bool) Token {
+	var startPos, startCol int
+	if hasMinusPrefix {
+		startPos = l.pos - 1 // Account for the '-' that was already consumed
+		startCol = l.column - 1
+	} else {
+		startPos = l.pos
+		startCol = l.column
 	}
 
 	// Read digits before decimal
@@ -335,17 +355,6 @@ func (l *Lexer) readNumber() Token {
 
 	value := l.input[startPos:l.pos]
 
-	// Determine if it's a percentage, color, or just number with unit
-	if strings.HasSuffix(value, "%") {
-		return Token{
-			Type:   TokenNumber,
-			Value:  value,
-			Line:   l.line,
-			Column: startCol,
-			Offset: l.start,
-		}
-	}
-
 	return Token{
 		Type:   TokenNumber,
 		Value:  value,
@@ -361,15 +370,15 @@ func (l *Lexer) readColor() Token {
 	l.advance() // skip #
 
 	value := "#"
-	for isHexDigit(l.peek()) {
+	hexCount := 0
+	for isHexDigit(l.peek()) && hexCount < 8 {
 		value += string(l.peek())
+		hexCount++
 		l.advance()
 	}
 
-	// Validate hex color (3 or 6 digits)
-	hexPart := value[1:]
-	if len(hexPart) != 3 && len(hexPart) != 6 && len(hexPart) != 8 {
-		// Not a valid color, treat as selector
+	// Validate hex color (3, 4, 6, or 8 digits)
+	if hexCount == 3 || hexCount == 4 || hexCount == 6 || hexCount == 8 {
 		return Token{
 			Type:   TokenColor,
 			Value:  value,
@@ -379,8 +388,9 @@ func (l *Lexer) readColor() Token {
 		}
 	}
 
+	// Not a valid color, treat as hash
 	return Token{
-		Type:   TokenColor,
+		Type:   TokenHash,
 		Value:  value,
 		Line:   l.line,
 		Column: startCol,
