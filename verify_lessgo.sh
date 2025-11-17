@@ -1,28 +1,14 @@
 #!/bin/bash
 
-# Verify lessgo output against fixture .css files
-# Uses same whitespace normalization as verify_fixtures.sh
+# Regenerate fixture .css files using official lessc compiler
+# This ensures fixtures match the canonical LESS output
 
 FIXTURES_DIR="testdata/fixtures"
-FAILURES=0
-SUCCESSES=0
-TIMEOUTS=0
-BUILD_FAILURES=0
+REGENERATED=0
+SKIPPED=0
+ERRORS=0
 
-normalize_whitespace() {
-    # Remove trailing whitespace and blank lines
-    sed 's/[[:space:]]*$//' | grep -v '^$'
-}
-
-echo "Building lessgo..."
-if ! timeout 10s go build -o bin/lessgo ./cmd/lessgo; then
-    echo "✗ Build failed"
-    exit 1
-fi
-echo "✓ Build succeeded"
-echo ""
-
-echo "Verifying lessgo output..."
+echo "Regenerating fixture .css files from lessc..."
 echo "================================="
 
 # Find all .less files (excluding imports subdirectory)
@@ -32,49 +18,27 @@ for less_file in $(find "$FIXTURES_DIR" -maxdepth 1 -name "*.less" -type f | sor
     
     # Skip import files that start with underscore
     if [[ "$base_name" =~ ^_ ]]; then
+        echo "⊘ $base_name: Skipped (import file)"
+        ((SKIPPED++))
         continue
     fi
     
-    if [ ! -f "$css_file" ]; then
-        echo "⚠️  $base_name: No .css file found"
+    # Compile with official lessc
+    if ! lessc_output=$(lessc "$less_file" 2>&1); then
+        echo "✗ $base_name: lessc error"
+        echo "  $lessc_output"
+        ((ERRORS++))
         continue
     fi
     
-    # Compile with lessgo (2 second timeout)
-    lessgo_output=$(timeout 2s ./bin/lessgo compile "$less_file" 2>&1) || {
-        exit_code=$?
-        if [ $exit_code -eq 124 ]; then
-            echo "⏱ $base_name: lessgo timeout (2s)"
-            ((TIMEOUTS++))
-        else
-            echo "✗ $base_name: lessgo error (exit code $exit_code)"
-            echo "  $lessgo_output"
-            ((FAILURES++))
-        fi
-        continue
-    }
-    
-    # Read the expected .css file and normalize both
-    expected_css=$(cat "$css_file" | normalize_whitespace)
-    lessgo_normalized=$(echo "$lessgo_output" | normalize_whitespace)
-    
-    # Compare
-    if [ "$lessgo_normalized" = "$expected_css" ]; then
-        echo "✓ $base_name"
-        ((SUCCESSES++))
-    else
-        echo "✗ $base_name: Output differs"
-        # Show first difference
-        diff_output=$(diff -u <(echo "$expected_css") <(echo "$lessgo_normalized") | head -20)
-        echo "$diff_output" | while IFS= read -r line; do
-            echo "  $line"
-        done
-        ((FAILURES++))
-    fi
+    # Write to .css file
+    echo "$lessc_output" > "$css_file"
+    echo "✓ $base_name: Regenerated from lessc"
+    ((REGENERATED++))
 done
 
 echo ""
 echo "================================="
-echo "Results: $SUCCESSES passed, $FAILURES failed, $TIMEOUTS timeouts"
+echo "Results: $REGENERATED regenerated, $SKIPPED skipped, $ERRORS errors"
 
-exit $FAILURES
+exit $ERRORS

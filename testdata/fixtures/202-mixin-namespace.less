@@ -1,0 +1,16 @@
+// Namespace mixins - mixins inside namespaced selectors
+
+#namespace {
+  .mixin1 {
+    color: red;
+  }
+
+  .mixin2(@color) {
+    background: @color;
+  }
+}
+
+.button {
+  #namespace > .mixin1;
+  #namespace > .mixin2(blue);
+}

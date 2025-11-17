@@ -1,0 +1,9 @@
+.box {
+  border: 1px dashed red;
+}
+.box2 {
+  border: 2px dotted solid;
+}
+.box3 {
+  border: 3px solid black;
+}

@@ -63,6 +63,9 @@ func (r *Renderer) collectRulesAndMixins(stylesheet *ast.Stylesheet) {
 					r.mixins[name] = append(r.mixins[name], rule)
 				}
 			}
+
+			// Also collect namespaced mixins from nested rules
+			r.collectNamespacedMixins(rule, "")
 		}
 	}
 }
@@ -75,6 +78,55 @@ func (r *Renderer) collectNestedRules(rule *ast.Rule) {
 			r.collectNestedRules(nestedRule)
 		}
 	}
+}
+
+// collectNamespacedMixins collects mixins that are defined inside namespace selectors
+// e.g., #namespace { .mixin { ... } } -> registers as "namespace.mixin"
+func (r *Renderer) collectNamespacedMixins(rule *ast.Rule, parentNamespace string) {
+	// Get the current selector name (extract from #id or .class)
+	if len(rule.Selector.Parts) != 1 {
+		return
+	}
+
+	selector := rule.Selector.Parts[0]
+	if !strings.HasPrefix(selector, "#") && !strings.HasPrefix(selector, ".") {
+		return
+	}
+
+	currentName := selector[1:] // Remove # or .
+	currentPath := currentName
+	if parentNamespace != "" {
+		currentPath = parentNamespace + "." + currentName
+	}
+
+	// Check nested rules for mixins
+	for _, stmt := range rule.Rules {
+		if nestedRule, ok := stmt.(*ast.Rule); ok {
+			// Check if this nested rule is a mixin definition
+			if len(nestedRule.Selector.Parts) == 1 {
+				nestedSelector := nestedRule.Selector.Parts[0]
+				if (strings.HasPrefix(nestedSelector, ".") || strings.HasPrefix(nestedSelector, "#")) && !strings.Contains(nestedSelector, " ") {
+					mixinName := nestedSelector[1:] // Remove . or #
+					namespacedName := currentPath + "." + mixinName
+					r.mixins[namespacedName] = append(r.mixins[namespacedName], nestedRule)
+				}
+			}
+
+			// Recursively collect deeper namespaced mixins
+			r.collectNamespacedMixins(nestedRule, currentPath)
+		}
+	}
+}
+
+// resolveMixinPath converts a mixin call path to a lookup key
+// e.g., ["namespace", "mixin"] -> "namespace.mixin", or ["mixin"] -> "mixin"
+func (r *Renderer) resolveMixinPath(path []string) string {
+	if len(path) == 0 {
+		return ""
+	}
+
+	// Build the full namespace path
+	return strings.Join(path, ".")
 }
 
 // collectExtends builds a map of which selectors are extended by which other selectors
@@ -147,14 +199,12 @@ func (r *Renderer) renderRule(rule *ast.Rule, parentSelector string) {
 	// The mixin calls should appear in the same relative position
 	allDeclarations := []ast.Declaration{}
 
-	// Add rule's own declarations
-	allDeclarations = append(allDeclarations, rule.Declarations...)
-
-	// Also add declarations from mixin calls (they'll appear first in the output)
+	// Iterate through declarations and mixin calls in order to preserve their relative position
 	for _, nestedStmt := range rule.Rules {
 		if mixinCall, ok := nestedStmt.(*ast.MixinCall); ok {
 			if len(mixinCall.Path) > 0 {
-				mixinName := mixinCall.Path[len(mixinCall.Path)-1]
+				// Try to look up mixin by path (e.g., "namespace.mixin" or just "mixin")
+				mixinName := r.resolveMixinPath(mixinCall.Path)
 				if mixins, found := r.mixins[mixinName]; found {
 					// Find the first matching mixin variant (check guards in order)
 					for _, mixin := range mixins {
@@ -162,15 +212,30 @@ func (r *Renderer) renderRule(rule *ast.Rule, parentSelector string) {
 						if r.evaluateGuard(mixin.Guard) {
 							// Bind arguments to parameters if this is a parametric mixin
 							mixinDecls := r.bindMixinArguments(mixin, mixinCall.Arguments)
-							// Insert mixin declarations at the beginning
-							allDeclarations = append(mixinDecls, allDeclarations...)
+							// Append mixin declarations in order
+							allDeclarations = append(allDeclarations, mixinDecls...)
 							break // Apply only the first matching mixin variant
 						}
 					}
 				}
 			}
+		} else if varDecl, ok := nestedStmt.(*ast.VariableDeclaration); ok {
+			// Check if this is a detached ruleset call: marker is "@var()"
+			if strings.Contains(varDecl.Name, "()") {
+				// Extract the variable name from the marker
+				varName := strings.TrimPrefix(strings.TrimSuffix(varDecl.Name, "()"), "@")
+				if val, exists := r.vars.Lookup(varName); exists {
+					if ruleset, isRuleset := val.(*ast.RulesetValue); isRuleset {
+						// Append the detached ruleset's declarations
+						allDeclarations = append(allDeclarations, ruleset.Declarations...)
+					}
+				}
+			}
 		}
 	}
+
+	// Now add the rule's own declarations
+	allDeclarations = append(allDeclarations, rule.Declarations...)
 
 	// Render declarations
 	if len(allDeclarations) > 0 {
@@ -190,12 +255,25 @@ func (r *Renderer) renderRule(rule *ast.Rule, parentSelector string) {
 		r.output.WriteString("}\n")
 	}
 
-	// Render nested rules (excluding mixin calls)
+	// Render nested rules (excluding mixin calls and detached ruleset calls)
 	for _, nestedStmt := range rule.Rules {
 		// Skip mixin calls - they're already handled above
-		if _, ok := nestedStmt.(*ast.MixinCall); !ok {
-			r.renderStatement(nestedStmt, selector)
+		if _, ok := nestedStmt.(*ast.MixinCall); ok {
+			continue
 		}
+		// Skip detached ruleset calls - they're already handled above
+		if varDecl, ok := nestedStmt.(*ast.VariableDeclaration); ok {
+			if strings.Contains(varDecl.Name, "()") {
+				// This is a detached ruleset call marker
+				varName := strings.TrimPrefix(strings.TrimSuffix(varDecl.Name, "()"), "@")
+				if val, exists := r.vars.Lookup(varName); exists {
+					if _, isRuleset := val.(*ast.RulesetValue); isRuleset {
+						continue // Skip detached ruleset calls
+					}
+				}
+			}
+		}
+		r.renderStatement(nestedStmt, selector)
 	}
 }
 
@@ -439,6 +517,9 @@ func (r *Renderer) renderValue(value ast.Value) string {
 			return r.renderValue(val)
 		}
 		return "@" + v.Name // Fallback
+	case *ast.RulesetValue:
+		// Detached rulesets are not rendered as values, they're applied as rules
+		return ""
 	case *ast.Interpolation:
 		return r.renderValue(v.Expression)
 	case *ast.FunctionCall:
@@ -1041,6 +1122,8 @@ func (r *Renderer) isRulesetAST(v ast.Value) bool {
 	switch val := v.(type) {
 	case *ast.Literal:
 		return val.Type == ast.RulesetLiteral
+	case *ast.RulesetValue:
+		return true
 	case *ast.Variable:
 		// Check if the variable contains a ruleset
 		if varVal, ok := r.vars.Lookup(val.Name); ok {
@@ -1281,6 +1364,14 @@ func (r *Renderer) renderVariableDeclaration(decl *ast.VariableDeclaration) {
 	// Render leading comments
 	r.renderComments(decl.Comments)
 
+	// Check if this is a detached ruleset call: marker is "@var()"
+	if strings.Contains(decl.Name, "()") {
+		// This is a detached ruleset call - it's handled in renderRule
+		// Don't store it as a variable
+		return
+	}
+
+	// Regular variable declaration
 	r.vars.Set(decl.Name, decl.Value)
 }
 
@@ -1569,25 +1660,53 @@ func (r *Renderer) bindMixinArguments(mixin *ast.Rule, args []ast.Value) []ast.D
 }
 
 // renderMixinCall renders a mixin call by applying the mixin's declarations
+// At root level, this expands the mixin and renders its nested rules directly
 func (r *Renderer) renderMixinCall(call *ast.MixinCall) {
-	// Get the mixin name (last element in path)
+	// Get the mixin name by resolving the full path
 	if len(call.Path) == 0 {
 		return
 	}
 
-	mixinName := call.Path[len(call.Path)-1]
+	mixinName := r.resolveMixinPath(call.Path)
 
 	// Look up the mixin definition
-	_, ok := r.mixins[mixinName]
+	mixins, ok := r.mixins[mixinName]
 	if !ok {
 		// Mixin not found, skip it
 		return
 	}
 
-	// TODO: Handle parametric mixins (mixin arguments)
-	// For now, just copy the declarations
+	// Find the first matching mixin variant (check guards in order)
+	for _, mixin := range mixins {
+		// Push a new scope for mixin parameters BEFORE checking guard
+		r.vars.Push(nil)
 
-	// Note: We don't output anything for mixin calls directly.
-	// The declarations from the mixin are applied by the parent rule rendering.
-	// This is handled in renderRule where we process nested rules/mixins.
+		// Bind arguments to parameters in the new scope
+		for i, param := range mixin.Parameters {
+			if i < len(call.Arguments) {
+				// Remove @ prefix if present
+				paramName := param
+				if strings.HasPrefix(paramName, "@") {
+					paramName = paramName[1:]
+				}
+				r.vars.Set(paramName, call.Arguments[i])
+			}
+		}
+
+		// Now check if mixin's guard condition is satisfied (with parameters bound)
+		if r.evaluateGuard(mixin.Guard) {
+			// Render the mixin's nested rules (statements) directly at root level
+			for _, stmt := range mixin.Rules {
+				r.renderStatement(stmt, "")
+			}
+
+			// Pop the scope
+			r.vars.Pop()
+
+			break // Apply only the first matching mixin variant
+		}
+
+		// Pop the scope (guard was not satisfied, try next variant)
+		r.vars.Pop()
+	}
 }

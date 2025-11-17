@@ -1,0 +1,8 @@
+.container {
+  color: blue;
+  font-size: 14px;
+}
+.flex-box {
+  display: flex;
+  justify-content: center;
+}

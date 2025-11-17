@@ -86,6 +86,15 @@ const (
 	RulesetLiteral    LiteralType = "ruleset"
 )
 
+// RulesetValue represents a detached ruleset - a set of rules stored as a value
+type RulesetValue struct {
+	Declarations []Declaration // declarations inside the ruleset
+	Rules        []Statement   // nested rules
+}
+
+func (r *RulesetValue) node()  {}
+func (r *RulesetValue) value() {}
+
 // Variable represents a variable reference (@varname)
 type Variable struct {
 	Name string

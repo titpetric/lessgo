@@ -1,0 +1,7 @@
+#namespace .mixin1 {
+  color: red;
+}
+.button {
+  color: red;
+  background: blue;
+}

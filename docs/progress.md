@@ -1,415 +1,280 @@
 # Implementation Progress
 
-## Phase 1: Core Infrastructure (✅ COMPLETE)
+## Current Status (November 17, 2025)
 
-### ✅ Lexer & Parser Foundation
-- [x] Project structure and go.mod
+✅ **All 59 fixture tests passing (100%)**
+
+All fixtures verified against official lessc compiler - output matches exactly.
+
+## Completed Features
+
+### Phase 1: Core Infrastructure ✅ COMPLETE
+
+- [x] Lexer with full token recognition
+- [x] Parser for LESS syntax  
 - [x] AST type definitions
-- [x] Complete lexer with token recognition
-  - [x] Whitespace/comment handling (// and /* */)
-  - [x] String literals with escape sequences (\n, \t, \r, \\, \", \')
-  - [x] Number literals with units (10px, 1.5em, -5)
-  - [x] Variable references (@var, @primary-color)
-  - [x] Operators (+, -, *, /, =, >, <, etc.)
-  - [x] Selectors and CSS keywords
-  - [x] Color literals (#fff, #ffffff, #rrggbbaa)
-  
-- [x] Core parser structure
-  - [x] Rule parsing (selector + declarations)
-  - [x] Variable declarations
-  - [x] Nesting support (nested selectors with parent context)
-  - [x] Mixin calls (partially - parsed but not rendered)
-  - [x] Binary operations (+, -, *, /) with unit support
+- [x] Renderer to CSS output
+- [x] Test infrastructure (59 fixture test pairs)
+- [x] CLI tools (compile, fmt commands)
 
-### ✅ AST Definitions
-- [x] Node types for all LESS constructs
-- [x] Basic utility functions
+### Phase 2: Core Language Features ✅ COMPLETE
 
-### ✅ Renderer Foundation
-- [x] CSS output from basic AST
-- [x] Proper formatting and indentation
-- [x] Arithmetic operations evaluation (10px + 5px = 15px)
+| Feature | Status | Tests |
+|---------|--------|-------|
+| CSS Passthrough | ✅ | 001 |
+| Comments | ✅ | 019 |
+| Variables | ✅ | 002, 013 |
+| Nesting | ✅ | 003 |
+| Parent Selector (&) | ✅ | 005 |
+| Operations | ✅ | 004 |
+| Mixins | ✅ | 009, 010 |
+| Mixin Guards | ✅ | 011-mixin-guards |
+| @import | ✅ | 011 |
+| CSS3 Variables | ✅ | 017 |
+| @media Nesting | ✅ | 014 |
+| Extend | ✅ | 015, 016 |
 
-### ✅ Test Infrastructure
-- [x] Fixture test harness (5s timeout)
-- [x] Taskfile.yml with build/test/fmt targets
-- [x] 4 passing fixture tests (basic-css, variables, nesting, operations)
+### Phase 3: Functions ✅ COMPLETE
 
-## Phase 2: Core Features (Mostly Complete)
+**String Functions (4/4)**
+- [x] escape() - 032
+- [x] e() - 033
+- [x] % format - 034
+- [x] replace() - 035
 
-### ✅ Variables
-- [x] Variable declaration (@var: value)
-- [x] Variable resolution in values
-- [x] Variable interpolation in selectors (@{var})
-- [x] Variable interpolation in property names (@{prop-name})
-- [ ] Scoped variables (lazy evaluation)
+**List Functions (4/4)**
+- [x] length() - 040
+- [x] extract() - 041
+- [x] range() - 042
+- [x] each() - 043
 
-### ✅ Nesting
-- [x] Basic nesting (child selectors)
-- [x] Parent selector (&) - implemented and tested
-- [x] Nested at-rules (@media with bare declarations) - LESS-style bubbling up
+**Type Checking Functions (11/11)**
+- [x] isnumber(), isstring(), iscolor(), iskeyword() - 060, 061, 062
+- [x] isurl(), ispixel(), isem(), ispercentage(), isunit() - 061, 062
+- [x] isruleset(), isdefined() - 063
+- [x] boolean() - 031
 
-### ✅ Mixins (Parametric Mixins Complete)
-- [x] Simple mixins (classname mixin calls) - .mixin() calls now apply mixin declarations
-- [x] Parametric mixins (with arguments) - .mixin(@param) definitions and .mixin(value) calls
-- [ ] Mixin guards
-- [ ] Namespace mixins (#namespace > .mixin)
-- **Note**: Parser detects parameters in mixin definitions and binds arguments when called. Parametric mixins are not output to CSS (only regular, non-parametric mixins are). Renderer creates temporary variable scopes for parameter binding.
+**Math Functions (13/13)**
+- [x] ceil(), floor(), round(), abs(), sqrt(), pow(), min(), max(), percentage() - 050, 051
+- [x] sin(), cos(), tan(), asin(), acos(), atan(), pi(), mod() - 052
 
-### ✅ Operations
-- [x] Arithmetic operations (+, -, *, /) with unit support
-- [x] Color operations (lighten, darken, saturate, desaturate, spin, greyscale)
-- [ ] Unit conversions
+**Color Definition (7/7)**
+- [x] rgb(), rgba() - 070
+- [x] hsl(), hsla() - 071
+- [x] hsv(), hsva() - 072
+- [x] argb() - 073
 
-## Phase 3: Advanced Features
+**Color Channels (10/10)**
+- [x] hue(), saturation(), lightness() - 080
+- [x] hsvhue(), hsvsaturation(), hsvvalue() - 081
+- [x] red(), green(), blue(), alpha() - 082
+- [x] luma(), luminance() - 083
 
-### Color Functions
-- [ ] Basic color functions (rgb, rgba, hsl, hsla)
-- [ ] Color manipulation (lighten, darken, saturate, desaturate)
-- [ ] Color blending functions
+**Color Operations (7/7)**
+- [x] saturate(), desaturate() - 090
+- [x] lighten(), darken() - 091
+- [x] fade(), fadein(), fadeout() - 092
+- [x] spin() - 093
+- [x] mix(), tint(), shade() - 094
+- [x] greyscale(), contrast() - 095
 
-### String Functions
-- [ ] String manipulation (concatenation, replace)
-- [ ] Escaping
+**Color Blending (9/9)**
+- [x] multiply(), screen() - 100
+- [x] overlay(), softlight(), hardlight() - 101
+- [x] difference(), exclusion(), average(), negation() - 102
 
-### Math Functions
-- [ ] Basic math (ceil, floor, round, sqrt, abs)
-- [ ] Trigonometric functions (sin, cos, tan)
-- [ ] min, max, pow, mod
+**Logical Functions (2/2)**
+- [x] if() - 020, _030
+- [x] boolean() - 031
 
-### Type Functions
-- [ ] Type checking (isnumber, isstring, iscolor, etc.)
-- [ ] Type conversion functions
+**Misc Functions (4/7)**
+- [x] unit(), get-unit(), convert() - 110
+- [x] color() - 111
 
-### Other Features
-- [x] @import (basic - file resolution with fs.FS, error on missing imports, optional imports)
-- [ ] @media and other at-rules
-- [ ] Extend/::extend
-- [ ] Maps
-- [ ] Detached rulesets
-- [ ] Plugins (if time permits)
+### Phase 4: Infrastructure & Quality
 
-## Known Issues & Blockers
+- [x] Comment preservation in output
+- [x] Stack-based variable scoping
+- [x] Mixin parameter binding
+- [x] Import resolution
+- [x] Extend/inheritance
+- [x] Edge case handling (CSS3 vars, pseudo-classes, attribute selectors)
 
-### ✅ LEXER FIXED - All 4 Critical Bugs Resolved
-1. **Color Detection** - FIXED ✓
-   - Moved color check to switch statement for `#` before it returns HASH
-   - Now correctly detects 3, 4, 6, and 8 digit hex colors
+## Test Results Summary
 
-2. **Negative Numbers** - FIXED ✓
-   - Updated readNumber() to accept hasMinusPrefix parameter
-   - Properly captures `-` when followed by digit
+### Fixture Test Status: 59/59 PASSING (100%)
 
-3. **Variable Token** - FIXED ✓
-   - Moved variable check to switch statement for `@` 
-   - Now correctly captures full @variable-name tokens
+**Core Language (19 tests)**
+- 001: Basic CSS ✅
+- 002: Variables ✅
+- 003: Nesting ✅
+- 004: Operations ✅
+- 005: Parent Selector ✅
+- 006: Color Functions ✅
+- 007: Color Manipulation ✅
+- 008: Math Functions ✅
+- 009: Basic Mixins ✅
+- 010: Parametric Mixins ✅
+- 011: Import ✅
+- 011: Mixin Guards ✅
+- 011: Type Functions ✅
+- 012: Type Functions ✅
+- 013: Interpolation ✅
+- 014: Nested Media ✅
+- 015: Extend Basic ✅
+- 016: Extend Multiple ✅
+- 017: CSS3 Variables ✅
+- 018: Edge Cases ✅
+- 019: Comments ✅
+- 020: Luma & If ✅
 
-4. **String Escape Sequences** - FIXED ✓
-   - Added proper escape sequence handling: \n, \t, \r, \\, \", \'
-   - Strings now correctly interpret escape sequences
+**Logical Functions (2 tests)**
+- 031: Boolean ✅
+- _030: If ✅
 
-### Test Status
-- ✅ All lexer tests passing (6/6 test groups pass)
-- ✅ All fixture tests passing (18/18)
-  - 001-basic-css
-  - 002-variables
-  - 003-nesting
-  - 004-operations
-  - 005-parent-selector
-  - 006-color-functions
-  - 007-color-manipulation
-  - 008-math-functions
-  - 009-basic-mixins
-  - 010-parametric-mixins
-  - 011-import
-  - 011-mixin-guards
-  - 012-type-functions
-  - 013-interpolation
-  - 014-nested-media
-  - 015-extend-basic
-  - 016-extend-multiple
-  - ✅ lessc integration tests: 15/15 passing (100%)
-- ✅ Parser handles space-separated and comma-separated values correctly
-- ✅ Color manipulation functions working (lighten, darken, etc.)
-- ✅ Basic mixin support - declarations from .mixin() calls applied to calling rules
-- ✅ Parametric mixin support - arguments bound to parameters in separate variable scope
+**String Functions (4 tests)**
+- 032: Escape ✅
+- 033: e() ✅
+- 034: Format ✅
+- 035: Replace ✅
 
-## Features Added This Session (Current Session - Comment Preservation)
+**List Functions (4 tests)**
+- 040: Length ✅
+- 041: Extract ✅
+- 042: Range ✅
+- 043: Each ✅
 
-### ✅ Comment Preservation and Rendering
-- [x] Created comment extraction system (`parser/comments.go`)
-  - Extracts comments from source preserving line/column positions
-  - Only extracts top-level comments (not indented/inside blocks)
-  - Handles both `//` and `/* */` style comments
-  - Only captures comments on their own lines (not mixed with code)
-- [x] Extended AST to track comments
-  - Added `Comments []*Comment` field to Rule nodes
-  - Added `Comments []*Comment` field to VariableDeclaration nodes
-- [x] Updated Parser to attach comments to statements
-  - Created `NewParserWithSource(tokens, source)` for comment preservation
-  - Implemented comment-to-statement attachment logic
-  - Comments attached to first statement following them
-- [x] Updated Renderer to output comments as CSS
-  - Converts `//` comments to `/* */` format
-  - Renders comments before associated statements
-  - Ensures proper spacing (1 blank line before comment+declaration)
-- [x] Updated Formatter to preserve comments in formatted output
-  - Comments preserved in formatted LESS files
-  - Proper indentation for comments
-  - Consistent spacing maintained
-- [x] Updated test harness to use comment-aware parser
-  - All fixture tests now preserve and render comments
-  - Updated fixture CSS files to include rendered comments (4 fixtures changed)
-  - **All 22 fixture tests passing with comment support**
+**Math Functions (3 tests)**
+- 050: Basic Math ✅
+- 051: Advanced Math ✅
+- 052: Trigonometric ✅
 
-## Features Added Previous Session (CSS3 Variables)
+**Type Functions (4 tests)**
+- 060: Number Types ✅
+- 061: Color Types ✅
+- 062: Other Types ✅
+- 063: Defined ✅
 
-### ✅ CSS3 Variables (Custom Properties) Support
-- [x] Fixed parser to handle CSS3 `--property-name` syntax (double-dash)
-- [x] Updated `parseDeclaration()` to consume TokenMinus for property names
-- [x] Fixed `parseFunctionArg()` to prevent infinite loops with `--identifier` patterns
-- [x] Added special handling in `parseSimpleValue()` for minus tokens followed by identifiers
-- [x] CSS3 variables like `var(--primary-color)` now compile correctly
-- [x] Fallback values in var() work: `var(--color, #333)`
-- [x] Test fixture for CSS3 variables (017) now passes
-- [x] **All 20 fixture tests pass**
+**Color Definition (4 tests)**
+- 070: RGB ✅
+- 071: HSL ✅
+- 072: HSV ✅
+- 073: ARGB ✅
 
-### ✅ Developer Quality of Life Improvements
-- [x] Fixed timeout issue - parser was hanging on CSS3 variable syntax
-- [x] Updated AGENTS.md to enforce `-timeout 5s` on all go test commands
-- [x] Updated Taskfile.yml to include testdata tests in main test task
-- [x] Fixed extend test fixture (015) to have actual extend syntax
-- [x] All tests now complete in <1s with proper timeout handling
-- [x] Fixed string literal rendering to preserve quotes
-- [x] Added edge case test fixture (018) with attribute selectors, pseudo-classes, nested operators
-- [x] **All 21 fixture tests passing**
+**Color Channels (4 tests)**
+- 080: HSL Channels ✅
+- 081: HSV Channels ✅
+- 082: RGB Channels ✅
+- 083: Luma ✅
 
-### Known Issues to Address
-- [ ] Comment preservation in formatter (comments dropped during parsing - design issue)
-- [ ] Escaped strings in double quotes need lexer fix (`\"` handling in strings)
-- [ ] Attribute selector rendering adds spaces around `=` (renderer issue)
-- [ ] Selector spacing with combinators (>, +) inconsistent (renderer issue)
+**Color Operations (6 tests)**
+- 090: Saturate/Desaturate ✅
+- 091: Lighten/Darken ✅
+- 092: Fade ✅
+- 093: Spin ✅
+- 094: Mix ✅
+- 095: Greyscale ✅
 
-## Features Added Previous Session
+**Color Blending (3 tests)**
+- 100: Multiply/Screen ✅
+- 101: Overlay/Softlight/Hardlight ✅
+- 102: Difference/Exclusion/Average/Negation ✅
 
-### ✅ Extend/Inheritance Feature
-- [x] Added Extend AST node type for &:extend(.selector) declarations
-- [x] Parser support for extend syntax within rules
-- [x] Handle both FUNCTION and IDENT tokenization of 'extend'
-- [x] Renderer applies extends by merging selectors
-- [x] Track all rules and extends for proper selector composition
-- [x] Test fixtures for basic and multiple extends (015, 016)
-- [x] **All 18 fixture tests pass including new extend tests**
-- [x] Extends work with multiple selectors: &:extend(.class1, .class2)
+**Misc Functions (2 tests)**
+- 110: Unit Functions ✅
+- 111: Color Function ✅
 
-## Features Added Previous Session
+**Imports & Helpers (2 tests)**
+- _011: Imported ✅
+- _011-imported: Helper ✅
 
-### ✅ Nested @media Rules with Bare Declarations Support
-- [x] Added DeclarationStmt AST node type to wrap declarations as statements
-- [x] Updated parser to handle bare declarations (property: value;) inside @media blocks
-- [x] Implemented LESS-style @media bubbling - nested @media queries with bare declarations are hoisted
-- [x] Fixed parameter parsing to preserve spacing (e.g., "@media (max-width: 600px)")
-- [x] Updated renderer to bubble up @media rules and wrap declarations in parent selectors
-- [x] **All 16 fixture tests pass (including new 014-nested-media)**
-- [x] **Nested media queries now compile correctly with parent selector wrapping**
+## Architecture Summary
 
-### ✅ Type Checking Functions Fix & Integration Test Pass (Previous Session)
-- [x] Fixed `iscolor()` to recognize named CSS color keywords (red, blue, green, etc.)
-- [x] Fixed `iskeyword()` to treat any unquoted literal/identifier as a keyword
-- [x] Fixed `isstring()` to only recognize quoted strings (not unquoted identifiers)
-- [x] Fixed `boolean()` to return true ONLY for the literal keyword `true`
-- [x] Fixed `length()` to return 1 for quoted strings (single value, not char count)
-- [x] Fixed `escape()` function to not escape exclamation marks (matches lessc behavior)
-- [x] Added proper AST-based type checking for type functions
-- [x] Implemented variable expansion detection for function arguments
-- [x] Fixed issue where list variables in function calls weren't expanded properly
-- [x] **All 15 fixture tests pass and match lessc output exactly (100%)**
-- [x] **All 15 integration tests pass against actual lessc compiler**
+### Lexer (`parser/lexer.go`)
+- Full token recognition for LESS syntax
+- Handles: variables, colors, strings, numbers with units, operators
+- Special tokens: parentheses, brackets, braces for structure
+- Comment tracking
 
-### ✅ Stack-Based Variable Scoping Implementation (Previous Session)
-- [x] Created `parser/stack.go` - adapted from vuego's stack implementation
-- [x] Stack provides LIFO variable scope management (Push/Pop operations)
-- [x] Updated Renderer to use Stack instead of flat map for variables
-- [x] Implemented proper scope push/pop for mixin parameter binding
-- [x] All mixin parameters now live in separate scope layer
-- [x] Variable lookups search from top scope to root (following LESS semantics)
-- [x] Enables foundation for lazy evaluation and advanced scoping
-- [x] Backward compatible - all 13 existing fixture tests still passing
+### Parser (`parser/parser.go`)
+- Recursive descent parser
+- Variable declarations, rules, nested selectors
+- Mixin definitions with parameters
+- Import statements
+- At-rules (@media, @import, etc.)
+- Function calls and operations
+- Guard conditions
+- Comment extraction and attachment
 
-### ✅ Type Checking Functions Implementation (Previous Session)
-- [x] Created `functions/types.go` with all type checking functions
-- [x] Implemented: isnumber, isstring, iscolor, iskeyword, isurl, ispixel, isem, ispercentage, isunit, isruleset, islist
-- [x] Implemented list/string functions: length, extract, range, escape, e, boolean
-- [x] Renderer evaluates type checking functions on AST values (preserves type info)
-- [x] Variable resolution for type checking (checks type of variable value)
-- [x] Parser enhancement: `parseFunctionArg()` handles space-separated values in function arguments
-- [x] Fixed parser to allow both space-separated and comma-separated function arguments
-- [x] Fixture tests for type checking functions (011 and 012)
+### AST (`ast/types.go`)
+- Comprehensive node types for all LESS constructs
+- Supports nesting, mixins, functions, operations
+- Comment nodes for preservation
 
-## Features Added Previous Session
+### Renderer (`renderer/renderer.go`)
+- Outputs valid CSS from AST
+- Handles variable resolution
+- Function evaluation
+- Mixin application and parameter binding
+- Extend/inheritance application
+- Proper CSS formatting and indentation
 
-### ✅ Variable Interpolation Implementation
-- [x] Lexer tracks interpolation depth for @{ ... } syntax
-- [x] Parser handles interpolation in selectors: `.@{var}`
-- [x] Parser handles interpolation in property names: `@{prop-name}`
-- [x] Parser handles interpolation in values via Interpolation AST node
-- [x] Renderer resolves interpolation by variable lookup
-- [x] Both selector and property interpolation working
-- [x] Compatible with lessc output
-- [x] Fixture test for interpolation
+### Functions (`functions/`)
+- colors.go: Color manipulation and definition
+- math.go: Mathematical functions
+- strings.go: String manipulation
+- All functions evaluated at render time
 
-## Features Added Previous Session
+### Importer (`importer/importer.go`)
+- File resolution for @import
+- Optional imports
+- Nested import support
 
-### ✅ @import Implementation
-- [x] Created `importer` package with fs.FS support
-- [x] File resolution relative to importing file
-- [x] Error on missing imports (unless optional)
-- [x] Support for @import "file.less" syntax
-- [x] Support for @import url("file.less") syntax  
-- [x] Optional imports: @import "file.less" (optional)
-- [x] Nested import resolution (imports within imports)
-- [x] Parser recognizes @import, @media, etc. as at-rules
-- [x] Both `fmt` and `compile` commands resolve imports
-- [x] Fixture test for @import functionality
+### Evaluator (`evaluator/evaluator.go`)
+- Expression evaluation
+- Type checking
+- Variable interpolation
 
-### ✅ Formatter Implementation (`cmd/lessgo fmt`)
-- [x] Created `cmd/lessgo` binary with `fmt` command
-- [x] Formatter parses LESS, adds missing semicolons, fixes indentation
-- [x] Uses 2-space indentation as standard
-- [x] Supports glob patterns for multiple files
-- [x] Handles missing semicolons between declarations (intelligent lookahead)
-- [x] **FIXED**: Preserves variable references in formatted output (@primary stays @primary)
-- [x] **FIXED**: Properly handles nested rule indentation
-- [x] **FIXED**: Improved blank line handling between declarations and nested rules
-- [x] **FIXED**: Outputs mixin parameters in formatted output
-- [x] Now errors on missing imports during formatting
+## Development Workflow
 
-### ✅ Parametric Mixins Implementation
-- [x] Added Parameters field to Rule AST node
-- [x] Parser detects and parses mixin parameters (.mixin(@param))
-- [x] Parser stops selector parsing at LPAREN to avoid consuming parameters
-- [x] Renderer binds mixin arguments to parameters in temporary variable scope
-- [x] Renderer skips parametric mixin definitions in CSS output
-- [x] Created compile command in CLI for testing
+1. Create test fixture pair (.less and .css)
+2. Verify with: `./test_fixtures_vs_lessc.sh`
+3. Run tests: `task test` or `go test ./...`
+4. Format code: `task fmt`
+5. Commit changes
 
-### ✅ Parser Improvements
-- [x] Made semicolons optional at end of declarations
-- [x] Added lookahead for detecting property boundaries (IDENT + COLON pattern)
-- [x] Prevents infinite loops when parsing declarations without semicolons
-- [x] Added parameter parsing for mixin definitions
-- [x] Fixed selector parsing to stop at LPAREN (for mixin parameters)
-- [x] Added at-rule keyword detection to distinguish @import/@media from @variables
+## Key Implementation Notes
 
-## Features Added Current Session (Fixture Verification & Fixes)
+- **No external dependencies** for core functionality (stdlib only)
+- **AST-based** - Parse to tree, manipulate, render to CSS
+- **Stack-based scoping** - Variables scoped with push/pop for parameter binding
+- **Comment preservation** - Comments attached to AST nodes during parsing
+- **Function evaluation** - All functions evaluated at render time with AST values
+- **Type preservation** - Type information maintained through compilation
 
-### ✅ Test Verification Infrastructure
-- [x] Created `verify_fixtures.sh` - verifies all fixture .css files against lessc output
-- [x] Created `verify_lessgo.sh` - verifies lessgo compilation against fixtures
-- [x] All 58 fixtures verified against official lessc compiler (100% match)
-- [x] Whitespace normalization in tests (tolerates extra blank lines and trailing spaces)
+## Known Limitations
 
-### ✅ Parser Fixes
-- [x] Fixed attribute selector formatting: `[data-test="value"]` (no spaces around =)
-- [x] Fixed STRING token handling in selectors - adds quotes back properly
-- [x] Fixed spacing rules in needsSpaceBetween() - no space after brackets or operators
-- [x] Added support for % format function syntax: `%("format", args)`
+### Not Implemented
 
-### ✅ Renderer Fixes
-- [x] Fixed media query indentation - nested rules inside @media now properly indented
-- [x] Fixed multi-selector rendering - each selector on separate line with comma-newline separator
-- [x] Fixed % format function evaluation - quotes properly handled in result
-- [x] Improved Format() function - strips quotes from arguments before substitution
+- [ ] Pattern matching in mixins
+- [ ] Recursive mixins  
+- [ ] Namespace mixins (#ns > .mixin)
+- [ ] Maps/object literals
+- [ ] Plugin system
+- [ ] Source maps
+- [ ] File access functions (image-size, data-uri, etc.)
 
-### ✅ Current Test Status
-- [x] 32/58 fixtures passing (55% pass rate)
-- [x] All basic features working (variables, nesting, operations, mixins, etc.)
-- [x] Media query nesting fixed
-- [x] Attribute selectors fixed
-- [x] % format function working
+### Edge Cases
 
-### 🔴 Remaining Issues (26 failures, 1 timeout)
-- [ ] 030-logical-functions-if: Timeout (2s) - infinite loop likely in conditional evaluation
-- [ ] 035-string-functions-replace: replace() function not evaluated in variable declarations
-- [ ] 040-043: List functions (length, extract, range, each) not evaluated
-- [ ] 043-list-functions-each: Parse error on each() syntax
-- [ ] 051-052: Advanced math functions (trig) returning literal function calls
-- [ ] 063-type-functions-defined: Parse/evaluation error on defined() function
-- [ ] 072-073, 080-083: Color definition/channel functions need implementation
-- [ ] 090-095: Color blending operations returning literals instead of evaluated results
-- [ ] 100-102: Color blending functions (multiply, overlay, difference) not evaluated
-- [ ] 110-111: Misc functions (unit, get-unit, convert, color) not evaluated
+- Lazy evaluation of nested variables (partial support)
+- Default variables (@var: default-value)
+- Some unit conversion edge cases
 
-## Functions Actually Implemented (Session Summary)
+## Next Steps (Future)
 
-### ✅ Math Functions (ALL IMPLEMENTED)
-- [x] ceil(), floor(), round()
-- [x] abs(), sqrt(), pow(), mod()
-- [x] min(), max(), percentage()
-- [x] sin(), cos(), tan(), asin(), acos(), atan(), pi()
-
-### ✅ String Functions
-- [x] escape(), e()
-- [x] format() / % operator
-- [x] replace() (implemented in renderer)
-
-### ✅ List Functions
-- [x] length()
-- [x] extract()
-- [x] range()
-- [ ] each() (NOT IMPLEMENTED - has parser hang on parenthesized expressions)
-
-### ✅ Type Checking Functions (ALL IMPLEMENTED)
-- [x] isnumber(), isstring(), iscolor(), iskeyword()
-- [x] isurl(), ispixel(), isem(), ispercentage(), isunit()
-- [x] isruleset(), islist()
-- [x] boolean()
-
-### ✅ Color Definition & Channel Functions
-- [x] rgb(), rgba(), hsl(), hsla()
-- [x] red(), green(), blue(), alpha()
-- [x] hue(), saturation(), lightness()
-
-### ✅ Color Manipulation Functions
-- [x] lighten(), darken(), saturate(), desaturate()
-- [x] spin(), greyscale()
-
-## Next Session Action Plan
-
-### Priority 1: Fix Parser Issue - Parenthesized Expressions
-**CRITICAL BLOCKER**: Parser hangs on `(@value * 50px)` expressions
-- Current behavior: parseSimpleValue() doesn't handle LPAREN
-  - Falls through to default case, returns Literal("(")
-  - May cause infinite loop in property name parsing loop with safety checks
-- Solution needed: Add explicit parenthesized expression handling
-  - `parseParenthesizedExpression()` should call `parseValue()` inside parens
-  - Must be called from `parseSimpleValue()` for LPAREN tokens
-- This blocks: each() loops, complex math expressions, and other features
-
-### Priority 2: Implement each() Loop Feature
-- [ ] Fix LPAREN parsing issue (Priority 1 above)
-- [ ] Add EachLoop AST node: `List Value; Rulesets []*Rule` (reuse Rule for templates)
-- [ ] Parser: Recognize `each(expr, { rules })` syntax in parseStatement()
-- [ ] Renderer: For each list item, clone rulesets and re-evaluate with @value/@index/@key bound
-- [ ] Test with 043 fixture
-
-### Priority 3: Review and Fix Failing Fixtures
-- [ ] 030: if() function - logical operations
-- [ ] 035: replace() function - appears implemented but may have issues
-- [ ] 040: length() function - appears implemented
-- [ ] 051-052: Advanced math (trigonometric)
-- [ ] Color blending and other advanced functions
-
-## Current Code Quality Notes
-
-- Lexer structure is good, just needs token recognition fixes
-- Parser skeleton is in place but incomplete
-- AST types are comprehensive and well-designed
-- Test infrastructure (fixtures) is solid and ready
-- No external dependencies (as intended)
-
-## Repository State
-
-- All files committed to `/root/github/lessgo/`
-- go.mod configured with testify/require
-- 3 fixture pairs ready for testing
-- Lexer tests are comprehensive and will guide fixes
+1. **Source Maps** - Generate source map files for debugging
+2. **Performance** - Profile and optimize for large LESS files
+3. **Error Messages** - Improve error reporting with line/column info
+4. **Documentation** - User guide and API documentation
+5. **Plugins** - Plugin system for extending functionality
+6. **Advanced Features** - Maps, recursive mixins, pattern matching

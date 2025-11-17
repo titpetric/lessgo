@@ -148,6 +148,13 @@ func (p *Parser) parseStatement() (ast.Statement, error) {
 		return loop, err
 	}
 
+	// Check for root-level mixin calls (.mixin(); or #namespace.mixin();)
+	if (tok.Type == TokenDot || tok.Type == TokenHash) && p.isMixinCall() {
+		mixin, err := p.parseMixinCall()
+		p.match(TokenSemicolon)
+		return mixin, err
+	}
+
 	// Rule (selector + block)
 	stmt, err := p.parseRule()
 	// Attach comments to rule
@@ -269,8 +276,11 @@ func (p *Parser) parseRule() (ast.Statement, error) {
 			}
 			if decl != nil {
 				rule.AddDeclaration(*decl)
+				p.match(TokenSemicolon)
 			}
-			p.match(TokenSemicolon)
+			// If decl is nil, it means there was no property/declaration, which can happen
+			// when we encounter unexpected tokens. Rather than error, we'll skip this.
+			// This prevents infinite loops on malformed input.
 		}
 	}
 
@@ -284,12 +294,22 @@ func (p *Parser) parseRule() (ast.Statement, error) {
 // parseSelector parses a CSS selector
 func (p *Parser) parseSelector() (ast.Selector, error) {
 	parts := []string{}
+	iterations := 0
 
 	for {
+		iterations++
+		if iterations > 1000 {
+			return ast.Selector{}, fmt.Errorf("infinite loop in parseSelector at %v", p.peek())
+		}
 		part := ""
 
 		// Collect selector tokens until comma, brace, or LPAREN (for parameters)
+		innerIterations := 0
 		for !p.check(TokenLBrace) && !p.check(TokenComma) && !p.check(TokenLParen) && !p.isAtEnd() {
+			innerIterations++
+			if innerIterations > 10000 {
+				return ast.Selector{}, fmt.Errorf("infinite loop in parseSelector inner loop at %v", p.peek())
+			}
 			if p.check(TokenSemicolon) {
 				break
 			}
@@ -467,17 +487,28 @@ func (p *Parser) isMixinCall() bool {
 	savedPos := p.pos
 
 	// Try to parse as a mixin call
-	// Pattern: .classname() or #namespace.classname() or .namespace > .classname()
+	// Pattern: .classname, .classname(), #namespace.classname(), .namespace > .classname(), etc.
+	foundIdentifier := false
+	iterations := 0
 	for !p.isAtEnd() {
+		iterations++
+		if iterations > 100 {
+			p.pos = savedPos
+			return false // prevent infinite loops
+		}
 		if p.match(TokenDot) || p.match(TokenHash) {
 			// Skip the class/id name (could be IDENT or FUNCTION)
 			if p.check(TokenIdent) {
 				p.advance()
+				foundIdentifier = true
 			} else if p.check(TokenFunction) {
 				// mixin() is tokenized as FUNCTION
-				p.advance()
-				p.pos = savedPos
-				return true // Found .functionname() - this is a mixin call
+				p.advance() // consume the function name
+				// Now we're at LPAREN or something else
+				// If it's followed by LPAREN then arguments then LBRACE, it's a rule definition
+				// If it's followed by LPAREN then arguments then SEMICOLON/EOF, it's a mixin call
+				foundIdentifier = true
+				// Don't return immediately, continue checking
 			} else {
 				p.pos = savedPos
 				return false
@@ -491,8 +522,38 @@ func (p *Parser) isMixinCall() bool {
 
 			// Check for ()
 			if p.check(TokenLParen) {
-				p.pos = savedPos
-				return true
+				// Skip past the parentheses to see what's after
+				savedLParenPos := p.pos
+				p.advance() // consume (
+				parenDepth := 1
+				for parenDepth > 0 && !p.isAtEnd() {
+					if p.check(TokenLParen) {
+						parenDepth++
+					} else if p.check(TokenRParen) {
+						parenDepth--
+					}
+					if parenDepth > 0 {
+						p.advance()
+					}
+				}
+				if parenDepth > 0 {
+					p.pos = savedPos
+					return false // Unclosed parens
+				}
+				p.advance() // consume )
+
+				// Now check what follows the closing paren
+				if p.check(TokenLBrace) {
+					// .name() { ... } - this is a rule definition, not a mixin call
+					p.pos = savedPos
+					return false
+				} else if p.check(TokenSemicolon) || p.check(TokenGreater) || p.check(TokenComma) || p.isAtEnd() {
+					// .name(); or .name() > or just .name() - this is a mixin call
+					p.pos = savedPos
+					return true
+				}
+				// For other cases, reset and continue checking
+				p.pos = savedLParenPos
 			}
 
 			// Check for another . or #
@@ -500,7 +561,36 @@ func (p *Parser) isMixinCall() bool {
 				continue
 			}
 
-			// No () found, not a mixin call
+			// Found at least an identifier (mixin name), could be valid mixin call
+			// even without parentheses (e.g., #namespace > .mixin;)
+			// But we need to check that it's followed by ; not {
+			if foundIdentifier {
+				// Check if it's a mixin call (followed by ; or another . or #) vs a rule definition (followed by {)
+				if p.check(TokenSemicolon) || p.check(TokenDot) || p.check(TokenHash) || p.check(TokenGreater) || p.isAtEnd() {
+					p.pos = savedPos
+					return true
+				}
+				// If followed by {, it's a rule definition, not a mixin call
+				if p.check(TokenLBrace) {
+					p.pos = savedPos
+					return false
+				}
+				// If followed by guard keywords (when/unless), it's a rule definition with guard, not a mixin call
+				if p.checkIdentValue("when") || p.checkIdentValue("unless") {
+					p.pos = savedPos
+					return false
+				}
+				// If followed by interpolation or other selector continuations, it's likely a rule definition with interpolation
+				if p.check(TokenInterp) || p.check(TokenMinus) || p.check(TokenColon) {
+					p.pos = savedPos
+					return false
+				}
+				// For other cases (like (){), it might still be a mixin call
+				p.pos = savedPos
+				return true
+			}
+
+			// No () or identifier found, not a mixin call
 			p.pos = savedPos
 			return false
 		} else {
@@ -510,15 +600,20 @@ func (p *Parser) isMixinCall() bool {
 	}
 
 	p.pos = savedPos
-	return false
+	return foundIdentifier // Return true if we found at least one identifier
 }
 
 // parseMixinCall parses a mixin call like .classname() or #namespace.classname()
 func (p *Parser) parseMixinCall() (*ast.MixinCall, error) {
 	path := []string{}
+	iterations := 0
 
 	// Parse the namespace/path (.classname or #namespace.classname)
 	for {
+		iterations++
+		if iterations > 100 {
+			return nil, fmt.Errorf("infinite loop in parseMixinCall at %v", p.peek())
+		}
 		if p.match(TokenDot) {
 			if p.check(TokenIdent) {
 				path = append(path, p.advance().Value)
@@ -555,21 +650,27 @@ func (p *Parser) parseMixinCall() (*ast.MixinCall, error) {
 			} else {
 				return nil, fmt.Errorf("expected identifier after '.' in mixin call at %v", p.peek())
 			}
+
+			// Check for > (descendent selector) after .identifier
+			if !p.check(TokenGreater) {
+				break // End of path
+			}
 		} else if p.match(TokenHash) {
 			if !p.check(TokenIdent) {
 				return nil, fmt.Errorf("expected identifier after '#' in mixin call at %v", p.peek())
 			}
 			path = append(path, p.advance().Value)
+
+			// Check for > (descendent selector) after #identifier
+			if !p.check(TokenGreater) {
+				break // End of path
+			}
 		} else {
-			break
+			break // No more path segments
 		}
 
-		// Check for > (descendent selector)
-		if p.match(TokenGreater) {
-			// Continue to next segment
-			continue
-		} else {
-			// End of path
+		// Consume the > token if present
+		if !p.match(TokenGreater) {
 			break
 		}
 	}
@@ -578,30 +679,34 @@ func (p *Parser) parseMixinCall() (*ast.MixinCall, error) {
 		return nil, fmt.Errorf("expected mixin name at %v", p.peek())
 	}
 
-	// Expect (
-	if !p.match(TokenLParen) {
-		return nil, fmt.Errorf("expected '(' in mixin call at %v", p.peek())
-	}
-
-	// Parse arguments (optional)
+	// Mixin call can have arguments in parentheses, or be called without parentheses
 	args := []ast.Value{}
-	for !p.check(TokenRParen) && !p.isAtEnd() {
-		arg, err := p.parseCommaListNoSpaces()
-		if err != nil {
-			return nil, err
-		}
-		if arg != nil {
-			args = append(args, arg)
+
+	// Check if there's a ( for arguments
+	if p.check(TokenLParen) {
+		if !p.match(TokenLParen) {
+			return nil, fmt.Errorf("expected '(' in mixin call at %v", p.peek())
 		}
 
-		if !p.match(TokenComma) {
-			break
-		}
-	}
+		// Parse arguments (optional)
+		for !p.check(TokenRParen) && !p.isAtEnd() {
+			arg, err := p.parseCommaListNoSpaces()
+			if err != nil {
+				return nil, err
+			}
+			if arg != nil {
+				args = append(args, arg)
+			}
 
-	// Expect )
-	if !p.match(TokenRParen) {
-		return nil, fmt.Errorf("expected ')' in mixin call at %v", p.peek())
+			if !p.match(TokenComma) {
+				break
+			}
+		}
+
+		// Expect )
+		if !p.match(TokenRParen) {
+			return nil, fmt.Errorf("expected ')' in mixin call at %v", p.peek())
+		}
 	}
 
 	return &ast.MixinCall{
@@ -923,6 +1028,11 @@ func (p *Parser) parseFunctionArg() (ast.Value, error) {
 func (p *Parser) parseVariableDeclaration() (*ast.VariableDeclaration, error) {
 	name := p.advance().Value
 
+	// Check for detached ruleset call: @var()
+	if p.check(TokenLParen) {
+		return p.parseDetachedRulesetCall(name)
+	}
+
 	if !p.match(TokenColon) {
 		return nil, fmt.Errorf("expected ':' after variable name at %v", p.peek())
 	}
@@ -950,6 +1060,44 @@ func (p *Parser) parseVariableDeclaration() (*ast.VariableDeclaration, error) {
 	return &ast.VariableDeclaration{
 		Name:  name,
 		Value: value,
+	}, nil
+}
+
+// parseDetachedRulesetCall parses a detached ruleset call: @var()
+// This returns a special marker value that the renderer will handle
+func (p *Parser) parseDetachedRulesetCall(name string) (*ast.VariableDeclaration, error) {
+	if !p.match(TokenLParen) {
+		return nil, fmt.Errorf("expected '(' in ruleset call at %v", p.peek())
+	}
+
+	// Parse arguments if any (currently unused, but parse them to skip tokens)
+	if !p.check(TokenRParen) {
+		for {
+			_, err := p.parseFunctionArg()
+			if err != nil {
+				return nil, err
+			}
+
+			if !p.match(TokenComma) {
+				break
+			}
+		}
+	}
+
+	if !p.match(TokenRParen) {
+		return nil, fmt.Errorf("expected ')' in ruleset call at %v", p.peek())
+	}
+
+	p.match(TokenSemicolon)
+
+	// Return a variable declaration with a special RulesetCall marker
+	// Use the variable name as a marker that this is a ruleset call
+	return &ast.VariableDeclaration{
+		Name: "@" + name + "()", // Use special marker to identify as ruleset call
+		Value: &ast.Literal{
+			Type:  ast.RulesetLiteral,
+			Value: name, // Store the variable name to be looked up
+		},
 	}, nil
 }
 
@@ -1032,25 +1180,66 @@ func (p *Parser) parseDetachedRuleset() (ast.Value, error) {
 		return nil, fmt.Errorf("expected '{' at %v", p.peek())
 	}
 
-	// For now, just skip over the ruleset content and return a Ruleset literal
-	// We're not fully supporting detached rulesets yet, but we need to parse them
-	// to avoid parser errors
-	depth := 1
-	for depth > 0 && !p.isAtEnd() {
-		if p.match(TokenLBrace) {
-			depth++
-		} else if p.match(TokenRBrace) {
-			depth--
-		} else {
-			p.advance()
+	ruleset := &ast.RulesetValue{
+		Declarations: []ast.Declaration{},
+		Rules:        []ast.Statement{},
+	}
+
+	// Parse declarations and nested rules inside the ruleset
+	for !p.check(TokenRBrace) && !p.isAtEnd() {
+		if p.match(TokenSemicolon) {
+			continue
+		}
+
+		// Try to parse a declaration first
+		if p.checkIdent() || p.check(TokenMinus) {
+			// Look ahead to see if this is a declaration (property: value)
+			savedPos := p.pos
+			isDeclaration := false
+
+			// Try to consume property name
+			if p.check(TokenMinus) {
+				// CSS3 custom property: --name
+				p.advance()
+				if p.checkIdent() {
+					p.advance()
+					isDeclaration = p.check(TokenColon)
+				}
+			} else if p.checkIdent() {
+				p.advance()
+				isDeclaration = p.check(TokenColon)
+			}
+
+			p.pos = savedPos
+
+			if isDeclaration {
+				decl, err := p.parseDeclaration()
+				if err != nil {
+					return nil, err
+				}
+				if decl != nil {
+					ruleset.Declarations = append(ruleset.Declarations, *decl)
+				}
+				p.match(TokenSemicolon)
+				continue
+			}
+		}
+
+		// Otherwise, parse as a nested rule
+		rule, err := p.parseRule()
+		if err != nil {
+			return nil, err
+		}
+		if rule != nil {
+			ruleset.Rules = append(ruleset.Rules, rule)
 		}
 	}
 
-	// Return a Ruleset literal
-	return &ast.Literal{
-		Type:  ast.RulesetLiteral,
-		Value: "", // We don't use Value for rulesets
-	}, nil
+	if !p.match(TokenRBrace) {
+		return nil, fmt.Errorf("expected '}' at %v", p.peek())
+	}
+
+	return ruleset, nil
 }
 
 // parseAtRule parses an at-rule (@media, @import, etc.)
@@ -1227,7 +1416,7 @@ func (p *Parser) parseGuard(isWhen bool) (*ast.Guard, error) {
 		} else if p.check(TokenLe) {
 			operator = "<="
 			p.advance()
-		} else if p.check(TokenGt) {
+		} else if p.check(TokenGreater) {
 			operator = ">"
 			p.advance()
 		} else if p.check(TokenGe) {

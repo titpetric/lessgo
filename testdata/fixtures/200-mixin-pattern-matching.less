@@ -1,0 +1,25 @@
+// Pattern matching in mixins - multiple definitions with same name but different patterns
+
+.border(@width, @style, @color) {
+  border: @width @style @color;
+}
+
+.border(@width, @style) {
+  border: @width @style solid;
+}
+
+.border(@width) {
+  border: @width solid black;
+}
+
+.box {
+  .border(1px, dashed, red);
+}
+
+.box2 {
+  .border(2px, dotted);
+}
+
+.box3 {
+  .border(3px);
+}

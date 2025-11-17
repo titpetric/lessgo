@@ -1,0 +1,19 @@
+// Detached rulesets - assign ruleset to variable and apply later
+
+@styles: {
+  color: blue;
+  font-size: 14px;
+};
+
+@media-styles: {
+  display: flex;
+  justify-content: center;
+};
+
+.container {
+  @styles();
+}
+
+.flex-box {
+  @media-styles();
+}
