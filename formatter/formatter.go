@@ -53,6 +53,9 @@ func (f *Formatter) formatStatement(stmt ast.Statement) {
 
 // formatRule formats a CSS rule
 func (f *Formatter) formatRule(rule *ast.Rule) {
+	// Write leading comments
+	f.formatComments(rule.Comments)
+
 	// Write selector
 	f.writeIndent()
 	selector := strings.Join(rule.Selector.Parts, ", ")
@@ -107,6 +110,9 @@ func (f *Formatter) formatRule(rule *ast.Rule) {
 
 // formatVariableDeclaration formats a variable declaration
 func (f *Formatter) formatVariableDeclaration(decl *ast.VariableDeclaration) {
+	// Write leading comments
+	f.formatComments(decl.Comments)
+
 	f.writeIndent()
 	f.output.WriteString("@")
 	f.output.WriteString(decl.Name)
@@ -155,6 +161,36 @@ func (f *Formatter) formatMixinCall(call *ast.MixinCall) {
 func formatValue(value ast.Value) string {
 	r := renderer.NewRenderer()
 	return r.FormatValue(value)
+}
+
+// formatComments writes comments with proper formatting
+func (f *Formatter) formatComments(comments []*ast.Comment) {
+	if len(comments) == 0 {
+		return
+	}
+
+	// Add blank line before comments if there's existing output
+	if f.output.Len() > 0 {
+		lastByte := f.output.Bytes()[f.output.Len()-1]
+		if lastByte != '\n' {
+			f.output.WriteString("\n")
+		}
+		// Ensure blank line (two newlines total)
+		if f.output.Len() >= 2 {
+			bytes := f.output.Bytes()
+			if bytes[f.output.Len()-1] == '\n' && bytes[f.output.Len()-2] != '\n' {
+				f.output.WriteString("\n")
+			}
+		}
+	}
+
+	// Write each comment converted to /* */ format
+	for _, comment := range comments {
+		f.writeIndent()
+		f.output.WriteString("/* ")
+		f.output.WriteString(comment.Text)
+		f.output.WriteString(" */\n")
+	}
 }
 
 // writeIndent writes the current indentation level

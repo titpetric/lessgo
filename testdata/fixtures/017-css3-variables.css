@@ -1,3 +1,4 @@
+/* CSS3 Custom Properties (Variables) */
 :root {
   --primary-color: #3498db;
   --secondary-color: #2ecc71;
@@ -17,10 +18,14 @@
 .button:hover {
   background-color: var(--secondary-color);
 }
+
+/* Fallback values */
 .element {
   color: var(--text-color, #333);
   background: var(--bg-color, white);
 }
+
+/* CSS3 variables should pass through unchanged */
 .card {
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   box-shadow: var(--shadow);

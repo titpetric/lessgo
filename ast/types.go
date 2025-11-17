@@ -35,9 +35,10 @@ type Rule struct {
 	Declarations []Declaration
 	Rules        []Statement // nested rules
 	Position     Position
-	Parameters   []string // for parametric mixins: parameter names like ["@v", "@size"]
-	Guard        *Guard   // optional guard condition for mixins
-	Extends      []Extend // extends declarations (&:extend(.class))
+	Parameters   []string   // for parametric mixins: parameter names like ["@v", "@size"]
+	Guard        *Guard     // optional guard condition for mixins
+	Extends      []Extend   // extends declarations (&:extend(.class))
+	Comments     []*Comment // leading comments before this rule
 }
 
 func (r *Rule) node() {}
@@ -122,8 +123,9 @@ func (m *MixinCall) stmt() {}
 
 // VariableDeclaration represents @variable: value
 type VariableDeclaration struct {
-	Name  string
-	Value Value
+	Name     string
+	Value    Value
+	Comments []*Comment // leading comments before this declaration
 }
 
 func (v *VariableDeclaration) node() {}

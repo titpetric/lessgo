@@ -57,8 +57,12 @@ func extractNumber(value string) interface{} {
 }
 
 // Eval evaluates an expression string with the evaluator's variable context
+// Preprocesses the expression to extract numbers from LESS values with units
 func (e *Evaluator) Eval(expression string) (interface{}, error) {
-	program, err := expr.Compile(expression, expr.AllowUndefinedVariables())
+	// Preprocess expression to handle LESS values with units
+	processedExpr := preprocessExpression(expression)
+
+	program, err := expr.Compile(processedExpr, expr.AllowUndefinedVariables())
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile expression: %w", err)
 	}
@@ -69,6 +73,46 @@ func (e *Evaluator) Eval(expression string) (interface{}, error) {
 	}
 
 	return result, nil
+}
+
+// preprocessExpression handles LESS literals with units in expressions
+// e.g., "14px > 12px" becomes "14 > 12"
+func preprocessExpression(expr string) string {
+	// Replace numeric values with units with just the numeric part
+	units := []string{"px", "em", "rem", "%", "pt", "cm", "mm", "in", "pc", "ex", "ch", "vw", "vh", "vmin", "vmax"}
+
+	result := expr
+	for _, unit := range units {
+		// Find patterns like "123px" and replace with "123"
+		// We need to be careful not to replace unit names in other contexts
+		i := 0
+		for i < len(result) {
+			idx := strings.Index(result[i:], unit)
+			if idx == -1 {
+				break
+			}
+			idx += i
+			// Check if there's a digit before the unit
+			if idx > 0 && isDigit(result[idx-1]) {
+				// Find the start of the number
+				numStart := idx - 1
+				for numStart > 0 && (isDigit(result[numStart-1]) || result[numStart-1] == '.') {
+					numStart--
+				}
+				// Remove the unit
+				result = result[:idx] + result[idx+len(unit):]
+				i = idx
+			} else {
+				i = idx + len(unit)
+			}
+		}
+	}
+
+	return result
+}
+
+func isDigit(ch byte) bool {
+	return ch >= '0' && ch <= '9'
 }
 
 // EvalBool evaluates an expression and returns a boolean result

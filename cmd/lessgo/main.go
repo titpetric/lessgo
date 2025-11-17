@@ -96,11 +96,13 @@ func compileFile(filePath string) error {
 		return err
 	}
 
+	sourceStr := string(source)
+
 	// Parse LESS
-	lexer := parser.NewLexer(string(source))
+	lexer := parser.NewLexer(sourceStr)
 	tokens := lexer.Tokenize()
 
-	p := parser.NewParser(tokens)
+	p := parser.NewParserWithSource(tokens, sourceStr)
 	stylesheet, err := p.Parse()
 	if err != nil {
 		return fmt.Errorf("parse error: %w", err)
@@ -131,11 +133,13 @@ func formatFile(filePath string) error {
 		return err
 	}
 
+	sourceStr := string(source)
+
 	// Parse LESS
-	lexer := parser.NewLexer(string(source))
+	lexer := parser.NewLexer(sourceStr)
 	tokens := lexer.Tokenize()
 
-	p := parser.NewParser(tokens)
+	p := parser.NewParserWithSource(tokens, sourceStr)
 	stylesheet, err := p.Parse()
 	if err != nil {
 		return fmt.Errorf("parse error: %w", err)

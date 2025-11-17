@@ -134,7 +134,35 @@
 - ✅ Basic mixin support - declarations from .mixin() calls applied to calling rules
 - ✅ Parametric mixin support - arguments bound to parameters in separate variable scope
 
-## Features Added This Session (Current Session)
+## Features Added This Session (Current Session - Comment Preservation)
+
+### ✅ Comment Preservation and Rendering
+- [x] Created comment extraction system (`parser/comments.go`)
+  - Extracts comments from source preserving line/column positions
+  - Only extracts top-level comments (not indented/inside blocks)
+  - Handles both `//` and `/* */` style comments
+  - Only captures comments on their own lines (not mixed with code)
+- [x] Extended AST to track comments
+  - Added `Comments []*Comment` field to Rule nodes
+  - Added `Comments []*Comment` field to VariableDeclaration nodes
+- [x] Updated Parser to attach comments to statements
+  - Created `NewParserWithSource(tokens, source)` for comment preservation
+  - Implemented comment-to-statement attachment logic
+  - Comments attached to first statement following them
+- [x] Updated Renderer to output comments as CSS
+  - Converts `//` comments to `/* */` format
+  - Renders comments before associated statements
+  - Ensures proper spacing (1 blank line before comment+declaration)
+- [x] Updated Formatter to preserve comments in formatted output
+  - Comments preserved in formatted LESS files
+  - Proper indentation for comments
+  - Consistent spacing maintained
+- [x] Updated test harness to use comment-aware parser
+  - All fixture tests now preserve and render comments
+  - Updated fixture CSS files to include rendered comments (4 fixtures changed)
+  - **All 22 fixture tests passing with comment support**
+
+## Features Added Previous Session (CSS3 Variables)
 
 ### ✅ CSS3 Variables (Custom Properties) Support
 - [x] Fixed parser to handle CSS3 `--property-name` syntax (double-dash)

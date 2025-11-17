@@ -9,8 +9,10 @@ import (
 
 // Parser parses LESS tokens into an AST
 type Parser struct {
-	tokens []Token
-	pos    int
+	tokens   []Token
+	pos      int
+	source   string                // Original source for comment extraction
+	comments map[int][]CommentInfo // Comments mapped by line number
 }
 
 // NewParser creates a new parser
@@ -19,6 +21,67 @@ func NewParser(tokens []Token) *Parser {
 		tokens: tokens,
 		pos:    0,
 	}
+}
+
+// NewParserWithSource creates a new parser with source code for comment preservation
+func NewParserWithSource(tokens []Token, source string) *Parser {
+	p := &Parser{
+		tokens:   tokens,
+		pos:      0,
+		source:   source,
+		comments: ExtractComments(source),
+	}
+	return p
+}
+
+// getCommentsForLine gets all comments associated with the given line
+// This function collects comments on or immediately before the given line
+func (p *Parser) getCommentsForLine(lineNum int) []*ast.Comment {
+	var comments []*ast.Comment
+
+	// Look for comments on the line itself and the previous line
+	// (comments are typically on the line before or same line after code)
+	for line := lineNum - 5; line <= lineNum; line++ {
+		if line >= 0 && line < len(strings.Split(p.source, "\n")) {
+			if comms, ok := p.comments[line]; ok {
+				for _, comm := range comms {
+					// Convert CommentInfo to ast.Comment
+					comment := &ast.Comment{
+						Text:    comm.Text,
+						IsBlock: comm.IsBlock,
+					}
+					comments = append(comments, comment)
+				}
+			}
+		}
+	}
+
+	return comments
+}
+
+// getAndClearCommentsBeforeLine extracts comments that appear before a line and removes them from the map
+// This prevents the same comment from being attached to multiple statements
+// lineNum is 1-indexed (from tokens), but comment map is 0-indexed
+func (p *Parser) getAndClearCommentsBeforeLine(lineNum int) []*ast.Comment {
+	var comments []*ast.Comment
+
+	// Convert token's 1-indexed line to 0-indexed for comment map
+	// Collect comments on lines before this statement
+	for line := 0; line < lineNum-1; line++ {
+		if comms, ok := p.comments[line]; ok {
+			// Only include if no code on this line follows the comment
+			for _, comm := range comms {
+				comment := &ast.Comment{
+					Text:    comm.Text,
+					IsBlock: comm.IsBlock,
+				}
+				comments = append(comments, comment)
+			}
+			delete(p.comments, line) // Remove to avoid reattaching
+		}
+	}
+
+	return comments
 }
 
 // Parse parses the tokens into an AST
@@ -51,6 +114,10 @@ func (p *Parser) parseStatement() (ast.Statement, error) {
 
 	tok := p.peek()
 
+	// Capture leading comments before parsing this statement
+	// Get comments on lines before this statement
+	leadingComments := p.getAndClearCommentsBeforeLine(tok.Line)
+
 	// At-rule (@import, @media, @keyframes, etc.)
 	// These are tokenized as TokenVariable with names like "import", "media", etc.
 	if tok.Type == TokenVariable {
@@ -59,7 +126,12 @@ func (p *Parser) parseStatement() (ast.Statement, error) {
 			return p.parseAtRule()
 		}
 		// Otherwise it's a variable declaration
-		return p.parseVariableDeclaration()
+		varDecl, err := p.parseVariableDeclaration()
+		// Attach comments to variable declaration
+		if varDecl != nil {
+			varDecl.Comments = leadingComments
+		}
+		return varDecl, err
 	}
 
 	// At-rule (in case @ is tokenized separately)
@@ -68,7 +140,12 @@ func (p *Parser) parseStatement() (ast.Statement, error) {
 	}
 
 	// Rule (selector + block)
-	return p.parseRule()
+	stmt, err := p.parseRule()
+	// Attach comments to rule
+	if rule, ok := stmt.(*ast.Rule); ok && rule != nil {
+		rule.Comments = leadingComments
+	}
+	return stmt, err
 }
 
 // parseRule parses a CSS rule
@@ -1203,7 +1280,7 @@ func (p *Parser) checkOperator() bool {
 		p.check(TokenPercent) || p.check(TokenEq) ||
 		p.check(TokenNe) || p.check(TokenLt) ||
 		p.check(TokenLe) || p.check(TokenGt) ||
-		p.check(TokenGe)
+		p.check(TokenGe) || p.check(TokenGreater)
 }
 
 func (p *Parser) isAtEnd() bool {

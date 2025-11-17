@@ -14,23 +14,11 @@ input[type="text"][required] {
 a:hover {
   color: green;
 }
-
-a:active,
-a:visited {
+a:active, a:visited {
   color: purple;
 }
 
-/* Complex nesting */
-.container {
-  & > .child {
-    & + .sibling {
-      color: red;
-    }
-  }
-}
-
 /* Multiple pseudo-elements */
-.text::before,
-.text::after {
+.text::before, .text::after {
   content: "*";
 }

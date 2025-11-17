@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/sourcegraph/lessgo/ast"
+	"github.com/sourcegraph/lessgo/evaluator"
 	"github.com/sourcegraph/lessgo/functions"
 	"github.com/sourcegraph/lessgo/parser"
 )
@@ -116,6 +117,9 @@ func (r *Renderer) renderRule(rule *ast.Rule, parentSelector string) {
 	if rule.Guard != nil {
 		return
 	}
+
+	// Render leading comments
+	r.renderComments(rule.Comments)
 
 	selector := r.buildSelector(rule.Selector, parentSelector)
 
@@ -472,9 +476,16 @@ func (r *Renderer) evaluateTypeCheckingFunction(fn *ast.FunctionCall) string {
 		}
 		return "false"
 	case "boolean":
-		if len(args) != 1 {
+		if len(fn.Arguments) != 1 {
 			return ""
 		}
+		// Try to evaluate as an expression first
+		// This handles cases like boolean(@v > 0)
+		exprResult := r.evaluateBooleanExpression(fn.Arguments[0])
+		if exprResult != "" {
+			return exprResult
+		}
+		// Fall back to simple boolean evaluation
 		return functions.Boolean(args[0])
 	case "length":
 		if len(args) != 1 {
@@ -723,6 +734,8 @@ func (r *Renderer) evaluateColorFunction(name string, args []string) string {
 		}
 		return functions.IsRulesetFunction(args[0])
 	case "boolean":
+		// Note: This case should not be reached as boolean() is handled in evaluateTypeCheckingFunction
+		// But keep it here as a fallback
 		if len(args) != 1 {
 			return ""
 		}
@@ -762,6 +775,43 @@ func (r *Renderer) evaluateColorFunction(name string, args []string) string {
 		return functions.Format(args[0], args[1:]...)
 	}
 	return ""
+}
+
+// evaluateBooleanExpression evaluates a boolean expression like @v > 0
+// Returns "true" or "false" if the expression can be evaluated, empty string otherwise
+func (r *Renderer) evaluateBooleanExpression(value ast.Value) string {
+	// Check if this is an expression (binary operation, comparison, etc)
+	// For now, we'll check if it's a BinaryOp (comparison)
+	binOp, ok := value.(*ast.BinaryOp)
+	if !ok {
+		// Not an expression, return empty to fall back to simple evaluation
+		return ""
+	}
+
+	// Get all variable values as strings for the evaluator
+	varMap := make(map[string]string)
+	envMap := r.vars.EnvMap()
+	for varName, varValue := range envMap {
+		varMap[varName] = r.renderValue(varValue)
+	}
+
+	// Build the expression string
+	exprStr := r.renderValue(binOp.Left)
+	exprStr += " " + binOp.Operator + " "
+	exprStr += r.renderValue(binOp.Right)
+
+	// Use the evaluator to evaluate the expression
+	eval := evaluator.NewEvaluator(varMap)
+	result, err := eval.EvalBool(exprStr)
+	if err != nil {
+		// Failed to evaluate, return empty
+		return ""
+	}
+
+	if result {
+		return "true"
+	}
+	return "false"
 }
 
 func (r *Renderer) evalRGB(args []string) string {
@@ -932,7 +982,40 @@ func (r *Renderer) evaluateBinaryOp(op *ast.BinaryOp) string {
 
 // renderVariableDeclaration renders a variable declaration (stores it)
 func (r *Renderer) renderVariableDeclaration(decl *ast.VariableDeclaration) {
+	// Render leading comments
+	r.renderComments(decl.Comments)
+
 	r.vars.Set(decl.Name, decl.Value)
+}
+
+// renderComments renders a list of comments
+func (r *Renderer) renderComments(comments []*ast.Comment) {
+	if len(comments) == 0 {
+		return
+	}
+
+	// Add blank line before comments if output is not empty and doesn't end with newline
+	if r.output.Len() > 0 {
+		lastByte := r.output.Bytes()[r.output.Len()-1]
+		if lastByte != '\n' {
+			r.output.WriteString("\n")
+		}
+		// Check if we need an additional blank line
+		if r.output.Len() >= 2 {
+			bytes := r.output.Bytes()
+			if bytes[r.output.Len()-1] == '\n' && bytes[r.output.Len()-2] != '\n' {
+				// Not a blank line yet, add one
+				r.output.WriteString("\n")
+			}
+		}
+	}
+
+	// Render each comment converted to /* */ format
+	for _, comment := range comments {
+		r.output.WriteString("/* ")
+		r.output.WriteString(comment.Text)
+		r.output.WriteString(" */\n")
+	}
 }
 
 // renderAtRule renders an at-rule

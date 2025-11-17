@@ -77,8 +77,8 @@ func compileLESS(lessSource string) (string, error) {
 	lexer := parser.NewLexer(lessSource)
 	tokens := lexer.Tokenize()
 
-	// Parse
-	p := parser.NewParser(tokens)
+	// Parse with source for comment preservation
+	p := parser.NewParserWithSource(tokens, lessSource)
 	stylesheet, err := p.Parse()
 	if err != nil {
 		return "", fmt.Errorf("parse error: %w", err)
