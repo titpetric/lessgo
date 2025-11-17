@@ -156,6 +156,17 @@ type AtRule struct {
 func (a *AtRule) node() {}
 func (a *AtRule) stmt() {}
 
+// EachLoop represents the each() function at statement level
+type EachLoop struct {
+	Iterable Value      // The expression to iterate over (e.g., range(3))
+	Template Statement  // The rule(s) to repeat for each item
+	Comments []*Comment // leading comments before this each loop
+	Position Position
+}
+
+func (e *EachLoop) node() {}
+func (e *EachLoop) stmt() {}
+
 // List represents comma or space-separated values
 type List struct {
 	Values    []Value

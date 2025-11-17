@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/sourcegraph/lessgo/ast"
 	"github.com/sourcegraph/lessgo/evaluator"
@@ -102,6 +103,8 @@ func (r *Renderer) renderStatement(stmt ast.Statement, parentSelector string) {
 		r.renderMixinCall(s)
 	case *ast.DeclarationStmt:
 		r.renderDeclarationStmt(s, parentSelector)
+	case *ast.EachLoop:
+		r.renderEachLoop(s, parentSelector)
 	}
 }
 
@@ -194,6 +197,141 @@ func (r *Renderer) renderRule(rule *ast.Rule, parentSelector string) {
 			r.renderStatement(nestedStmt, selector)
 		}
 	}
+}
+
+// renderEachLoop renders an each() loop by iterating over values and rendering the template for each
+func (r *Renderer) renderEachLoop(loop *ast.EachLoop, parentSelector string) {
+	// Render leading comments
+	r.renderComments(loop.Comments)
+
+	// Evaluate the iterable expression
+	// For now, handle simple cases like range(3) and list variables
+	items := r.evaluateIterable(loop.Iterable)
+	if len(items) == 0 {
+		return
+	}
+
+	// For each item, bind @value and render the template
+	for index, item := range items {
+		// Push a new scope for the loop variables (nil gets empty map from pool)
+		r.vars.Push(nil)
+
+		// Bind @value (the item value)
+		r.vars.Set("value", item)
+
+		// Bind @index (1-based in LESS)
+		r.vars.Set("index", &ast.Literal{
+			Type:  ast.UnitLiteral,
+			Value: strconv.Itoa(index + 1),
+		})
+
+		// Render the template with these bindings
+		// The template is typically a Rule
+		if rule, ok := loop.Template.(*ast.Rule); ok {
+			r.renderRule(rule, parentSelector)
+		}
+
+		// Pop the scope
+		r.vars.Pop()
+	}
+}
+
+// evaluateIterable evaluates an iterable expression (like range(3)) and returns a list of values
+func (r *Renderer) evaluateIterable(expr ast.Value) []ast.Value {
+	switch val := expr.(type) {
+	case *ast.FunctionCall:
+		// Handle range() function
+		if val.Name == "range" {
+			return r.evaluateRange(val)
+		}
+		// Handle other functions that return iterables
+		return []ast.Value{}
+
+	case *ast.Variable:
+		// Evaluate variable and check if it's a list
+		if varVal, ok := r.vars.Lookup(val.Name); ok {
+			if list, ok := varVal.(*ast.List); ok {
+				return list.Values
+			}
+		}
+		return []ast.Value{}
+
+	case *ast.List:
+		return val.Values
+
+	default:
+		return []ast.Value{}
+	}
+}
+
+// evaluateRange evaluates a range() function and returns a list of values
+func (r *Renderer) evaluateRange(fn *ast.FunctionCall) []ast.Value {
+	if len(fn.Arguments) == 0 {
+		return []ast.Value{}
+	}
+
+	// range(n) produces 1, 2, ..., n
+	// range(start, end) produces start, start+1, ..., end
+	// range(start, end, step)
+
+	start := 1
+	end := 1
+	step := 1
+
+	// Evaluate arguments
+	if len(fn.Arguments) >= 1 {
+		endVal := r.renderValue(fn.Arguments[0])
+		endNum := r.parseNumber(endVal)
+		if len(fn.Arguments) == 1 {
+			end = endNum
+		} else {
+			start = endNum
+			if len(fn.Arguments) >= 2 {
+				endVal = r.renderValue(fn.Arguments[1])
+				end = r.parseNumber(endVal)
+			}
+			if len(fn.Arguments) >= 3 {
+				stepVal := r.renderValue(fn.Arguments[2])
+				step = r.parseNumber(stepVal)
+			}
+		}
+	}
+
+	var result []ast.Value
+	if step > 0 {
+		for i := start; i <= end; i += step {
+			result = append(result, &ast.Literal{
+				Type:  ast.UnitLiteral,
+				Value: strconv.Itoa(i),
+			})
+		}
+	} else if step < 0 {
+		for i := start; i >= end; i += step {
+			result = append(result, &ast.Literal{
+				Type:  ast.UnitLiteral,
+				Value: strconv.Itoa(i),
+			})
+		}
+	}
+
+	return result
+}
+
+// parseNumber parses a number from a string (strips units)
+func (r *Renderer) parseNumber(s string) int {
+	s = strings.TrimSpace(s)
+	// Remove units
+	for i, c := range s {
+		if !unicode.IsDigit(c) && c != '-' && c != '+' {
+			s = s[:i]
+			break
+		}
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(s))
+	if err != nil {
+		return 0
+	}
+	return n
 }
 
 // buildSelector builds the full selector from nesting, applying extends

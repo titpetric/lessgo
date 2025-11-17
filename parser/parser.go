@@ -139,6 +139,15 @@ func (p *Parser) parseStatement() (ast.Statement, error) {
 		return p.parseAtRule()
 	}
 
+	// Check for each() function at statement level
+	if tok.Type == TokenFunction && tok.Value == "each" {
+		loop, err := p.parseEachLoop()
+		if eachLoop, ok := loop.(*ast.EachLoop); ok && eachLoop != nil {
+			eachLoop.Comments = leadingComments
+		}
+		return loop, err
+	}
+
 	// Rule (selector + block)
 	stmt, err := p.parseRule()
 	// Attach comments to rule
@@ -944,6 +953,78 @@ func (p *Parser) parseVariableDeclaration() (*ast.VariableDeclaration, error) {
 	}, nil
 }
 
+// parseEachLoop parses the each() function at statement level
+func (p *Parser) parseEachLoop() (ast.Statement, error) {
+	// Expect: each(iterable, { rules })
+	name := p.advance().Value // consume 'each'
+
+	if name != "each" {
+		return nil, fmt.Errorf("expected 'each' function")
+	}
+
+	if !p.match(TokenLParen) {
+		return nil, fmt.Errorf("expected '(' after each at %v", p.peek())
+	}
+
+	// Parse the iterable expression (first argument)
+	// Use parseFunctionArg since we're inside function parentheses
+	iterable, err := p.parseFunctionArg()
+	if err != nil {
+		return nil, err
+	}
+	if iterable == nil {
+		return nil, fmt.Errorf("expected iterable expression in each() at %v", p.peek())
+	}
+
+	if !p.match(TokenComma) {
+		return nil, fmt.Errorf("expected ',' after iterable in each() at %v", p.peek())
+	}
+
+	// Parse the template block (second argument) - should be a rule block
+	if !p.check(TokenLBrace) {
+		return nil, fmt.Errorf("expected '{' for each() template at %v", p.peek())
+	}
+
+	// Parse the template block manually (since parseRule expects a selector first)
+	if !p.match(TokenLBrace) {
+		return nil, fmt.Errorf("expected '{' at %v", p.peek())
+	}
+
+	// Create a rule with empty selector to hold the template content
+	template := ast.NewRule(ast.Selector{})
+
+	// Parse declarations and nested rules inside the template
+	for !p.check(TokenRBrace) && !p.isAtEnd() {
+		if p.match(TokenSemicolon) {
+			continue
+		}
+
+		// Parse a rule
+		nestedRule, err := p.parseRule()
+		if err != nil {
+			return nil, err
+		}
+		if nestedRule != nil {
+			template.Rules = append(template.Rules, nestedRule)
+		}
+	}
+
+	if !p.match(TokenRBrace) {
+		return nil, fmt.Errorf("expected '}' at %v", p.peek())
+	}
+
+	if !p.match(TokenRParen) {
+		return nil, fmt.Errorf("expected ')' after each() template at %v", p.peek())
+	}
+
+	p.match(TokenSemicolon) // optional semicolon
+
+	return &ast.EachLoop{
+		Iterable: iterable,
+		Template: template,
+	}, nil
+}
+
 // parseDetachedRuleset parses a detached ruleset: { declarations }
 // Returns a Ruleset value that can be stored in a variable
 func (p *Parser) parseDetachedRuleset() (ast.Value, error) {
@@ -1382,6 +1463,7 @@ func needsSpaceBetween(prev, next Token) bool {
 		TokenGreater:   true,
 		TokenPlus:      true,
 		TokenTilde:     true,
+		TokenInterp:    true, // No space before interpolation @{...}
 		TokenEq:        true,
 		TokenNe:        true,
 		TokenLt:        true,
