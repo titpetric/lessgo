@@ -35,7 +35,7 @@
 - [x] Taskfile.yml with build/test/fmt targets
 - [x] 4 passing fixture tests (basic-css, variables, nesting, operations)
 
-## Phase 2: Core Features (In Progress)
+## Phase 2: Core Features (Mostly Complete)
 
 ### ✅ Variables
 - [x] Variable declaration (@var: value)
@@ -45,7 +45,7 @@
 
 ### ✅ Nesting
 - [x] Basic nesting (child selectors)
-- [ ] Parent selector (&) - parsed but needs proper implementation
+- [x] Parent selector (&) - implemented and tested
 - [ ] Nested at-rules (@media, @supports)
 
 ### Mixins (TODO - Blocked)
@@ -57,7 +57,7 @@
 
 ### ✅ Operations
 - [x] Arithmetic operations (+, -, *, /) with unit support
-- [ ] Color operations (darken, lighten, etc.)
+- [x] Color operations (lighten, darken, saturate, desaturate, spin, greyscale)
 - [ ] Unit conversions
 
 ## Phase 3: Advanced Features
@@ -109,8 +109,16 @@
 
 ### Test Status
 - ✅ All lexer tests passing (6/6 test groups pass)
-- ✅ All fixture tests passing (6/6)
+- ✅ All fixture tests passing (7/7)
+  - 001-basic-css
+  - 002-variables
+  - 003-nesting
+  - 004-operations
+  - 005-parent-selector
+  - 006-color-functions
+  - 007-color-manipulation
 - ✅ Parser handles space-separated and comma-separated values correctly
+- ✅ Color manipulation functions working (lighten, darken, etc.)
 
 ## Next Session Action Plan
 

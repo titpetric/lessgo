@@ -103,7 +103,15 @@ goimports -w . && go fmt ./...  # Format code
 ## Integration Points
 
 When working on integration with the actual LESS compiler, use:
-- lessc command-line tool (if available)
-- Node.js less package
+- **lessc command-line tool** - Available as `lessc` in the environment
+- **less command** - LESS CLI available for testing
+- Node.js less package (if needed)
 - Docker container with less compiler
 - Online playground: https://lesscss.org/less-preview
+
+### Using lessc for validation
+```bash
+lessc testdata/fixtures/001-basic-css.less # Compile with official LESS
+lessc testdata/fixtures/001-basic-css.less > /tmp/official.css
+# Compare against our output
+```
