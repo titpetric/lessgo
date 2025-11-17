@@ -922,9 +922,9 @@ func Overlay(color1Str, color2Str string) string {
 	}
 
 	result := &Color{
-		R: blendChannel(c2.R, c1.R) * 255,
-		G: blendChannel(c2.G, c1.G) * 255,
-		B: blendChannel(c2.B, c1.B) * 255,
+		R: blendChannel(c1.R, c2.R) * 255,
+		G: blendChannel(c1.G, c2.G) * 255,
+		B: blendChannel(c1.B, c2.B) * 255,
 		A: c1.A,
 	}
 	return result.ToHex()
