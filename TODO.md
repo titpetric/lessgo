@@ -15,12 +15,12 @@
 - [ ] Example: `.success { &:extend(.message); }` should include .message selector
 - [ ] Add test fixture for extend functionality
 
-### 3. Implement Nested At-Rules
-- [ ] Support `@media` and other at-rules nested inside rules
-- [ ] Bubble at-rules back to stylesheet level
-- [ ] Prepend parent selector to rules inside at-rule
-- [ ] Example: `.btn { @media (...) { width: 100%; } }` should become `@media (...) { .btn { width: 100%; } }`
-- [ ] Add test fixtures for nested @media, @supports, etc.
+### 3. ✅ COMPLETED: Implement Nested At-Rules
+- [x] Support `@media` and other at-rules nested inside rules
+- [x] Bubble at-rules back to stylesheet level
+- [x] Prepend parent selector to rules inside at-rule
+- [x] Example: `.btn { @media (...) { width: 100%; } }` should become `@media (...) { .btn { width: 100%; } }`
+- [x] Add test fixtures for nested @media, @supports, etc. - 014-nested-media added
 
 ## Medium Priority
 
