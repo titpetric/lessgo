@@ -300,22 +300,65 @@
 - [x] Fixed selector parsing to stop at LPAREN (for mixin parameters)
 - [x] Added at-rule keyword detection to distinguish @import/@media from @variables
 
+## Features Added Current Session (Fixture Verification & Fixes)
+
+### ✅ Test Verification Infrastructure
+- [x] Created `verify_fixtures.sh` - verifies all fixture .css files against lessc output
+- [x] Created `verify_lessgo.sh` - verifies lessgo compilation against fixtures
+- [x] All 58 fixtures verified against official lessc compiler (100% match)
+- [x] Whitespace normalization in tests (tolerates extra blank lines and trailing spaces)
+
+### ✅ Parser Fixes
+- [x] Fixed attribute selector formatting: `[data-test="value"]` (no spaces around =)
+- [x] Fixed STRING token handling in selectors - adds quotes back properly
+- [x] Fixed spacing rules in needsSpaceBetween() - no space after brackets or operators
+- [x] Added support for % format function syntax: `%("format", args)`
+
+### ✅ Renderer Fixes
+- [x] Fixed media query indentation - nested rules inside @media now properly indented
+- [x] Fixed multi-selector rendering - each selector on separate line with comma-newline separator
+- [x] Fixed % format function evaluation - quotes properly handled in result
+- [x] Improved Format() function - strips quotes from arguments before substitution
+
+### ✅ Current Test Status
+- [x] 32/58 fixtures passing (55% pass rate)
+- [x] All basic features working (variables, nesting, operations, mixins, etc.)
+- [x] Media query nesting fixed
+- [x] Attribute selectors fixed
+- [x] % format function working
+
+### 🔴 Remaining Issues (26 failures, 1 timeout)
+- [ ] 030-logical-functions-if: Timeout (2s) - infinite loop likely in conditional evaluation
+- [ ] 035-string-functions-replace: replace() function not evaluated in variable declarations
+- [ ] 040-043: List functions (length, extract, range, each) not evaluated
+- [ ] 043-list-functions-each: Parse error on each() syntax
+- [ ] 051-052: Advanced math functions (trig) returning literal function calls
+- [ ] 063-type-functions-defined: Parse/evaluation error on defined() function
+- [ ] 072-073, 080-083: Color definition/channel functions need implementation
+- [ ] 090-095: Color blending operations returning literals instead of evaluated results
+- [ ] 100-102: Color blending functions (multiply, overlay, difference) not evaluated
+- [ ] 110-111: Misc functions (unit, get-unit, convert, color) not evaluated
+
 ## Next Session Action Plan
 
-### Priority 1: Fix Renderer Issues (for CSS3 compatibility)
-- [ ] Attribute selector spacing: `[data-test = value ]` should be `[data-test="value"]`
-- [ ] Selector combinator spacing: `.parent > .child` should preserve spaces around > and +
-- [ ] String escaping: properly handle escaped quotes in strings
-- [ ] Comment preservation: requires AST changes to track comments
+### Priority 1: Function Evaluation Architecture
+- [ ] Implement function evaluation in variable declarations (currently only in property values)
+- [ ] Add support for all string functions (replace, substring, etc.)
+- [ ] Add support for list functions (length, extract, range, each)
+- [ ] Fix infinite loop in logical-functions-if test (030 timeout)
 
-### Priority 2: Parser Edge Cases
-- [ ] Support calc() function special handling (don't evaluate arithmetic inside calc)
-- [ ] Improve selector parsing to handle all CSS combinators correctly
-- [ ] Better error messages with line/column information
-- [ ] Handle escaped characters in selectors and strings
+### Priority 2: Color Functions
+- [ ] Implement color definition functions (rgb, rgba, hsl, hsla, hsv, argb)
+- [ ] Implement color channel functions (red, green, blue, hue, saturation, lightness, alpha, luma)
+- [ ] Implement color blending functions (multiply, overlay, difference, etc.)
 
-### Priority 3: Advanced Features (Lower Priority)
-- [ ] List functions: each() for iteration
+### Priority 3: Math Functions
+- [ ] Complete trigonometric functions (sin, cos, tan, asin, acos, atan, pi, etc.)
+- [ ] Unit conversion functions (unit, get-unit, convert)
+- [ ] Remaining utility functions (color, defined, etc.)
+
+### Priority 4: Advanced Features
+- [ ] Fix each() loop syntax and evaluation
 - [ ] Detached rulesets as values
 - [ ] Maps/objects
 - [ ] @plugin system
