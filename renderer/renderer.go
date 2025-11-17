@@ -888,11 +888,12 @@ func (r *Renderer) renderVariableDeclaration(decl *ast.VariableDeclaration) {
 
 // renderAtRule renders an at-rule
 // renderAtRuleWithContext renders an at-rule with awareness of parent selector context
-// This handles LESS-style @media nesting where media queries can contain bare declarations
+// This handles LESS-style @media/@supports nesting where queries can contain bare declarations
 func (r *Renderer) renderAtRuleWithContext(rule *ast.AtRule, parentSelector string) {
-	// For @media with nested declarations in a rule context, we need to bubble up the @media
-	// and wrap the declarations in the parent selector
-	if rule.Name == "media" && parentSelector != "" && rule.Block != nil {
+	// For at-rules like @media/@supports with nested declarations in a rule context,
+	// we need to bubble up the at-rule and wrap the declarations in the parent selector
+	shouldBubble := (rule.Name == "media" || rule.Name == "supports") && parentSelector != "" && rule.Block != nil
+	if shouldBubble {
 		if stmts, ok := rule.Block.([]ast.Statement); ok {
 			// Check if this @media contains any declaration statements
 			hasDeclarations := false
@@ -904,8 +905,10 @@ func (r *Renderer) renderAtRuleWithContext(rule *ast.AtRule, parentSelector stri
 			}
 
 			if hasDeclarations {
-				// Bubble up the @media and wrap declarations in parent rule
-				r.output.WriteString("@media ")
+				// Bubble up the at-rule and wrap declarations in parent rule
+				r.output.WriteString("@")
+				r.output.WriteString(rule.Name)
+				r.output.WriteString(" ")
 				r.output.WriteString(rule.Parameters)
 				r.output.WriteString(" {\n")
 
