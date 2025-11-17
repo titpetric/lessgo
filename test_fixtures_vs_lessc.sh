@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e
-
 FIXTURES_DIR="testdata/fixtures"
 LESSGO_BIN="./bin/lessgo"
 LESSC_BIN="/usr/bin/lessc"
