@@ -196,7 +196,15 @@ func Atan(value string) string {
 
 // Pi returns the value of pi
 func Pi() string {
-	return formatNumberWithUnit(math.Pi, "")
+	// LESS limits pi() to 8 decimal places
+	rounded := math.Round(math.Pi*100000000) / 100000000
+	result := strconv.FormatFloat(rounded, 'f', -1, 64)
+	// Remove trailing zeros after decimal point
+	if strings.Contains(result, ".") {
+		result = strings.TrimRight(result, "0")
+		result = strings.TrimRight(result, ".")
+	}
+	return result
 }
 
 // Percentage converts a decimal number to a percentage
