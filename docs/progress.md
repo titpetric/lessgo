@@ -339,29 +339,65 @@
 - [ ] 100-102: Color blending functions (multiply, overlay, difference) not evaluated
 - [ ] 110-111: Misc functions (unit, get-unit, convert, color) not evaluated
 
+## Functions Actually Implemented (Session Summary)
+
+### ✅ Math Functions (ALL IMPLEMENTED)
+- [x] ceil(), floor(), round()
+- [x] abs(), sqrt(), pow(), mod()
+- [x] min(), max(), percentage()
+- [x] sin(), cos(), tan(), asin(), acos(), atan(), pi()
+
+### ✅ String Functions
+- [x] escape(), e()
+- [x] format() / % operator
+- [x] replace() (implemented in renderer)
+
+### ✅ List Functions
+- [x] length()
+- [x] extract()
+- [x] range()
+- [ ] each() (NOT IMPLEMENTED - has parser hang on parenthesized expressions)
+
+### ✅ Type Checking Functions (ALL IMPLEMENTED)
+- [x] isnumber(), isstring(), iscolor(), iskeyword()
+- [x] isurl(), ispixel(), isem(), ispercentage(), isunit()
+- [x] isruleset(), islist()
+- [x] boolean()
+
+### ✅ Color Definition & Channel Functions
+- [x] rgb(), rgba(), hsl(), hsla()
+- [x] red(), green(), blue(), alpha()
+- [x] hue(), saturation(), lightness()
+
+### ✅ Color Manipulation Functions
+- [x] lighten(), darken(), saturate(), desaturate()
+- [x] spin(), greyscale()
+
 ## Next Session Action Plan
 
-### Priority 1: Function Evaluation Architecture
-- [ ] Implement function evaluation in variable declarations (currently only in property values)
-- [ ] Add support for all string functions (replace, substring, etc.)
-- [ ] Add support for list functions (length, extract, range, each)
-- [ ] Fix infinite loop in logical-functions-if test (030 timeout)
+### Priority 1: Fix Parser Issue - Parenthesized Expressions
+**CRITICAL BLOCKER**: Parser hangs on `(@value * 50px)` expressions
+- Current behavior: parseSimpleValue() doesn't handle LPAREN
+  - Falls through to default case, returns Literal("(")
+  - May cause infinite loop in property name parsing loop with safety checks
+- Solution needed: Add explicit parenthesized expression handling
+  - `parseParenthesizedExpression()` should call `parseValue()` inside parens
+  - Must be called from `parseSimpleValue()` for LPAREN tokens
+- This blocks: each() loops, complex math expressions, and other features
 
-### Priority 2: Color Functions
-- [ ] Implement color definition functions (rgb, rgba, hsl, hsla, hsv, argb)
-- [ ] Implement color channel functions (red, green, blue, hue, saturation, lightness, alpha, luma)
-- [ ] Implement color blending functions (multiply, overlay, difference, etc.)
+### Priority 2: Implement each() Loop Feature
+- [ ] Fix LPAREN parsing issue (Priority 1 above)
+- [ ] Add EachLoop AST node: `List Value; Rulesets []*Rule` (reuse Rule for templates)
+- [ ] Parser: Recognize `each(expr, { rules })` syntax in parseStatement()
+- [ ] Renderer: For each list item, clone rulesets and re-evaluate with @value/@index/@key bound
+- [ ] Test with 043 fixture
 
-### Priority 3: Math Functions
-- [ ] Complete trigonometric functions (sin, cos, tan, asin, acos, atan, pi, etc.)
-- [ ] Unit conversion functions (unit, get-unit, convert)
-- [ ] Remaining utility functions (color, defined, etc.)
-
-### Priority 4: Advanced Features
-- [ ] Fix each() loop syntax and evaluation
-- [ ] Detached rulesets as values
-- [ ] Maps/objects
-- [ ] @plugin system
+### Priority 3: Review and Fix Failing Fixtures
+- [ ] 030: if() function - logical operations
+- [ ] 035: replace() function - appears implemented but may have issues
+- [ ] 040: length() function - appears implemented
+- [ ] 051-052: Advanced math (trigonometric)
+- [ ] Color blending and other advanced functions
 
 ## Current Code Quality Notes
 

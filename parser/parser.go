@@ -356,7 +356,7 @@ func (p *Parser) parseDeclaration() (*ast.Declaration, error) {
 
 	// Parse property name (may include interpolation like @{prop})
 	// CSS3 custom properties start with -- (two hyphens)
-	for {
+	for maxIters := 1000; maxIters > 0; maxIters-- {
 		if p.check(TokenInterp) {
 			// Handle interpolation in property name
 			p.advance()
@@ -372,9 +372,19 @@ func (p *Parser) parseDeclaration() (*ast.Declaration, error) {
 			}
 		} else if p.check(TokenMinus) {
 			// Handle CSS3 custom properties (--name) and property names with hyphens
+			oldPos := p.pos
 			property += p.advance().Value
+			// Safety check: if nothing changed, break to avoid infinite loop
+			if p.pos == oldPos {
+				break
+			}
 		} else if p.checkIdent() {
+			oldPos := p.pos
 			property += p.advance().Value
+			// Safety check: if nothing changed, break to avoid infinite loop
+			if p.pos == oldPos {
+				break
+			}
 		} else {
 			break
 		}
@@ -771,6 +781,10 @@ func (p *Parser) parseSimpleValue() (ast.Value, error) {
 		}
 		return &ast.Literal{Type: ast.KeywordLiteral, Value: value}, nil
 
+	case TokenLParen:
+		// Parenthesized expression: (value)
+		return p.parseParenthesizedExpr()
+
 	case TokenOperator:
 		// Binary operators will be handled at a higher level
 		return nil, nil
@@ -783,6 +797,25 @@ func (p *Parser) parseSimpleValue() (ast.Value, error) {
 		p.advance()
 		return &ast.Literal{Type: ast.KeywordLiteral, Value: tok.Value}, nil
 	}
+}
+
+// parseParenthesizedExpr parses an expression inside parentheses: (expr)
+func (p *Parser) parseParenthesizedExpr() (ast.Value, error) {
+	if !p.match(TokenLParen) {
+		return nil, fmt.Errorf("expected '(' at %v", p.peek())
+	}
+
+	// Parse a full value expression inside the parentheses
+	val, err := p.parseValue()
+	if err != nil {
+		return nil, err
+	}
+
+	if !p.match(TokenRParen) {
+		return nil, fmt.Errorf("expected ')' at %v", p.peek())
+	}
+
+	return val, nil
 }
 
 // parseFunctionCall parses a function call

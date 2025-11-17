@@ -87,7 +87,7 @@
 - [x] length()
 - [x] extract()
 - [x] range()
-- [ ] each()
+- [ ] each() (Parser support added but has parsing issue with parenthesized expressions)
 
 #### Type Functions
 - [x] isnumber()
