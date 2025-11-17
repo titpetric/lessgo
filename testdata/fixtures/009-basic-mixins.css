@@ -1,0 +1,9 @@
+.mixin {
+  color: red;
+  font-size: 14px;
+}
+.button {
+  color: red;
+  font-size: 14px;
+  padding: 10px;
+}

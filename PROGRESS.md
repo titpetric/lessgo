@@ -48,12 +48,12 @@
 - [x] Parent selector (&) - implemented and tested
 - [ ] Nested at-rules (@media, @supports)
 
-### Mixins (TODO - Blocked)
-- [ ] Simple mixins (classname mixin calls)
-- [ ] Parametric mixins
+### ✅ Mixins (Basic Implementation Complete)
+- [x] Simple mixins (classname mixin calls) - .mixin() calls now apply mixin declarations
+- [ ] Parametric mixins (with arguments)
 - [ ] Mixin guards
 - [ ] Namespace mixins (#namespace > .mixin)
-- **Note**: Mixin calls are parsed but renderer skips them. Need to implement mixin application logic.
+- **Note**: Basic mixin implementation complete. Parser handles .mixin() and #namespace.mixin() calls (including FUNCTION token handling). Renderer collects mixin definitions and applies declarations to calling rules.
 
 ### ✅ Operations
 - [x] Arithmetic operations (+, -, *, /) with unit support
@@ -109,7 +109,7 @@
 
 ### Test Status
 - ✅ All lexer tests passing (6/6 test groups pass)
-- ✅ All fixture tests passing (7/7)
+- ✅ All fixture tests passing (9/9)
   - 001-basic-css
   - 002-variables
   - 003-nesting
@@ -117,33 +117,49 @@
   - 005-parent-selector
   - 006-color-functions
   - 007-color-manipulation
+  - 008-math-functions
+  - 009-basic-mixins ✨ NEW
 - ✅ Parser handles space-separated and comma-separated values correctly
 - ✅ Color manipulation functions working (lighten, darken, etc.)
+- ✅ Basic mixin support - declarations from .mixin() calls applied to calling rules
+
+## Features Added This Session
+
+### ✅ Formatter Implementation (`cmd/lessgo fmt`)
+- [x] Created `cmd/lessgo` binary with `fmt` command
+- [x] Formatter parses LESS, adds missing semicolons, fixes indentation
+- [x] Uses 2-space indentation as standard
+- [x] Supports glob patterns for multiple files
+- [x] Handles missing semicolons between declarations (intelligent lookahead)
+- **Note**: Current implementation has limitations (see TODO.md)
+
+### ✅ Parser Improvements
+- [x] Made semicolons optional at end of declarations
+- [x] Added lookahead for detecting property boundaries (IDENT + COLON pattern)
+- [x] Prevents infinite loops when parsing declarations without semicolons
 
 ## Next Session Action Plan
 
-### Priority 1: Polish Core Features  
-- [ ] Implement parent selector (&) replacement in nested rules
-- [ ] Add more test fixtures for edge cases
-- [ ] Refine variable scoping (currently global only)
+### Priority 1: Fix Formatter Issues (See TODO.md)
+- [ ] Formatter doesn't properly handle nested rules with indentation
+- [ ] Formatter evaluates variables instead of preserving them
+- [ ] Need separate value rendering for formatting vs output
 
-### Priority 2: Implement Function Support
-- [ ] Built-in color functions (rgb, rgba, hsl, hsla)
-- [ ] String functions (escape, e, %)
-- [ ] Math functions (ceil, floor, round, sqrt, abs)
-- [ ] Type checking functions (isnumber, isstring, iscolor)
+### Priority 2: Implement Parametric Mixins
+- [ ] Parser support for parameters: `.mixin(@param1; @param2) { }`
+- [ ] Renderer parameter binding when applying mixins
+- [ ] Test fixtures for parametric mixins
 
-### Priority 3: Implement Mixins Properly  
-- [ ] Create mixin registry during parsing
-- [ ] Implement mixin application in renderer
-- [ ] Add support for parametric mixins
-- [ ] Add support for mixin guards
+### Priority 3: Additional Parser Improvements
+- [ ] Consider NEWLINE tokenization for better declaration boundary detection
+- [ ] Improve error messages with line/column info
+- [ ] Add support for mixin guards (@when, @unless)
 
-### Priority 4: Advanced Features
-- [ ] At-rules (@media, @import, @supports)
-- [ ] Extend (@extend)
-- [ ] Maps
-- [ ] Detached rulesets
+### Priority 4: More Built-in Functions
+- [ ] Type checking functions (isnumber, isstring, iscolor, islist)
+- [ ] String functions (escape, e, @{interpolation})
+- [ ] Unit functions (unit, percentage)
+- [ ] Advanced color functions (hsla, hsl, etc.)
 
 ## Current Code Quality Notes
 

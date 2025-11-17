@@ -16,21 +16,44 @@ type Renderer struct {
 	output bytes.Buffer
 	indent int
 	vars   map[string]ast.Value
+	mixins map[string]*ast.Rule // Store mixin definitions by name
 }
 
 // NewRenderer creates a new renderer
 func NewRenderer() *Renderer {
 	return &Renderer{
-		vars: make(map[string]ast.Value),
+		vars:   make(map[string]ast.Value),
+		mixins: make(map[string]*ast.Rule),
 	}
 }
 
 // Render renders the stylesheet to CSS
 func (r *Renderer) Render(stylesheet *ast.Stylesheet) string {
+	// First pass: collect mixin definitions
+	r.collectMixins(stylesheet)
+
+	// Second pass: render all statements (mixins are just normal rules)
 	for _, rule := range stylesheet.Rules {
 		r.renderStatement(rule, "")
 	}
 	return r.output.String()
+}
+
+// collectMixins finds all mixin definitions in the stylesheet
+func (r *Renderer) collectMixins(stylesheet *ast.Stylesheet) {
+	for _, stmt := range stylesheet.Rules {
+		if rule, ok := stmt.(*ast.Rule); ok {
+			// Check if this is a mixin definition (class or id selector with no body that could be used as mixin)
+			if len(rule.Selector.Parts) == 1 {
+				selector := rule.Selector.Parts[0]
+				// Extract mixin name from .classname or #id format
+				if (strings.HasPrefix(selector, ".") || strings.HasPrefix(selector, "#")) && !strings.Contains(selector, " ") {
+					name := selector[1:] // Remove . or #
+					r.mixins[name] = rule
+				}
+			}
+		}
+	}
 }
 
 // renderStatement renders a statement
@@ -42,6 +65,8 @@ func (r *Renderer) renderStatement(stmt ast.Statement, parentSelector string) {
 		r.renderVariableDeclaration(s)
 	case *ast.AtRule:
 		r.renderAtRule(s)
+	case *ast.MixinCall:
+		r.renderMixinCall(s)
 	}
 }
 
@@ -49,12 +74,37 @@ func (r *Renderer) renderStatement(stmt ast.Statement, parentSelector string) {
 func (r *Renderer) renderRule(rule *ast.Rule, parentSelector string) {
 	selector := r.buildSelector(rule.Selector, parentSelector)
 
+	// Build list of all declarations, with mixin declarations inserted at mixin call positions
+	// Note: rule.Declarations and rule.Rules are separate lists, but the parser preserves
+	// the order in which declarations and nested rules appear in the source.
+	// However, to get the correct order, we need to use both lists together.
+
+	// For simplicity, we'll collect all declarations and mixin-provided declarations
+	// The mixin calls should appear in the same relative position
+	allDeclarations := []ast.Declaration{}
+
+	// Add rule's own declarations
+	allDeclarations = append(allDeclarations, rule.Declarations...)
+
+	// Also add declarations from mixin calls (they'll appear first in the output)
+	for _, nestedStmt := range rule.Rules {
+		if mixinCall, ok := nestedStmt.(*ast.MixinCall); ok {
+			if len(mixinCall.Path) > 0 {
+				mixinName := mixinCall.Path[len(mixinCall.Path)-1]
+				if mixin, found := r.mixins[mixinName]; found {
+					// Insert mixin declarations at the beginning
+					allDeclarations = append(mixin.Declarations, allDeclarations...)
+				}
+			}
+		}
+	}
+
 	// Render declarations
-	if len(rule.Declarations) > 0 {
+	if len(allDeclarations) > 0 {
 		r.output.WriteString(selector)
 		r.output.WriteString(" {\n")
 
-		for _, decl := range rule.Declarations {
+		for _, decl := range allDeclarations {
 			r.output.WriteString("  ")
 			r.output.WriteString(decl.Property)
 			r.output.WriteString(": ")
@@ -65,9 +115,12 @@ func (r *Renderer) renderRule(rule *ast.Rule, parentSelector string) {
 		r.output.WriteString("}\n")
 	}
 
-	// Render nested rules
+	// Render nested rules (excluding mixin calls)
 	for _, nestedStmt := range rule.Rules {
-		r.renderStatement(nestedStmt, selector)
+		// Skip mixin calls - they're already handled above
+		if _, ok := nestedStmt.(*ast.MixinCall); !ok {
+			r.renderStatement(nestedStmt, selector)
+		}
 	}
 }
 
@@ -92,6 +145,11 @@ func (r *Renderer) buildSelector(selector ast.Selector, parentSelector string) s
 	}
 
 	return strings.Join(parts, ", ")
+}
+
+// RenderValuePublic renders a value to CSS (public for external use)
+func (r *Renderer) RenderValuePublic(value ast.Value) string {
+	return r.renderValue(value)
 }
 
 // renderValue renders a value to CSS
@@ -455,4 +513,28 @@ func parsePercentage(s string) float64 {
 	}
 
 	return *num / 100 // assume percentage if no unit
+}
+
+// renderMixinCall renders a mixin call by applying the mixin's declarations
+func (r *Renderer) renderMixinCall(call *ast.MixinCall) {
+	// Get the mixin name (last element in path)
+	if len(call.Path) == 0 {
+		return
+	}
+
+	mixinName := call.Path[len(call.Path)-1]
+
+	// Look up the mixin definition
+	_, ok := r.mixins[mixinName]
+	if !ok {
+		// Mixin not found, skip it
+		return
+	}
+
+	// TODO: Handle parametric mixins (mixin arguments)
+	// For now, just copy the declarations
+
+	// Note: We don't output anything for mixin calls directly.
+	// The declarations from the mixin are applied by the parent rule rendering.
+	// This is handled in renderRule where we process nested rules/mixins.
 }

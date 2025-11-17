@@ -84,9 +84,19 @@ func (p *Parser) parseRule() (ast.Statement, error) {
 			continue
 		}
 
-		// Check if it's a nested rule
-		if p.check(TokenDot) || p.check(TokenHash) || p.check(TokenLBracket) ||
+		// Try to detect mixin call (.classname() or #namespace.classname())
+		if (p.check(TokenDot) || p.check(TokenHash)) && p.isMixinCall() {
+			mixin, err := p.parseMixinCall()
+			if err != nil {
+				return nil, err
+			}
+			if mixin != nil {
+				rule.AddNestedRule(mixin)
+			}
+			p.match(TokenSemicolon)
+		} else if p.check(TokenDot) || p.check(TokenHash) || p.check(TokenLBracket) ||
 			p.check(TokenAmpersand) || p.check(TokenGreater) {
+			// It's a nested rule
 			nestedStmt, err := p.parseStatement()
 			if err != nil {
 				return nil, err
@@ -195,6 +205,154 @@ func (p *Parser) parseDeclaration() (*ast.Declaration, error) {
 	}, nil
 }
 
+// isMixinCall checks if the current position starts a mixin call
+func (p *Parser) isMixinCall() bool {
+	savedPos := p.pos
+
+	// Try to parse as a mixin call
+	// Pattern: .classname() or #namespace.classname() or .namespace > .classname()
+	for !p.isAtEnd() {
+		if p.match(TokenDot) || p.match(TokenHash) {
+			// Skip the class/id name (could be IDENT or FUNCTION)
+			if p.check(TokenIdent) {
+				p.advance()
+			} else if p.check(TokenFunction) {
+				// mixin() is tokenized as FUNCTION
+				p.advance()
+				p.pos = savedPos
+				return true // Found .functionname() - this is a mixin call
+			} else {
+				p.pos = savedPos
+				return false
+			}
+
+			// Check for > (descendent selector)
+			if p.check(TokenGreater) {
+				p.advance()
+				continue
+			}
+
+			// Check for ()
+			if p.check(TokenLParen) {
+				p.pos = savedPos
+				return true
+			}
+
+			// Check for another . or #
+			if p.check(TokenDot) || p.check(TokenHash) {
+				continue
+			}
+
+			// No () found, not a mixin call
+			p.pos = savedPos
+			return false
+		} else {
+			p.pos = savedPos
+			return false
+		}
+	}
+
+	p.pos = savedPos
+	return false
+}
+
+// parseMixinCall parses a mixin call like .classname() or #namespace.classname()
+func (p *Parser) parseMixinCall() (*ast.MixinCall, error) {
+	path := []string{}
+
+	// Parse the namespace/path (.classname or #namespace.classname)
+	for {
+		if p.match(TokenDot) {
+			if p.check(TokenIdent) {
+				path = append(path, p.advance().Value)
+			} else if p.check(TokenFunction) {
+				// mixin() is tokenized as FUNCTION, extract just the name
+				funcToken := p.advance()
+				path = append(path, funcToken.Value)
+				// Skip the () which are already consumed as part of FUNCTION token
+				// The FUNCTION token only gives us the name
+				if !p.match(TokenLParen) {
+					return nil, fmt.Errorf("expected '(' after function name in mixin call at %v", p.peek())
+				}
+				// Parse arguments
+				args := []ast.Value{}
+				for !p.check(TokenRParen) && !p.isAtEnd() {
+					arg, err := p.parseCommaListNoSpaces()
+					if err != nil {
+						return nil, err
+					}
+					if arg != nil {
+						args = append(args, arg)
+					}
+					if !p.match(TokenComma) {
+						break
+					}
+				}
+				if !p.match(TokenRParen) {
+					return nil, fmt.Errorf("expected ')' in mixin call at %v", p.peek())
+				}
+				return &ast.MixinCall{
+					Path:      path,
+					Arguments: args,
+				}, nil
+			} else {
+				return nil, fmt.Errorf("expected identifier after '.' in mixin call at %v", p.peek())
+			}
+		} else if p.match(TokenHash) {
+			if !p.check(TokenIdent) {
+				return nil, fmt.Errorf("expected identifier after '#' in mixin call at %v", p.peek())
+			}
+			path = append(path, p.advance().Value)
+		} else {
+			break
+		}
+
+		// Check for > (descendent selector)
+		if p.match(TokenGreater) {
+			// Continue to next segment
+			continue
+		} else {
+			// End of path
+			break
+		}
+	}
+
+	if len(path) == 0 {
+		return nil, fmt.Errorf("expected mixin name at %v", p.peek())
+	}
+
+	// Expect (
+	if !p.match(TokenLParen) {
+		return nil, fmt.Errorf("expected '(' in mixin call at %v", p.peek())
+	}
+
+	// Parse arguments (optional)
+	args := []ast.Value{}
+	for !p.check(TokenRParen) && !p.isAtEnd() {
+		arg, err := p.parseCommaListNoSpaces()
+		if err != nil {
+			return nil, err
+		}
+		if arg != nil {
+			args = append(args, arg)
+		}
+
+		if !p.match(TokenComma) {
+			break
+		}
+	}
+
+	// Expect )
+	if !p.match(TokenRParen) {
+		return nil, fmt.Errorf("expected ')' in mixin call at %v", p.peek())
+	}
+
+	return &ast.MixinCall{
+		Path:      path,
+		Arguments: args,
+	}, nil
+}
+
 // parseValue parses a CSS value (handles operators and comma-separated lists)
 func (p *Parser) parseValue() (ast.Value, error) {
 	return p.parseCommaListWithSpaces(true)
@@ -240,6 +398,14 @@ func (p *Parser) parseCommaListWithSpaces(allowSpaces bool) (ast.Value, error) {
 
 		// Look ahead to see if the next token could start a value
 		nextTok := p.peek()
+
+		// Check if this looks like a new property (IDENT followed by COLON)
+		// This handles missing semicolons between declarations
+		if nextTok.Type == TokenIdent && p.peekAhead(1).Type == TokenColon {
+			// This is a new property, stop parsing this value
+			break
+		}
+
 		if isValueStart(nextTok.Type) {
 			// Continue to parse space-separated values
 			separator = " " // ensure we use space separator for space-separated values
@@ -451,6 +617,13 @@ func (p *Parser) parseAtRule() (*ast.AtRule, error) {
 func (p *Parser) peek() Token {
 	if p.pos < len(p.tokens) {
 		return p.tokens[p.pos]
+	}
+	return Token{Type: TokenEOF}
+}
+
+func (p *Parser) peekAhead(n int) Token {
+	if p.pos+n < len(p.tokens) {
+		return p.tokens[p.pos+n]
 	}
 	return Token{Type: TokenEOF}
 }

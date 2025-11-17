@@ -4,7 +4,7 @@ tasks:
   build:
     desc: Build the project
     cmds:
-      - go build ./...
+      - go build -o bin/lessgo ./cmd/lessgo
 
   test:
     desc: Run all tests
@@ -26,6 +26,12 @@ tasks:
     cmds:
       - goimports -w .
       - go fmt ./...
+
+  fmt:less:
+    desc: Format LESS files using lessgo fmt command
+    cmds:
+      - task: build
+      - ./bin/lessgo fmt "{{.CLI_ARGS}}"
 
   watch:
     desc: Watch for changes and run tests
