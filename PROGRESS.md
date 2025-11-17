@@ -48,12 +48,12 @@
 - [x] Parent selector (&) - implemented and tested
 - [ ] Nested at-rules (@media, @supports)
 
-### ✅ Mixins (Basic Implementation Complete)
+### ✅ Mixins (Parametric Mixins Complete)
 - [x] Simple mixins (classname mixin calls) - .mixin() calls now apply mixin declarations
-- [ ] Parametric mixins (with arguments)
+- [x] Parametric mixins (with arguments) - .mixin(@param) definitions and .mixin(value) calls
 - [ ] Mixin guards
 - [ ] Namespace mixins (#namespace > .mixin)
-- **Note**: Basic mixin implementation complete. Parser handles .mixin() and #namespace.mixin() calls (including FUNCTION token handling). Renderer collects mixin definitions and applies declarations to calling rules.
+- **Note**: Parser detects parameters in mixin definitions and binds arguments when called. Parametric mixins are not output to CSS (only regular, non-parametric mixins are). Renderer creates temporary variable scopes for parameter binding.
 
 ### ✅ Operations
 - [x] Arithmetic operations (+, -, *, /) with unit support
@@ -109,7 +109,7 @@
 
 ### Test Status
 - ✅ All lexer tests passing (6/6 test groups pass)
-- ✅ All fixture tests passing (9/9)
+- ✅ All fixture tests passing (10/10)
   - 001-basic-css
   - 002-variables
   - 003-nesting
@@ -118,10 +118,12 @@
   - 006-color-functions
   - 007-color-manipulation
   - 008-math-functions
-  - 009-basic-mixins ✨ NEW
+  - 009-basic-mixins
+  - 010-parametric-mixins ✨ NEW
 - ✅ Parser handles space-separated and comma-separated values correctly
 - ✅ Color manipulation functions working (lighten, darken, etc.)
 - ✅ Basic mixin support - declarations from .mixin() calls applied to calling rules
+- ✅ Parametric mixin support - arguments bound to parameters in temporary variable scope
 
 ## Features Added This Session
 
@@ -134,11 +136,22 @@
 - [x] **FIXED**: Preserves variable references in formatted output (@primary stays @primary)
 - [x] **FIXED**: Properly handles nested rule indentation
 - [x] **FIXED**: Improved blank line handling between declarations and nested rules
+- [x] **FIXED**: Outputs mixin parameters in formatted output
+
+### ✅ Parametric Mixins Implementation
+- [x] Added Parameters field to Rule AST node
+- [x] Parser detects and parses mixin parameters (.mixin(@param))
+- [x] Parser stops selector parsing at LPAREN to avoid consuming parameters
+- [x] Renderer binds mixin arguments to parameters in temporary variable scope
+- [x] Renderer skips parametric mixin definitions in CSS output
+- [x] Created compile command in CLI for testing
 
 ### ✅ Parser Improvements
 - [x] Made semicolons optional at end of declarations
 - [x] Added lookahead for detecting property boundaries (IDENT + COLON pattern)
 - [x] Prevents infinite loops when parsing declarations without semicolons
+- [x] Added parameter parsing for mixin definitions
+- [x] Fixed selector parsing to stop at LPAREN (for mixin parameters)
 
 ## Next Session Action Plan
 
@@ -147,10 +160,10 @@
 - [x] Formatter evaluates variables instead of preserving them
 - [x] Need separate value rendering for formatting vs output
 
-### Priority 2: Implement Parametric Mixins
-- [ ] Parser support for parameters: `.mixin(@param1; @param2) { }`
-- [ ] Renderer parameter binding when applying mixins
-- [ ] Test fixtures for parametric mixins
+### ✅ Priority 2: Implement Parametric Mixins (COMPLETE)
+- [x] Parser support for parameters: `.mixin(@param1; @param2) { }`
+- [x] Renderer parameter binding when applying mixins
+- [x] Test fixtures for parametric mixins
 
 ### Priority 3: Additional Parser Improvements
 - [ ] Consider NEWLINE tokenization for better declaration boundary detection
