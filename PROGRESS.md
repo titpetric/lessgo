@@ -1,58 +1,63 @@
 # Implementation Progress
 
-## Phase 1: Core Infrastructure (Current)
+## Phase 1: Core Infrastructure (✅ COMPLETE)
 
-### Lexer & Parser Foundation
+### ✅ Lexer & Parser Foundation
 - [x] Project structure and go.mod
 - [x] AST type definitions
-- [x] Basic lexer with token recognition
+- [x] Complete lexer with token recognition
   - [x] Whitespace/comment handling (// and /* */)
-  - [ ] String and number literals (needs fixes)
-  - [ ] Variable references (@var) (needs fixes)
-  - [ ] Operators (+, -, *, /, =, >, <, etc.)
+  - [x] String literals with escape sequences (\n, \t, \r, \\, \", \')
+  - [x] Number literals with units (10px, 1.5em, -5)
+  - [x] Variable references (@var, @primary-color)
+  - [x] Operators (+, -, *, /, =, >, <, etc.)
   - [x] Selectors and CSS keywords
-  - [ ] Color literals (#fff, #ffffff) - needs debugging
+  - [x] Color literals (#fff, #ffffff, #rrggbbaa)
   
-- [ ] Core parser structure
-  - [ ] Rule parsing (selector + declarations)
-  - [ ] Variable declarations
-  - [ ] Nesting support
-  - [ ] Mixin calls
+- [x] Core parser structure
+  - [x] Rule parsing (selector + declarations)
+  - [x] Variable declarations
+  - [x] Nesting support (nested selectors with parent context)
+  - [x] Mixin calls (partially - parsed but not rendered)
+  - [x] Binary operations (+, -, *, /) with unit support
 
-### AST Definitions
-- [ ] Node types for all LESS constructs
-- [ ] Basic utility functions
+### ✅ AST Definitions
+- [x] Node types for all LESS constructs
+- [x] Basic utility functions
 
-### Renderer Foundation
-- [ ] CSS output from basic AST
-- [ ] Proper formatting and indentation
+### ✅ Renderer Foundation
+- [x] CSS output from basic AST
+- [x] Proper formatting and indentation
+- [x] Arithmetic operations evaluation (10px + 5px = 15px)
 
-### Test Infrastructure
-- [ ] Fixture test harness
-- [ ] Integration test framework
-- [ ] Basic test fixtures
+### ✅ Test Infrastructure
+- [x] Fixture test harness (5s timeout)
+- [x] Taskfile.yml with build/test/fmt targets
+- [x] 4 passing fixture tests (basic-css, variables, nesting, operations)
 
-## Phase 2: Core Features
+## Phase 2: Core Features (In Progress)
 
-### Variables
-- [ ] Variable declaration and resolution
+### ✅ Variables
+- [x] Variable declaration (@var: value)
+- [x] Variable resolution in values
 - [ ] Scoped variables (lazy evaluation)
-- [ ] Variable interpolation in selectors
+- [ ] Variable interpolation in selectors (@{var})
 
-### Nesting
-- [ ] Basic nesting (child selectors)
-- [ ] Parent selector (&)
+### ✅ Nesting
+- [x] Basic nesting (child selectors)
+- [ ] Parent selector (&) - parsed but needs proper implementation
 - [ ] Nested at-rules (@media, @supports)
 
-### Mixins
+### Mixins (TODO - Blocked)
 - [ ] Simple mixins (classname mixin calls)
 - [ ] Parametric mixins
 - [ ] Mixin guards
 - [ ] Namespace mixins (#namespace > .mixin)
+- **Note**: Mixin calls are parsed but renderer skips them. Need to implement mixin application logic.
 
-### Operations
-- [ ] Arithmetic operations (+, -, *, /)
-- [ ] Color operations
+### ✅ Operations
+- [x] Arithmetic operations (+, -, *, /) with unit support
+- [ ] Color operations (darken, lighten, etc.)
 - [ ] Unit conversions
 
 ## Phase 3: Advanced Features
@@ -106,37 +111,30 @@
 - ✅ All lexer tests passing (6/6 test groups pass)
 - Next: Fix parser, then test with fixture tests
 
-### Fixture Tests Not Yet Run
-- 3 fixtures created (basic-css, variables, nesting)
-- Can't run testdata_test.go yet because parser/renderer not complete
-- Once lexer fixed, will expose parser issues
-
 ## Next Session Action Plan
 
-### Step 1: Fix Lexer (30-45 min)
-1. [ ] Fix color detection - move before hash switch case or improve logic
-2. [ ] Fix negative numbers - ensure `-` + digit path works
-3. [ ] Fix escape sequences - add escape map in readString
-4. [ ] Run `go test ./parser -v` - all lexer tests should pass
-5. [ ] Update PROGRESS.md with results
+### Priority 1: Polish Core Features  
+- [ ] Implement parent selector (&) replacement in nested rules
+- [ ] Add more test fixtures for edge cases
+- [ ] Refine variable scoping (currently global only)
 
-### Step 2: Implement Parser (1-1.5 hours)
-1. [ ] Fix selector parsing - currently has issues with selector building
-2. [ ] Implement nesting properly - track parent context
-3. [ ] Test with fixture tests: `go test ./testdata -v`
-4. [ ] Fix any parser panics/errors
-5. [ ] Check PROGRESS.md for parser-specific blockers
+### Priority 2: Implement Function Support
+- [ ] Built-in color functions (rgb, rgba, hsl, hsla)
+- [ ] String functions (escape, e, %)
+- [ ] Math functions (ceil, floor, round, sqrt, abs)
+- [ ] Type checking functions (isnumber, isstring, iscolor)
 
-### Step 3: Enhance Renderer (45-60 min)
-1. [ ] Implement variable scope tracking
-2. [ ] Fix parent selector (&) handling in buildSelector
-3. [ ] Test with fixture tests
-4. [ ] Add better CSS formatting
+### Priority 3: Implement Mixins Properly  
+- [ ] Create mixin registry during parsing
+- [ ] Implement mixin application in renderer
+- [ ] Add support for parametric mixins
+- [ ] Add support for mixin guards
 
-### Step 4: Feature Implementation (if time permits)
-- Start with basic features from FEATURES.md
-- Variables and nesting should work after steps 1-3
-- Then add: operations, mixins, functions
+### Priority 4: Advanced Features
+- [ ] At-rules (@media, @import, @supports)
+- [ ] Extend (@extend)
+- [ ] Maps
+- [ ] Detached rulesets
 
 ## Current Code Quality Notes
 
