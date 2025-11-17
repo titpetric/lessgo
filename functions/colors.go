@@ -490,6 +490,88 @@ func HSLToColor(h, s, l float64, a float64) *Color {
 	}
 }
 
+// HSVToColor converts HSV to RGB Color
+func HSVToColor(h, s, v float64, a float64) *Color {
+	h = math.Mod(h, 360)
+	if h < 0 {
+		h += 360
+	}
+
+	// Normalize s and v to 0-1 if they're not already
+	if s > 1 {
+		s = 1
+	}
+	if v > 1 {
+		v = 1
+	}
+
+	c := v * s
+	hp := h / 60
+	x := c * (1 - math.Abs(math.Mod(hp, 2)-1))
+
+	var r1, g1, b1 float64
+	switch {
+	case hp >= 0 && hp < 1:
+		r1, g1, b1 = c, x, 0
+	case hp >= 1 && hp < 2:
+		r1, g1, b1 = x, c, 0
+	case hp >= 2 && hp < 3:
+		r1, g1, b1 = 0, c, x
+	case hp >= 3 && hp < 4:
+		r1, g1, b1 = 0, x, c
+	case hp >= 4 && hp < 5:
+		r1, g1, b1 = x, 0, c
+	case hp >= 5 && hp < 6:
+		r1, g1, b1 = c, 0, x
+	}
+
+	m := v - c
+	return &Color{
+		R: (r1 + m) * 255,
+		G: (g1 + m) * 255,
+		B: (b1 + m) * 255,
+		A: a,
+	}
+}
+
+// ToHSV converts RGB to HSV
+func (c *Color) ToHSV() (h, s, v float64) {
+	r := c.R / 255.0
+	g := c.G / 255.0
+	b := c.B / 255.0
+
+	max := math.Max(r, math.Max(g, b))
+	min := math.Min(r, math.Min(g, b))
+	d := max - min
+
+	// Value is the maximum component
+	v = max
+
+	// Saturation
+	if max == 0 {
+		s = 0
+	} else {
+		s = d / max
+	}
+
+	// Hue
+	if max == min {
+		h = 0
+	} else {
+		switch max {
+		case r:
+			h = math.Mod((g-b)/d+6, 6)
+		case g:
+			h = (b-r)/d + 2
+		case b:
+			h = (r-g)/d + 4
+		}
+		h *= 60
+	}
+
+	return h, s, v
+}
+
 // Greyscale returns the greyscale version of the color
 func (c *Color) Greyscale() *Color {
 	_, _, l := c.ToHSL()
@@ -657,7 +739,8 @@ func LumaFunction(colorStr string) string {
 	}
 
 	lum := color.Luma()
-	return strconv.FormatFloat(lum, 'f', -1, 64) + "%"
+	// Round to 8 decimal places to match LESS output
+	return strconv.FormatFloat(math.Round(lum*100000000)/100000000, 'f', -1, 64) + "%"
 }
 
 // Luminance calculates the luminance of a color (without gamma correction)
@@ -674,7 +757,9 @@ func Luminance(colorStr string) string {
 
 	// ITU-R BT.709 luminance without gamma correction
 	lum := 0.2126*r + 0.7152*g + 0.0722*b
-	return strconv.FormatFloat(lum*100, 'f', -1, 64) + "%"
+	lumPercent := lum * 100
+	// Round to 8 decimal places to match LESS output
+	return strconv.FormatFloat(math.Round(lumPercent*100000000)/100000000, 'f', -1, 64) + "%"
 }
 
 // Fade sets the opacity of a color (0-100%)
@@ -688,7 +773,7 @@ func Fade(colorStr, amount string) string {
 	amountNum = math.Max(0, math.Min(1, amountNum))
 
 	color.A = amountNum
-	return color.ToRGB()
+	return formatColor(colorStr, color)
 }
 
 // Fadein increases opacity
@@ -701,7 +786,7 @@ func Fadein(colorStr, amount string) string {
 	amountNum := parseNumber(amount) / 100.0 // Convert percentage
 	color.A = math.Min(1, color.A+amountNum)
 
-	return color.ToRGB()
+	return formatColor(colorStr, color)
 }
 
 // Fadeout decreases opacity
@@ -714,7 +799,7 @@ func Fadeout(colorStr, amount string) string {
 	amountNum := parseNumber(amount) / 100.0 // Convert percentage
 	color.A = math.Max(0, color.A-amountNum)
 
-	return color.ToRGB()
+	return formatColor(colorStr, color)
 }
 
 // Tint mixes a color with white
@@ -1112,6 +1197,34 @@ func parseAlpha(s string) float64 {
 
 // Public wrapper functions for use by renderer
 
+// roundHSLValue rounds HSL component values to 8 decimal places to avoid floating point artifacts
+// This prevents output like "89.99999999999999%" instead of "90%"
+func roundHSLValue(val float64) float64 {
+	return math.Round(val*100000000) / 100000000
+}
+
+// formatColor returns the color in the same format as the input string
+func formatColor(colorStr string, result *Color) string {
+	switch {
+	case strings.HasPrefix(colorStr, "hsla"):
+		h, s, l := result.ToHSL()
+		s = roundHSLValue(s * 100)
+		l = roundHSLValue(l * 100)
+		return fmt.Sprintf("hsla(%g, %g%%, %g%%, %g)", h, s, l, result.A)
+	case strings.HasPrefix(colorStr, "hsl"):
+		h, s, l := result.ToHSL()
+		s = roundHSLValue(s * 100)
+		l = roundHSLValue(l * 100)
+		return fmt.Sprintf("hsl(%g, %g%%, %g%%)", h, s, l)
+	case strings.HasPrefix(colorStr, "rgba"):
+		return fmt.Sprintf("rgba(%d, %d, %d, %g)", uint8(result.R), uint8(result.G), uint8(result.B), result.A)
+	case strings.HasPrefix(colorStr, "rgb"):
+		return fmt.Sprintf("rgb(%d, %d, %d)", uint8(result.R), uint8(result.G), uint8(result.B))
+	default:
+		return result.ToHex()
+	}
+}
+
 // Lighten lightens a color by a percentage
 func Lighten(colorStr, amount string) string {
 	color, err := ParseColor(colorStr)
@@ -1120,23 +1233,7 @@ func Lighten(colorStr, amount string) string {
 	}
 	amountVal := parseNumber(amount) / 100.0
 	result := color.Lighten(amountVal)
-
-	// Preserve color format
-	if strings.HasPrefix(colorStr, "hsl") {
-		h, s, l := result.ToHSL()
-		if strings.HasPrefix(colorStr, "hsla") {
-			return fmt.Sprintf("hsla(%g, %g%%, %g%%, %g)", h, s*100, l*100, result.A)
-		}
-		return fmt.Sprintf("hsl(%g, %g%%, %g%%)", h, s*100, l*100)
-	}
-	if strings.HasPrefix(colorStr, "rgb") {
-		if strings.HasPrefix(colorStr, "rgba") {
-			return fmt.Sprintf("rgba(%d, %d, %d, %g)", uint8(result.R), uint8(result.G), uint8(result.B), result.A)
-		}
-		return fmt.Sprintf("rgb(%d, %d, %d)", uint8(result.R), uint8(result.G), uint8(result.B))
-	}
-
-	return result.ToHex()
+	return formatColor(colorStr, result)
 }
 
 // Darken darkens a color by a percentage
@@ -1147,23 +1244,7 @@ func Darken(colorStr, amount string) string {
 	}
 	amountVal := parseNumber(amount) / 100.0
 	result := color.Darken(amountVal)
-
-	// Preserve color format
-	if strings.HasPrefix(colorStr, "hsl") {
-		h, s, l := result.ToHSL()
-		if strings.HasPrefix(colorStr, "hsla") {
-			return fmt.Sprintf("hsla(%g, %g%%, %g%%, %g)", h, s*100, l*100, result.A)
-		}
-		return fmt.Sprintf("hsl(%g, %g%%, %g%%)", h, s*100, l*100)
-	}
-	if strings.HasPrefix(colorStr, "rgb") {
-		if strings.HasPrefix(colorStr, "rgba") {
-			return fmt.Sprintf("rgba(%d, %d, %d, %g)", uint8(result.R), uint8(result.G), uint8(result.B), result.A)
-		}
-		return fmt.Sprintf("rgb(%d, %d, %d)", uint8(result.R), uint8(result.G), uint8(result.B))
-	}
-
-	return result.ToHex()
+	return formatColor(colorStr, result)
 }
 
 // Saturate increases saturation
@@ -1174,23 +1255,7 @@ func Saturate(colorStr, amount string) string {
 	}
 	amountVal := parseNumber(amount) / 100.0
 	result := color.Saturate(amountVal)
-
-	// Preserve color format
-	if strings.HasPrefix(colorStr, "hsl") {
-		h, s, l := result.ToHSL()
-		if strings.HasPrefix(colorStr, "hsla") {
-			return fmt.Sprintf("hsla(%g, %g%%, %g%%, %g)", h, s*100, l*100, result.A)
-		}
-		return fmt.Sprintf("hsl(%g, %g%%, %g%%)", h, s*100, l*100)
-	}
-	if strings.HasPrefix(colorStr, "rgb") {
-		if strings.HasPrefix(colorStr, "rgba") {
-			return fmt.Sprintf("rgba(%d, %d, %d, %g)", uint8(result.R), uint8(result.G), uint8(result.B), result.A)
-		}
-		return fmt.Sprintf("rgb(%d, %d, %d)", uint8(result.R), uint8(result.G), uint8(result.B))
-	}
-
-	return result.ToHex()
+	return formatColor(colorStr, result)
 }
 
 // Desaturate decreases saturation
@@ -1201,23 +1266,7 @@ func Desaturate(colorStr, amount string) string {
 	}
 	amountVal := parseNumber(amount) / 100.0
 	result := color.Desaturate(amountVal)
-
-	// Preserve color format
-	if strings.HasPrefix(colorStr, "hsl") {
-		h, s, l := result.ToHSL()
-		if strings.HasPrefix(colorStr, "hsla") {
-			return fmt.Sprintf("hsla(%g, %g%%, %g%%, %g)", h, s*100, l*100, result.A)
-		}
-		return fmt.Sprintf("hsl(%g, %g%%, %g%%)", h, s*100, l*100)
-	}
-	if strings.HasPrefix(colorStr, "rgb") {
-		if strings.HasPrefix(colorStr, "rgba") {
-			return fmt.Sprintf("rgba(%d, %d, %d, %g)", uint8(result.R), uint8(result.G), uint8(result.B), result.A)
-		}
-		return fmt.Sprintf("rgb(%d, %d, %d)", uint8(result.R), uint8(result.G), uint8(result.B))
-	}
-
-	return result.ToHex()
+	return formatColor(colorStr, result)
 }
 
 // Spin rotates the hue
@@ -1228,23 +1277,7 @@ func Spin(colorStr, degrees string) string {
 	}
 	angleVal := parseNumber(degrees)
 	result := color.Spin(angleVal)
-
-	// Preserve color format
-	if strings.HasPrefix(colorStr, "hsl") {
-		h, s, l := result.ToHSL()
-		if strings.HasPrefix(colorStr, "hsla") {
-			return fmt.Sprintf("hsla(%g, %g%%, %g%%, %g)", h, s*100, l*100, result.A)
-		}
-		return fmt.Sprintf("hsl(%g, %g%%, %g%%)", h, s*100, l*100)
-	}
-	if strings.HasPrefix(colorStr, "rgb") {
-		if strings.HasPrefix(colorStr, "rgba") {
-			return fmt.Sprintf("rgba(%d, %d, %d, %g)", uint8(result.R), uint8(result.G), uint8(result.B), result.A)
-		}
-		return fmt.Sprintf("rgb(%d, %d, %d)", uint8(result.R), uint8(result.G), uint8(result.B))
-	}
-
-	return result.ToHex()
+	return formatColor(colorStr, result)
 }
 
 // Mix mixes two colors
@@ -1277,21 +1310,69 @@ func Greyscale(colorStr string) string {
 		return colorStr
 	}
 	result := color.Greyscale()
+	return formatColor(colorStr, result)
+}
 
-	// Preserve color format
-	if strings.HasPrefix(colorStr, "hsl") {
-		h, s, l := result.ToHSL()
-		if strings.HasPrefix(colorStr, "hsla") {
-			return fmt.Sprintf("hsla(%g, %g%%, %g%%, %g)", h, s*100, l*100, result.A)
-		}
-		return fmt.Sprintf("hsl(%g, %g%%, %g%%)", h, s*100, l*100)
-	}
-	if strings.HasPrefix(colorStr, "rgb") {
-		if strings.HasPrefix(colorStr, "rgba") {
-			return fmt.Sprintf("rgba(%d, %d, %d, %g)", uint8(result.R), uint8(result.G), uint8(result.B), result.A)
-		}
-		return fmt.Sprintf("rgb(%d, %d, %d)", uint8(result.R), uint8(result.G), uint8(result.B))
-	}
-
+// HSV creates a color from HSV values, returning it as hex
+func HSV(h, s, v string) string {
+	hVal := parseNumber(h)
+	sVal := parseNumber(s) / 100.0
+	vVal := parseNumber(v) / 100.0
+	result := HSVToColor(hVal, sVal, vVal, 1.0)
 	return result.ToHex()
+}
+
+// HSVA creates a color from HSVA values, returning it as rgba
+func HSVA(h, s, v, a string) string {
+	hVal := parseNumber(h)
+	sVal := parseNumber(s) / 100.0
+	vVal := parseNumber(v) / 100.0
+	aVal := parseNumber(a)
+	result := HSVToColor(hVal, sVal, vVal, aVal)
+	return fmt.Sprintf("rgba(%d, %d, %d, %g)", uint8(math.Round(result.R)), uint8(math.Round(result.G)), uint8(math.Round(result.B)), result.A)
+}
+
+// ARGB returns a color in #ARGB format (alpha in first position)
+func ARGB(colorStr string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return colorStr
+	}
+	a := uint8(math.Round(color.A * 255))
+	r := uint8(math.Round(color.R))
+	g := uint8(math.Round(color.G))
+	b := uint8(math.Round(color.B))
+	return fmt.Sprintf("#%02x%02x%02x%02x", a, r, g, b)
+}
+
+// HSVHue extracts the hue from a color
+func HSVHue(colorStr string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return colorStr
+	}
+	h, _, _ := color.ToHSV()
+	// Round hue to nearest integer to avoid floating point artifacts
+	h = math.Round(h)
+	return fmt.Sprintf("%g", h)
+}
+
+// HSVSaturation extracts the saturation from a color (HSV saturation)
+func HSVSaturation(colorStr string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return colorStr
+	}
+	_, s, _ := color.ToHSV()
+	return fmt.Sprintf("%g%%", roundHSLValue(s*100))
+}
+
+// HSVValue extracts the value (brightness) from a color (HSV value)
+func HSVValue(colorStr string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return colorStr
+	}
+	_, _, v := color.ToHSV()
+	return fmt.Sprintf("%g%%", roundHSLValue(v*100))
 }

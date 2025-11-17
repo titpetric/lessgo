@@ -453,6 +453,54 @@ func (r *Renderer) evaluateColorFunction(name string, args []string) string {
 			}
 			return lightOption
 		}
+	case "hsv":
+		if len(args) >= 3 {
+			return functions.HSV(args[0], args[1], args[2])
+		}
+	case "hsva":
+		if len(args) >= 4 {
+			return functions.HSVA(args[0], args[1], args[2], args[3])
+		}
+	case "argb":
+		if len(args) >= 1 {
+			return functions.ARGB(args[0])
+		}
+	case "hsvhue":
+		if len(args) >= 1 {
+			return functions.HSVHue(args[0])
+		}
+	case "hsvsaturation":
+		if len(args) >= 1 {
+			return functions.HSVSaturation(args[0])
+		}
+	case "hsvvalue":
+		if len(args) >= 1 {
+			return functions.HSVValue(args[0])
+		}
+	case "fadein":
+		if len(args) >= 2 {
+			return functions.Fadein(args[0], args[1])
+		}
+	case "fadeout":
+		if len(args) >= 2 {
+			return functions.Fadeout(args[0], args[1])
+		}
+	case "fade":
+		if len(args) >= 2 {
+			return functions.Fade(args[0], args[1])
+		}
+	case "overlay":
+		if len(args) >= 2 {
+			return functions.Overlay(args[0], args[1])
+		}
+	case "softlight":
+		if len(args) >= 2 {
+			return functions.Softlight(args[0], args[1])
+		}
+	case "hardlight":
+		if len(args) >= 2 {
+			return functions.Hardlight(args[0], args[1])
+		}
 	}
 	return ""
 }
@@ -915,22 +963,6 @@ func (r *Renderer) renderVariableDeclaration(decl *ast.VariableDeclaration) {
 func (r *Renderer) renderComments(comments []*ast.Comment) {
 	if len(comments) == 0 {
 		return
-	}
-
-	// Add blank line before comments if output is not empty and doesn't end with newline
-	if r.output.Len() > 0 {
-		lastByte := r.output.Bytes()[r.output.Len()-1]
-		if lastByte != '\n' {
-			r.output.WriteString("\n")
-		}
-		// Check if we need an additional blank line
-		if r.output.Len() >= 2 {
-			bytes := r.output.Bytes()
-			if bytes[r.output.Len()-1] == '\n' && bytes[r.output.Len()-2] != '\n' {
-				// Not a blank line yet, add one
-				r.output.WriteString("\n")
-			}
-		}
 	}
 
 	// Render each comment converted to /* */ format
