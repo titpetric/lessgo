@@ -2,7 +2,6 @@ package evaluator
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -63,7 +62,7 @@ func (e *Evaluator) Eval(expression string) (interface{}, error) {
 	// Preprocess expression to handle LESS values with units
 	processedExpr := preprocessExpression(expression)
 
-	fmt.Fprintf(os.Stderr, "[expr] Evaluating: %q (processed: %q)\n", expression, processedExpr)
+	// fmt.Fprintf(os.Stderr, "[expr] Evaluating: %q (processed: %q)\n", expression, processedExpr)
 
 	program, err := expr.Compile(processedExpr, expr.AllowUndefinedVariables())
 	if err != nil {
@@ -82,7 +81,8 @@ func (e *Evaluator) Eval(expression string) (interface{}, error) {
 // e.g., "14px > 12px" becomes "14 > 12"
 func preprocessExpression(expr string) string {
 	// Replace numeric values with units with just the numeric part
-	units := []string{"px", "em", "rem", "%", "pt", "cm", "mm", "in", "pc", "ex", "ch", "vw", "vh", "vmin", "vmax"}
+	// Note: % is a valid value which is later sanitized to float.
+	units := []string{"px", "em", "rem", "pt", "cm", "mm", "in", "pc", "ex", "ch", "vw", "vh", "vmin", "vmax"}
 
 	result := expr
 	for _, unit := range units {
@@ -111,7 +111,17 @@ func preprocessExpression(expr string) string {
 		}
 	}
 
-	return result
+	parts := strings.Split(result, " ")
+	for k, v := range parts {
+		if strings.HasSuffix(v, "%") {
+			if num, err := strconv.ParseFloat(v[:len(v)-1], 64); err == nil {
+				num = num / 100.0
+				parts[k] = fmt.Sprint(num)
+			}
+		}
+	}
+
+	return strings.Join(parts, " ")
 }
 
 func isDigit(ch byte) bool {
