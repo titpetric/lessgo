@@ -26,6 +26,7 @@ type Rule struct {
 	Declarations []Declaration
 	Rules        []Statement // nested rules
 	Position     Position
+	Parameters   []string // for parametric mixins: parameter names like ["@v", "@size"]
 }
 
 func (r *Rule) node() {}

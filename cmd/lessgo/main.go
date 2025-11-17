@@ -10,6 +10,7 @@ import (
 
 	"github.com/sourcegraph/lessgo/formatter"
 	"github.com/sourcegraph/lessgo/parser"
+	"github.com/sourcegraph/lessgo/renderer"
 )
 
 func main() {
@@ -17,6 +18,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Usage: lessgo <command> [args]\n")
 		fmt.Fprintf(os.Stderr, "Commands:\n")
 		fmt.Fprintf(os.Stderr, "  fmt <files>  Format LESS files\n")
+		fmt.Fprintf(os.Stderr, "  compile <file>  Compile LESS to CSS\n")
 		os.Exit(1)
 	}
 
@@ -34,6 +36,17 @@ func main() {
 		}
 
 		if err := formatFiles(files); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+
+	case "compile":
+		if len(os.Args) < 3 {
+			fmt.Fprintf(os.Stderr, "Usage: lessgo compile <file>\n")
+			os.Exit(1)
+		}
+
+		if err := compileFile(os.Args[2]); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
 		}
@@ -71,6 +84,33 @@ func formatFiles(patterns []string) error {
 		}
 	}
 
+	return nil
+}
+
+// compileFile reads, parses, compiles LESS to CSS and prints to stdout
+func compileFile(filepath string) error {
+	// Read file
+	source, err := ioutil.ReadFile(filepath)
+	if err != nil {
+		return err
+	}
+
+	// Parse LESS
+	lexer := parser.NewLexer(string(source))
+	tokens := lexer.Tokenize()
+
+	p := parser.NewParser(tokens)
+	stylesheet, err := p.Parse()
+	if err != nil {
+		return fmt.Errorf("parse error: %w", err)
+	}
+
+	// Render to CSS
+	r := renderer.NewRenderer()
+	css := r.Render(stylesheet)
+
+	// Print to stdout
+	fmt.Print(css)
 	return nil
 }
 

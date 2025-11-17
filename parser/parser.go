@@ -74,6 +74,15 @@ func (p *Parser) parseRule() (ast.Statement, error) {
 
 	rule := ast.NewRule(selector)
 
+	// Check for mixin parameters: .mixin(@param1; @param2)
+	if p.check(TokenLParen) {
+		params, err := p.parseMixinParameters()
+		if err != nil {
+			return nil, err
+		}
+		rule.Parameters = params
+	}
+
 	if !p.match(TokenLBrace) {
 		return nil, fmt.Errorf("expected '{' at %v", p.peek())
 	}
@@ -139,8 +148,8 @@ func (p *Parser) parseSelector() (ast.Selector, error) {
 	for {
 		part := ""
 
-		// Collect selector tokens until comma or brace
-		for !p.check(TokenLBrace) && !p.check(TokenComma) && !p.isAtEnd() {
+		// Collect selector tokens until comma, brace, or LPAREN (for parameters)
+		for !p.check(TokenLBrace) && !p.check(TokenComma) && !p.check(TokenLParen) && !p.isAtEnd() {
 			if p.check(TokenSemicolon) {
 				break
 			}
@@ -152,7 +161,7 @@ func (p *Parser) parseSelector() (ast.Selector, error) {
 			p.advance()
 
 			// Look ahead for space
-			if !p.check(TokenLBrace) && !p.check(TokenComma) &&
+			if !p.check(TokenLBrace) && !p.check(TokenComma) && !p.check(TokenLParen) &&
 				!p.check(TokenSemicolon) && !p.isAtEnd() {
 				nextTok := p.peek()
 				// Add space between tokens if needed
@@ -203,6 +212,45 @@ func (p *Parser) parseDeclaration() (*ast.Declaration, error) {
 		Property: property,
 		Value:    value,
 	}, nil
+}
+
+// parseMixinParameters parses mixin parameters: @param1; @param2
+func (p *Parser) parseMixinParameters() ([]string, error) {
+	if !p.match(TokenLParen) {
+		return nil, fmt.Errorf("expected '(' in mixin parameters at %v", p.peek())
+	}
+
+	params := []string{}
+
+	for !p.check(TokenRParen) && !p.isAtEnd() {
+		if p.check(TokenVariable) {
+			paramName := p.advance().Value
+			params = append(params, paramName)
+
+			// Skip optional colon and default value
+			if p.match(TokenColon) {
+				// Parse default value until ; or )
+				for !p.check(TokenSemicolon) && !p.check(TokenRParen) && !p.isAtEnd() {
+					p.advance()
+				}
+			}
+
+			// Check for separator (; or ,)
+			if p.match(TokenSemicolon) || p.match(TokenComma) {
+				// Continue to next parameter
+				continue
+			}
+		} else {
+			// Skip non-variable tokens (for malformed input)
+			p.advance()
+		}
+	}
+
+	if !p.match(TokenRParen) {
+		return nil, fmt.Errorf("expected ')' in mixin parameters at %v", p.peek())
+	}
+
+	return params, nil
 }
 
 // isMixinCall checks if the current position starts a mixin call

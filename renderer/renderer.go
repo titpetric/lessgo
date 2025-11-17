@@ -43,7 +43,7 @@ func (r *Renderer) Render(stylesheet *ast.Stylesheet) string {
 func (r *Renderer) collectMixins(stylesheet *ast.Stylesheet) {
 	for _, stmt := range stylesheet.Rules {
 		if rule, ok := stmt.(*ast.Rule); ok {
-			// Check if this is a mixin definition (class or id selector with no body that could be used as mixin)
+			// Check if this is a mixin definition (class or id selector that could be used as mixin)
 			if len(rule.Selector.Parts) == 1 {
 				selector := rule.Selector.Parts[0]
 				// Extract mixin name from .classname or #id format
@@ -72,6 +72,11 @@ func (r *Renderer) renderStatement(stmt ast.Statement, parentSelector string) {
 
 // renderRule renders a CSS rule
 func (r *Renderer) renderRule(rule *ast.Rule, parentSelector string) {
+	// Skip parametric mixin definitions - they're not output to CSS
+	if len(rule.Parameters) > 0 {
+		return
+	}
+
 	selector := r.buildSelector(rule.Selector, parentSelector)
 
 	// Build list of all declarations, with mixin declarations inserted at mixin call positions
@@ -92,8 +97,10 @@ func (r *Renderer) renderRule(rule *ast.Rule, parentSelector string) {
 			if len(mixinCall.Path) > 0 {
 				mixinName := mixinCall.Path[len(mixinCall.Path)-1]
 				if mixin, found := r.mixins[mixinName]; found {
+					// Bind arguments to parameters if this is a parametric mixin
+					mixinDecls := r.bindMixinArguments(mixin, mixinCall.Arguments)
 					// Insert mixin declarations at the beginning
-					allDeclarations = append(mixin.Declarations, allDeclarations...)
+					allDeclarations = append(mixinDecls, allDeclarations...)
 				}
 			}
 		}
@@ -551,6 +558,52 @@ func parsePercentage(s string) float64 {
 	}
 
 	return *num / 100 // assume percentage if no unit
+}
+
+// bindMixinArguments binds mixin call arguments to parameter names
+// Returns a copy of mixin declarations with parameters replaced by argument values
+func (r *Renderer) bindMixinArguments(mixin *ast.Rule, args []ast.Value) []ast.Declaration {
+	if len(mixin.Parameters) == 0 {
+		// No parameters - just return the declarations as-is
+		return mixin.Declarations
+	}
+
+	// Create a temporary renderer with the bound parameters
+	tmpRenderer := &Renderer{
+		vars:   make(map[string]ast.Value),
+		mixins: r.mixins,
+	}
+
+	// Copy all current variables
+	for k, v := range r.vars {
+		tmpRenderer.vars[k] = v
+	}
+
+	// Bind arguments to parameters
+	for i, param := range mixin.Parameters {
+		if i < len(args) {
+			// Remove @ prefix if present
+			paramName := param
+			if strings.HasPrefix(paramName, "@") {
+				paramName = paramName[1:]
+			}
+			tmpRenderer.vars[paramName] = args[i]
+		}
+	}
+
+	// Render declarations with bound parameters and create new literals with rendered values
+	renderedDecls := make([]ast.Declaration, len(mixin.Declarations))
+	for i, decl := range mixin.Declarations {
+		// Render the value through the temp renderer with bound parameters
+		renderedValue := tmpRenderer.renderValue(decl.Value)
+		// Create a literal with the rendered value
+		renderedDecls[i] = ast.Declaration{
+			Property: decl.Property,
+			Value:    &ast.Literal{Type: ast.KeywordLiteral, Value: renderedValue},
+		}
+	}
+
+	return renderedDecls
 }
 
 // renderMixinCall renders a mixin call by applying the mixin's declarations

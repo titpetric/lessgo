@@ -57,6 +57,19 @@ func (f *Formatter) formatRule(rule *ast.Rule) {
 	f.writeIndent()
 	selector := strings.Join(rule.Selector.Parts, ", ")
 	f.output.WriteString(selector)
+
+	// Write mixin parameters if present
+	if len(rule.Parameters) > 0 {
+		f.output.WriteString("(")
+		for i, param := range rule.Parameters {
+			if i > 0 {
+				f.output.WriteString("; ")
+			}
+			f.output.WriteString(param)
+		}
+		f.output.WriteString(")")
+	}
+
 	f.output.WriteString(" {\n")
 
 	f.indent++
