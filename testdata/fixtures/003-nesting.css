@@ -1,0 +1,9 @@
+#header {
+  color: black;
+}
+#header .logo {
+  width: 300px;
+}
+#header .navigation {
+  font-size: 12px;
+}
