@@ -51,12 +51,18 @@ func (p *Parser) parseStatement() (ast.Statement, error) {
 
 	tok := p.peek()
 
-	// Variable declaration
+	// At-rule (@import, @media, @keyframes, etc.)
+	// These are tokenized as TokenVariable with names like "import", "media", etc.
 	if tok.Type == TokenVariable {
+		// Check if it's an at-rule keyword
+		if isAtRuleKeyword(tok.Value) {
+			return p.parseAtRule()
+		}
+		// Otherwise it's a variable declaration
 		return p.parseVariableDeclaration()
 	}
 
-	// At-rule
+	// At-rule (in case @ is tokenized separately)
 	if tok.Type == TokenAt {
 		return p.parseAtRule()
 	}
@@ -81,6 +87,17 @@ func (p *Parser) parseRule() (ast.Statement, error) {
 			return nil, err
 		}
 		rule.Parameters = params
+	}
+
+	// Check for guard condition: when (...) or unless (...)
+	if p.checkIdentValue("when") || p.checkIdentValue("unless") {
+		isWhen := p.peekIdentValue() == "when"
+		p.advance()
+		guard, err := p.parseGuard(isWhen)
+		if err != nil {
+			return nil, err
+		}
+		rule.Guard = guard
 	}
 
 	if !p.match(TokenLBrace) {
@@ -155,6 +172,27 @@ func (p *Parser) parseSelector() (ast.Selector, error) {
 			}
 
 			tok := p.peek()
+			
+			// Handle interpolation in selectors
+			if tok.Type == TokenInterp {
+				// Store interpolation marker and the variable/expression that follows
+				p.advance()
+				// Peek at the next token(s) to get the variable name
+				if p.check(TokenVariable) {
+					varTok := p.advance()
+					part += "@{" + varTok.Value + "}"
+				} else if p.check(TokenIdent) {
+					// Could be a property name or keyword in interpolation
+					identTok := p.advance()
+					part += "@{" + identTok.Value + "}"
+				}
+				if !p.match(TokenInterpEnd) {
+					return ast.Selector{}, fmt.Errorf("expected '}' in selector interpolation at %v", p.peek())
+				}
+				// Don't add spaces around interpolation - continue directly to next token
+				continue
+			}
+
 			part += tok.Value
 
 			// Handle whitespace between tokens in selectors
@@ -165,12 +203,13 @@ func (p *Parser) parseSelector() (ast.Selector, error) {
 				!p.check(TokenSemicolon) && !p.isAtEnd() {
 				nextTok := p.peek()
 				// Add space between tokens if needed
+				// Skip space before operators like +, -, ~, > and after punctuation
 				if tok.Type != TokenGreater && nextTok.Type != TokenGreater &&
 					tok.Type != TokenPlus && nextTok.Type != TokenPlus &&
-					tok.Type != TokenTilde && nextTok.Type != TokenTilde {
-					if needsSpaceBetween(tok, nextTok) {
-						part += " "
-					}
+					tok.Type != TokenTilde && nextTok.Type != TokenTilde &&
+					tok.Type != TokenMinus && nextTok.Type != TokenMinus &&
+					needsSpaceBetween(tok, nextTok) {
+					part += " "
 				}
 			}
 		}
@@ -193,11 +232,38 @@ func (p *Parser) parseSelector() (ast.Selector, error) {
 
 // parseDeclaration parses a CSS declaration
 func (p *Parser) parseDeclaration() (*ast.Declaration, error) {
-	if !p.checkIdent() {
-		return nil, nil
+	property := ""
+
+	// Parse property name (may include interpolation like @{prop})
+	for {
+		if p.check(TokenInterp) {
+			// Handle interpolation in property name
+			p.advance()
+			if p.check(TokenVariable) {
+				varTok := p.advance()
+				property += "@{" + varTok.Value + "}"
+			} else if p.check(TokenIdent) {
+				identTok := p.advance()
+				property += "@{" + identTok.Value + "}"
+			}
+			if !p.match(TokenInterpEnd) {
+				return nil, fmt.Errorf("expected '}' in property interpolation at %v", p.peek())
+			}
+		} else if p.checkIdent() {
+			property += p.advance().Value
+		} else {
+			break
+		}
+
+		// Check if next is colon (end of property) or continue with more property name
+		if p.check(TokenColon) {
+			break
+		}
 	}
 
-	property := p.advance().Value
+	if property == "" {
+		return nil, nil
+	}
 
 	if !p.match(TokenColon) {
 		return nil, fmt.Errorf("expected ':' after property at %v", p.peek())
@@ -482,6 +548,17 @@ func (p *Parser) parseCommaList() (ast.Value, error) {
 	return p.parseCommaListWithSpaces(true)
 }
 
+// canStartValue checks if a token type can start a value
+func canStartValue(tokType TokenType) bool {
+	switch tokType {
+	case TokenString, TokenNumber, TokenColor, TokenVariable,
+		TokenInterp, TokenFunction, TokenIdent, TokenMinus, TokenPlus,
+		TokenLParen:
+		return true
+	}
+	return false
+}
+
 // parseBinaryOp parses binary operations (+ - * /)
 func (p *Parser) parseBinaryOp() (ast.Value, error) {
 	left, err := p.parseSimpleValue()
@@ -541,6 +618,9 @@ func (p *Parser) parseSimpleValue() (ast.Value, error) {
 		p.advance()
 		return &ast.Variable{Name: name}, nil
 
+	case TokenInterp:
+		return p.parseInterpolation()
+
 	case TokenFunction:
 		return p.parseFunctionCall()
 
@@ -573,8 +653,8 @@ func (p *Parser) parseFunctionCall() (*ast.FunctionCall, error) {
 	args := []ast.Value{}
 
 	for !p.check(TokenRParen) && !p.isAtEnd() {
-		// Parse single argument without space-separated values
-		arg, err := p.parseCommaListNoSpaces()
+		// Parse function argument - allows space-separated and comma-separated values
+		arg, err := p.parseFunctionArg()
 		if err != nil {
 			return nil, err
 		}
@@ -594,6 +674,56 @@ func (p *Parser) parseFunctionCall() (*ast.FunctionCall, error) {
 	return &ast.FunctionCall{
 		Name:      name,
 		Arguments: args,
+	}, nil
+}
+
+// parseFunctionArg parses a function argument, allowing space-separated values
+// but stopping at comma or closing parenthesis
+func (p *Parser) parseFunctionArg() (ast.Value, error) {
+	values := []ast.Value{}
+
+	for !p.check(TokenComma) && !p.check(TokenRParen) && !p.isAtEnd() {
+		val, err := p.parseBinaryOp()
+		if err != nil {
+			return nil, err
+		}
+		if val == nil {
+			break
+		}
+		values = append(values, val)
+
+		// Check if there's another value (space-separated)
+		if p.check(TokenComma) || p.check(TokenRParen) || p.isAtEnd() {
+			break
+		}
+
+		// Look ahead to see if the next token could start a value
+		nextTok := p.peek()
+
+		// Check if this looks like the end of the argument
+		// (new property with COLON, semicolon, brace, etc)
+		if nextTok.Type == TokenIdent && p.peekAhead(1).Type == TokenColon {
+			break
+		}
+
+		// If the next token can't start a value, stop
+		if !canStartValue(nextTok.Type) {
+			break
+		}
+	}
+
+	if len(values) == 0 {
+		return nil, nil
+	}
+
+	if len(values) == 1 {
+		return values[0], nil
+	}
+
+	// Multiple values - return as a space-separated list
+	return &ast.List{
+		Values:    values,
+		Separator: " ",
 	}, nil
 }
 
@@ -620,11 +750,23 @@ func (p *Parser) parseVariableDeclaration() (*ast.VariableDeclaration, error) {
 
 // parseAtRule parses an at-rule (@media, @import, etc.)
 func (p *Parser) parseAtRule() (*ast.AtRule, error) {
-	if !p.match(TokenAt) {
-		return nil, fmt.Errorf("expected '@' at %v", p.peek())
+	var name string
+
+	// Handle both TokenAt followed by identifier, and TokenVariable (like "import", "media")
+	if p.check(TokenVariable) {
+		// @import, @media, etc. are tokenized as TokenVariable
+		name = p.advance().Value
+	} else if p.match(TokenAt) {
+		// Fallback for @ followed by identifier
+		if p.checkIdent() {
+			name = p.advance().Value
+		} else {
+			return nil, fmt.Errorf("expected rule name after '@' at %v", p.peek())
+		}
+	} else {
+		return nil, fmt.Errorf("expected '@' or at-rule keyword at %v", p.peek())
 	}
 
-	name := p.advance().Value
 	params := ""
 
 	// Collect parameters until { or ;
@@ -658,6 +800,111 @@ func (p *Parser) parseAtRule() (*ast.AtRule, error) {
 	}
 
 	return rule, nil
+}
+
+// isAtRuleKeyword checks if a keyword is an at-rule directive
+func isAtRuleKeyword(name string) bool {
+	switch strings.ToLower(name) {
+	case "import", "media", "keyframes", "supports", "namespace",
+		"document", "page", "font-face", "charset", "when", "unless":
+		return true
+	default:
+		return false
+	}
+}
+
+// parseInterpolation parses @{ ... } or #{ ... } interpolation
+func (p *Parser) parseInterpolation() (*ast.Interpolation, error) {
+	if !p.match(TokenInterp) {
+		return nil, fmt.Errorf("expected '@{' or '#{' at %v", p.peek())
+	}
+
+	// Parse the expression inside the braces
+	expr, err := p.parseValue()
+	if err != nil {
+		return nil, err
+	}
+
+	if !p.match(TokenInterpEnd) {
+		return nil, fmt.Errorf("expected '}' to close interpolation at %v", p.peek())
+	}
+
+	return &ast.Interpolation{
+		Expression: expr,
+	}, nil
+}
+
+// parseGuard parses a guard condition: when (condition) or unless (condition)
+func (p *Parser) parseGuard(isWhen bool) (*ast.Guard, error) {
+	guard := &ast.Guard{
+		IsWhen:     isWhen,
+		Conditions: []*ast.GuardCondition{},
+	}
+
+	if !p.match(TokenLParen) {
+		return nil, fmt.Errorf("expected '(' after when/unless at %v", p.peek())
+	}
+
+	for {
+		// Parse left side of comparison - just a simple value
+		left, err := p.parseSimpleValue()
+		if err != nil {
+			return nil, err
+		}
+
+		// Parse comparison operator
+		var operator string
+		if p.check(TokenEq) {
+			operator = "="
+			p.advance()
+		} else if p.check(TokenNe) {
+			operator = "!="
+			p.advance()
+		} else if p.check(TokenLt) {
+			operator = "<"
+			p.advance()
+		} else if p.check(TokenLe) {
+			operator = "<="
+			p.advance()
+		} else if p.check(TokenGt) {
+			operator = ">"
+			p.advance()
+		} else if p.check(TokenGe) {
+			operator = ">="
+			p.advance()
+		} else {
+			return nil, fmt.Errorf("expected comparison operator in guard at %v", p.peek())
+		}
+
+		// Parse right side of comparison - just a simple value
+		right, err := p.parseSimpleValue()
+		if err != nil {
+			return nil, err
+		}
+
+		guard.Conditions = append(guard.Conditions, &ast.GuardCondition{
+			Left:     left,
+			Operator: operator,
+			Right:    right,
+		})
+
+		// Check for more conditions (and/or)
+		if p.checkIdentValue("and") {
+			p.advance()
+			continue
+		} else if p.checkIdentValue("or") {
+			p.advance()
+			continue
+		} else {
+			break
+		}
+	}
+
+	if !p.match(TokenRParen) {
+		return nil, fmt.Errorf("expected ')' at end of guard at %v", p.peek())
+	}
+
+	return guard, nil
 }
 
 // Helper methods
@@ -705,11 +952,26 @@ func (p *Parser) checkIdent() bool {
 	return p.check(TokenIdent) || p.check(TokenProperty)
 }
 
+// checkIdentValue checks if current token is a specific identifier
+func (p *Parser) checkIdentValue(value string) bool {
+	tok := p.peek()
+	return (tok.Type == TokenIdent || tok.Type == TokenProperty) && strings.ToLower(tok.Value) == strings.ToLower(value)
+}
+
+// peekIdentValue returns the value of current token if it's an identifier
+func (p *Parser) peekIdentValue() string {
+	tok := p.peek()
+	if tok.Type == TokenIdent || tok.Type == TokenProperty {
+		return tok.Value
+	}
+	return ""
+}
+
 // isValueStart checks if a token type can start a value
 func isValueStart(tt TokenType) bool {
 	switch tt {
 	case TokenString, TokenNumber, TokenColor, TokenVariable,
-		TokenFunction, TokenIdent, TokenLParen:
+		TokenFunction, TokenIdent, TokenLParen, TokenInterp:
 		return true
 	default:
 		return false

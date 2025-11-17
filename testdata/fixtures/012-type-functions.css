@@ -1,0 +1,10 @@
+.test {
+  number: true;
+  string: true;
+  color: true;
+  list: true;
+  keyword: true;
+  pixel: true;
+  em: true;
+  percentage: true;
+}

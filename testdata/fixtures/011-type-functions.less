@@ -1,0 +1,71 @@
+// Type checking functions
+@number: 42px;
+@string: "hello";
+@color: #ff0000;
+
+.test-isnumber {
+  is-number-1: isnumber(42);
+  is-number-2: isnumber(10px);
+  is-number-3: isnumber("text");
+}
+
+.test-isstring {
+  is-string-1: isstring("hello");
+  is-string-2: isstring('world');
+  is-string-3: isstring(42);
+}
+
+.test-iscolor {
+  is-color-1: iscolor(#ff0000);
+  is-color-2: iscolor(#fff);
+  is-color-3: iscolor(red);
+}
+
+.test-iskeyword {
+  is-keyword-1: iskeyword(auto);
+  is-keyword-2: iskeyword(inherit);
+  is-keyword-3: iskeyword(something);
+}
+
+.test-isurl {
+  is-url-1: isurl(url("image.png"));
+  is-url-2: isurl(notaurl);
+}
+
+.test-ispixel {
+  is-pixel-1: ispixel(10px);
+  is-pixel-2: ispixel(10em);
+  is-pixel-3: ispixel(10);
+}
+
+.test-isem {
+  is-em-1: isem(2em);
+  is-em-2: isem(2px);
+}
+
+.test-ispercentage {
+  is-percentage-1: ispercentage(50%);
+  is-percentage-2: ispercentage(50);
+}
+
+.test-isunit {
+  is-unit-1: isunit(10px, "px");
+  is-unit-2: isunit(2em, "em");
+  is-unit-3: isunit(50%, "%");
+}
+
+.test-boolean {
+  bool-1: boolean(true);
+  bool-2: boolean(false);
+  bool-3: boolean(1);
+  bool-4: boolean(0);
+}
+
+.test-length {
+  len-1: length("hello");
+  len-2: length(1px 2px 3px);
+}
+
+.test-escape {
+  escaped: escape("hello world!");
+}

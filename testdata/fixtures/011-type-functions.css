@@ -1,0 +1,55 @@
+.test-isnumber {
+  is-number-1: true;
+  is-number-2: true;
+  is-number-3: false;
+}
+.test-isstring {
+  is-string-1: true;
+  is-string-2: true;
+  is-string-3: false;
+}
+.test-iscolor {
+  is-color-1: true;
+  is-color-2: true;
+  is-color-3: false;
+}
+.test-iskeyword {
+  is-keyword-1: true;
+  is-keyword-2: true;
+  is-keyword-3: false;
+}
+.test-isurl {
+  is-url-1: true;
+  is-url-2: false;
+}
+.test-ispixel {
+  is-pixel-1: true;
+  is-pixel-2: false;
+  is-pixel-3: false;
+}
+.test-isem {
+  is-em-1: true;
+  is-em-2: false;
+}
+.test-ispercentage {
+  is-percentage-1: true;
+  is-percentage-2: false;
+}
+.test-isunit {
+  is-unit-1: true;
+  is-unit-2: true;
+  is-unit-3: true;
+}
+.test-boolean {
+  bool-1: true;
+  bool-2: false;
+  bool-3: true;
+  bool-4: false;
+}
+.test-length {
+  len-1: 5;
+  len-2: 3;
+}
+.test-escape {
+  escaped: hello%20world%21;
+}

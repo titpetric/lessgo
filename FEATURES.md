@@ -59,9 +59,9 @@
 - [ ] Color blending (multiply, screen, overlay, softlight, hardlight, difference, exclusion, average, negation)
 
 #### String Functions
-- [ ] escape() - [String Functions](docs/feat-strings.md)
-- [ ] e() - URL encoding
-- [ ] % (format string)
+- [x] escape() - [String Functions](docs/feat-strings.md)
+- [x] e() - Quote removal / string escaping
+- [x] % (format string)
 - [ ] replace()
 
 #### Math Functions
@@ -84,27 +84,28 @@
 - [ ] percentage()
 
 #### List Functions
-- [ ] length()
-- [ ] extract()
-- [ ] range()
+- [x] length()
+- [x] extract()
+- [x] range()
 - [ ] each()
 
 #### Type Functions
-- [ ] isnumber()
-- [ ] isstring()
-- [ ] iscolor()
-- [ ] iskeyword()
-- [ ] isurl()
-- [ ] ispixel()
-- [ ] isem()
-- [ ] ispercentage()
-- [ ] isunit()
-- [ ] isruleset()
-- [ ] isdefined()
+- [x] isnumber()
+- [x] isstring()
+- [x] iscolor()
+- [x] iskeyword()
+- [x] isurl()
+- [x] ispixel()
+- [x] isem()
+- [x] ispercentage()
+- [x] isunit()
+- [x] isruleset()
+- [x] islist()
+- [ ] isdefined() (requires scope tracking)
 
 #### Logical Functions
 - [ ] if()
-- [ ] boolean()
+- [x] boolean()
 
 ### Advanced Features
 - [ ] @import - [Import System](docs/feat-imports.md)

@@ -40,8 +40,9 @@
 ### ✅ Variables
 - [x] Variable declaration (@var: value)
 - [x] Variable resolution in values
+- [x] Variable interpolation in selectors (@{var})
+- [x] Variable interpolation in property names (@{prop-name})
 - [ ] Scoped variables (lazy evaluation)
-- [ ] Variable interpolation in selectors (@{var})
 
 ### ✅ Nesting
 - [x] Basic nesting (child selectors)
@@ -81,7 +82,7 @@
 - [ ] Type conversion functions
 
 ### Other Features
-- [ ] @import (basic, not full import system)
+- [x] @import (basic - file resolution with fs.FS, error on missing imports, optional imports)
 - [ ] @media and other at-rules
 - [ ] Extend/::extend
 - [ ] Maps
@@ -125,7 +126,44 @@
 - ✅ Basic mixin support - declarations from .mixin() calls applied to calling rules
 - ✅ Parametric mixin support - arguments bound to parameters in temporary variable scope
 
-## Features Added This Session
+## Features Added This Session (Latest)
+
+### ✅ Type Checking Functions Implementation
+- [x] Created `functions/types.go` with all type checking functions
+- [x] Implemented: isnumber, isstring, iscolor, iskeyword, isurl, ispixel, isem, ispercentage, isunit, isruleset, islist
+- [x] Implemented list/string functions: length, extract, range, escape, e, boolean
+- [x] Renderer evaluates type checking functions on AST values (preserves type info)
+- [x] Variable resolution for type checking (checks type of variable value)
+- [x] Parser enhancement: `parseFunctionArg()` handles space-separated values in function arguments
+- [x] Fixed parser to allow both space-separated and comma-separated function arguments
+- [x] Fixture tests for type checking functions (011 and 012)
+- [x] All 12 fixture tests passing
+
+## Features Added Previous Session
+
+### ✅ Variable Interpolation Implementation
+- [x] Lexer tracks interpolation depth for @{ ... } syntax
+- [x] Parser handles interpolation in selectors: `.@{var}`
+- [x] Parser handles interpolation in property names: `@{prop-name}`
+- [x] Parser handles interpolation in values via Interpolation AST node
+- [x] Renderer resolves interpolation by variable lookup
+- [x] Both selector and property interpolation working
+- [x] Compatible with lessc output
+- [x] Fixture test for interpolation
+
+## Features Added Previous Session
+
+### ✅ @import Implementation
+- [x] Created `importer` package with fs.FS support
+- [x] File resolution relative to importing file
+- [x] Error on missing imports (unless optional)
+- [x] Support for @import "file.less" syntax
+- [x] Support for @import url("file.less") syntax  
+- [x] Optional imports: @import "file.less" (optional)
+- [x] Nested import resolution (imports within imports)
+- [x] Parser recognizes @import, @media, etc. as at-rules
+- [x] Both `fmt` and `compile` commands resolve imports
+- [x] Fixture test for @import functionality
 
 ### ✅ Formatter Implementation (`cmd/lessgo fmt`)
 - [x] Created `cmd/lessgo` binary with `fmt` command
@@ -137,6 +175,7 @@
 - [x] **FIXED**: Properly handles nested rule indentation
 - [x] **FIXED**: Improved blank line handling between declarations and nested rules
 - [x] **FIXED**: Outputs mixin parameters in formatted output
+- [x] Now errors on missing imports during formatting
 
 ### ✅ Parametric Mixins Implementation
 - [x] Added Parameters field to Rule AST node
@@ -152,6 +191,7 @@
 - [x] Prevents infinite loops when parsing declarations without semicolons
 - [x] Added parameter parsing for mixin definitions
 - [x] Fixed selector parsing to stop at LPAREN (for mixin parameters)
+- [x] Added at-rule keyword detection to distinguish @import/@media from @variables
 
 ## Next Session Action Plan
 

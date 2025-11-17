@@ -1,0 +1,15 @@
+@num: 42;
+@str: hello;
+@col: #ff6600;
+@list: 1, 2, 3;
+
+.test {
+  number: isnumber(@num);
+  string: isstring(@str);
+  color: iscolor(@col);
+  list: islist(@list);
+  keyword: iskeyword(auto);
+  pixel: ispixel(10px);
+  em: isem(2em);
+  percentage: ispercentage(50%);
+}

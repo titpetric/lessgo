@@ -16,14 +16,14 @@ type Renderer struct {
 	output bytes.Buffer
 	indent int
 	vars   map[string]ast.Value
-	mixins map[string]*ast.Rule // Store mixin definitions by name
+	mixins map[string][]*ast.Rule // Store mixin definitions by name (can have multiple variants with guards)
 }
 
 // NewRenderer creates a new renderer
 func NewRenderer() *Renderer {
 	return &Renderer{
 		vars:   make(map[string]ast.Value),
-		mixins: make(map[string]*ast.Rule),
+		mixins: make(map[string][]*ast.Rule),
 	}
 }
 
@@ -49,7 +49,7 @@ func (r *Renderer) collectMixins(stylesheet *ast.Stylesheet) {
 				// Extract mixin name from .classname or #id format
 				if (strings.HasPrefix(selector, ".") || strings.HasPrefix(selector, "#")) && !strings.Contains(selector, " ") {
 					name := selector[1:] // Remove . or #
-					r.mixins[name] = rule
+					r.mixins[name] = append(r.mixins[name], rule)
 				}
 			}
 		}
@@ -77,6 +77,11 @@ func (r *Renderer) renderRule(rule *ast.Rule, parentSelector string) {
 		return
 	}
 
+	// Skip mixin definitions with guards - they're only used when called
+	if rule.Guard != nil {
+		return
+	}
+
 	selector := r.buildSelector(rule.Selector, parentSelector)
 
 	// Build list of all declarations, with mixin declarations inserted at mixin call positions
@@ -96,11 +101,18 @@ func (r *Renderer) renderRule(rule *ast.Rule, parentSelector string) {
 		if mixinCall, ok := nestedStmt.(*ast.MixinCall); ok {
 			if len(mixinCall.Path) > 0 {
 				mixinName := mixinCall.Path[len(mixinCall.Path)-1]
-				if mixin, found := r.mixins[mixinName]; found {
-					// Bind arguments to parameters if this is a parametric mixin
-					mixinDecls := r.bindMixinArguments(mixin, mixinCall.Arguments)
-					// Insert mixin declarations at the beginning
-					allDeclarations = append(mixinDecls, allDeclarations...)
+				if mixins, found := r.mixins[mixinName]; found {
+					// Find the first matching mixin variant (check guards in order)
+					for _, mixin := range mixins {
+						// Check if mixin's guard condition is satisfied
+						if r.evaluateGuard(mixin.Guard) {
+							// Bind arguments to parameters if this is a parametric mixin
+							mixinDecls := r.bindMixinArguments(mixin, mixinCall.Arguments)
+							// Insert mixin declarations at the beginning
+							allDeclarations = append(mixinDecls, allDeclarations...)
+							break // Apply only the first matching mixin variant
+						}
+					}
 				}
 			}
 		}
@@ -113,7 +125,9 @@ func (r *Renderer) renderRule(rule *ast.Rule, parentSelector string) {
 
 		for _, decl := range allDeclarations {
 			r.output.WriteString("  ")
-			r.output.WriteString(decl.Property)
+			// Resolve interpolation in property names
+			property := r.resolveInterpolation(decl.Property)
+			r.output.WriteString(property)
 			r.output.WriteString(": ")
 			r.output.WriteString(r.renderValue(decl.Value))
 			r.output.WriteString(";\n")
@@ -139,6 +153,9 @@ func (r *Renderer) buildSelector(selector ast.Selector, parentSelector string) s
 
 	parts := []string{}
 	for _, part := range selector.Parts {
+		// Resolve interpolation in selectors
+		part = r.resolveInterpolation(part)
+		
 		if strings.Contains(part, "&") {
 			// Replace & with parent selector
 			result := strings.ReplaceAll(part, "&", parentSelector)
@@ -152,6 +169,23 @@ func (r *Renderer) buildSelector(selector ast.Selector, parentSelector string) s
 	}
 
 	return strings.Join(parts, ", ")
+}
+
+// resolveInterpolation replaces @{varname} with variable values in a string
+func (r *Renderer) resolveInterpolation(input string) string {
+	// Find and replace all @{...} patterns
+	re := regexp.MustCompile(`@\{([^}]+)\}`)
+	return re.ReplaceAllStringFunc(input, func(match string) string {
+		// Extract variable name from @{varname}
+		varName := match[2 : len(match)-1] // Remove @{ and }
+		
+		// Look up variable
+		if val, ok := r.vars[varName]; ok {
+			return r.renderValue(val)
+		}
+		// If not found, return the original (though this is probably an error)
+		return match
+	})
 }
 
 // RenderValuePublic renders a value to CSS (public for external use)
@@ -208,6 +242,8 @@ func (r *Renderer) renderValue(value ast.Value) string {
 			return r.renderValue(val)
 		}
 		return "@" + v.Name // Fallback
+	case *ast.Interpolation:
+		return r.renderValue(v.Expression)
 	case *ast.FunctionCall:
 		return r.renderFunctionCall(v)
 	case *ast.List:
@@ -229,6 +265,11 @@ func (r *Renderer) renderValue(value ast.Value) string {
 
 // renderFunctionCall renders a function call
 func (r *Renderer) renderFunctionCall(fn *ast.FunctionCall) string {
+	// For type checking functions, evaluate directly on AST values
+	if isTypeCheckingFunction(fn.Name) {
+		return r.evaluateTypeCheckingFunction(fn)
+	}
+
 	args := []string{}
 	for _, arg := range fn.Arguments {
 		args = append(args, r.renderValue(arg))
@@ -240,6 +281,207 @@ func (r *Renderer) renderFunctionCall(fn *ast.FunctionCall) string {
 	}
 
 	return fn.Name + "(" + strings.Join(args, ", ") + ")"
+}
+
+// resolveVariableValue resolves a variable to its value, if it's a variable
+func (r *Renderer) resolveVariableValue(v ast.Value) ast.Value {
+	if varRef, ok := v.(*ast.Variable); ok {
+		if val, ok := r.vars[varRef.Name]; ok {
+			return r.resolveVariableValue(val) // Recurse in case of nested variables
+		}
+	}
+	return v
+}
+
+// isTypeCheckingFunction returns true if the function is a type checking function
+func isTypeCheckingFunction(name string) bool {
+	switch name {
+	case "isnumber", "isstring", "iscolor", "iskeyword", "isurl", "ispixel",
+		"isem", "ispercentage", "isunit", "isruleset", "islist", "boolean",
+		"length", "extract", "range", "escape", "e":
+		return true
+	}
+	return false
+}
+
+// evaluateTypeCheckingFunction evaluates type checking functions on AST values
+func (r *Renderer) evaluateTypeCheckingFunction(fn *ast.FunctionCall) string {
+	name := fn.Name
+
+	// Get the rendered arguments and resolve variables
+	args := []string{}
+	astArgs := []ast.Value{}
+	for _, arg := range fn.Arguments {
+		// Resolve variables to their values
+		resolvedArg := r.resolveVariableValue(arg)
+		astArgs = append(astArgs, resolvedArg)
+		args = append(args, r.renderValue(resolvedArg))
+	}
+
+	switch name {
+	case "isnumber":
+		if len(astArgs) != 1 {
+			return ""
+		}
+		if r.isNumberAST(astArgs[0]) {
+			return "true"
+		}
+		return "false"
+	case "isstring":
+		if len(astArgs) != 1 {
+			return ""
+		}
+		if r.isStringAST(astArgs[0]) {
+			return "true"
+		}
+		return "false"
+	case "iscolor":
+		if len(astArgs) != 1 {
+			return ""
+		}
+		if r.isColorAST(astArgs[0]) {
+			return "true"
+		}
+		return "false"
+	case "iskeyword":
+		if len(args) != 1 {
+			return ""
+		}
+		if functions.IsKeyword(args[0]) {
+			return "true"
+		}
+		return "false"
+	case "isurl":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.IsURLFunction(args[0])
+	case "ispixel":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.IsPixelFunction(args[0])
+	case "isem":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.IsEmFunction(args[0])
+	case "ispercentage":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.IsPercentageFunction(args[0])
+	case "isunit":
+		if len(args) != 2 {
+			return ""
+		}
+		return functions.IsUnitFunction(args[0], args[1])
+	case "isruleset":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.IsRulesetFunction(args[0])
+	case "islist":
+		if len(astArgs) != 1 {
+			return ""
+		}
+		if r.isListAST(astArgs[0]) {
+			return "true"
+		}
+		return "false"
+	case "boolean":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.Boolean(args[0])
+	case "length":
+		if len(args) != 1 {
+			return ""
+		}
+		return r.lengthAST(astArgs[0])
+	case "extract":
+		if len(args) != 2 {
+			return ""
+		}
+		return functions.Extract(args[0], args[1])
+	case "range":
+		if len(args) < 2 {
+			return ""
+		}
+		if len(args) == 2 {
+			return functions.Range(args[0], args[1])
+		}
+		return functions.Range(args[0], args[1], args[2])
+	case "escape":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.Escape(args[0])
+	case "e":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.E(args[0])
+	}
+	return ""
+}
+
+// isNumberAST checks if an AST value is a number
+func (r *Renderer) isNumberAST(v ast.Value) bool {
+	switch val := v.(type) {
+	case *ast.Literal:
+		return val.Type == ast.UnitLiteral || val.Type == ast.NumberLiteral
+	case *ast.BinaryOp:
+		return true // Binary operations always return numbers
+	default:
+		return false
+	}
+}
+
+// isStringAST checks if an AST value is a string
+func (r *Renderer) isStringAST(v ast.Value) bool {
+	switch val := v.(type) {
+	case *ast.Literal:
+		// Both quoted strings and unquoted keywords can be strings in LESS
+		return val.Type == ast.StringLiteral || val.Type == ast.KeywordLiteral
+	default:
+		return false
+	}
+}
+
+// isColorAST checks if an AST value is a color
+func (r *Renderer) isColorAST(v ast.Value) bool {
+	switch val := v.(type) {
+	case *ast.Literal:
+		return val.Type == ast.ColorLiteral
+	default:
+		return false
+	}
+}
+
+// isListAST checks if an AST value is a list
+func (r *Renderer) isListAST(v ast.Value) bool {
+	switch v.(type) {
+	case *ast.List:
+		return true
+	default:
+		return false
+	}
+}
+
+// lengthAST returns the length of an AST value
+func (r *Renderer) lengthAST(v ast.Value) string {
+	switch val := v.(type) {
+	case *ast.Literal:
+		if val.Type == ast.StringLiteral {
+			return strconv.Itoa(len(val.Value))
+		}
+		return "1"
+	case *ast.List:
+		return strconv.Itoa(len(val.Values))
+	default:
+		return "1"
+	}
 }
 
 // evaluateColorFunction evaluates color and math functions
@@ -325,6 +567,94 @@ func (r *Renderer) evaluateColorFunction(name string, args []string) string {
 			return ""
 		}
 		return functions.Max(args...)
+	case "isnumber":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.IsNumberFunction(args[0])
+	case "isstring":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.IsStringFunction(args[0])
+	case "iscolor":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.IsColorFunction(args[0])
+	case "iskeyword":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.IsKeywordFunction(args[0])
+	case "isurl":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.IsURLFunction(args[0])
+	case "ispixel":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.IsPixelFunction(args[0])
+	case "isem":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.IsEmFunction(args[0])
+	case "ispercentage":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.IsPercentageFunction(args[0])
+	case "isunit":
+		if len(args) != 2 {
+			return ""
+		}
+		return functions.IsUnitFunction(args[0], args[1])
+	case "isruleset":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.IsRulesetFunction(args[0])
+	case "boolean":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.Boolean(args[0])
+	case "length":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.Length(args[0])
+	case "extract":
+		if len(args) != 2 {
+			return ""
+		}
+		return functions.Extract(args[0], args[1])
+	case "range":
+		if len(args) < 2 {
+			return ""
+		}
+		if len(args) == 2 {
+			return functions.Range(args[0], args[1])
+		}
+		return functions.Range(args[0], args[1], args[2])
+	case "escape":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.Escape(args[0])
+	case "e":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.E(args[0])
+	case "%":
+		if len(args) < 1 {
+			return ""
+		}
+		return functions.Format(args[0], args[1:]...)
 	}
 	return ""
 }
@@ -558,6 +888,88 @@ func parsePercentage(s string) float64 {
 	}
 
 	return *num / 100 // assume percentage if no unit
+}
+
+// evaluateGuard checks if a guard condition is satisfied
+func (r *Renderer) evaluateGuard(guard *ast.Guard) bool {
+	if guard == nil {
+		return true
+	}
+
+	// For @when: all conditions must be true (AND logic)
+	// For @unless: all conditions must be false (NOT AND logic)
+	allSatisfied := true
+	for _, cond := range guard.Conditions {
+		if !r.evaluateCondition(cond) {
+			allSatisfied = false
+			break
+		}
+	}
+
+	if guard.IsWhen {
+		return allSatisfied
+	} else {
+		// @unless: return true if condition is NOT satisfied
+		return !allSatisfied
+	}
+}
+
+// evaluateCondition checks if a single guard condition is satisfied
+func (r *Renderer) evaluateCondition(cond *ast.GuardCondition) bool {
+	leftVal := r.renderValue(cond.Left)
+	rightVal := r.renderValue(cond.Right)
+
+	switch cond.Operator {
+	case "=":
+		return leftVal == rightVal
+	case "!=":
+		return leftVal != rightVal
+	case "<":
+		return r.compareNumeric(leftVal, rightVal) < 0
+	case "<=":
+		return r.compareNumeric(leftVal, rightVal) <= 0
+	case ">":
+		return r.compareNumeric(leftVal, rightVal) > 0
+	case ">=":
+		return r.compareNumeric(leftVal, rightVal) >= 0
+	}
+	return false
+}
+
+// compareNumeric compares two numeric values
+// Returns negative if a < b, 0 if a == b, positive if a > b
+func (r *Renderer) compareNumeric(a, b string) int {
+	aNum := parseNumericValue(a)
+	bNum := parseNumericValue(b)
+
+	if aNum < bNum {
+		return -1
+	} else if aNum > bNum {
+		return 1
+	}
+	return 0
+}
+
+// parseNumericValue extracts the numeric part of a value (e.g., "10px" -> 10)
+func parseNumericValue(val string) float64 {
+	// Extract digits and decimal point
+	numStr := ""
+	for _, ch := range val {
+		if (ch >= '0' && ch <= '9') || ch == '.' || (ch == '-' && numStr == "") {
+			numStr += string(ch)
+		} else {
+			break
+		}
+	}
+
+	if numStr == "" {
+		return 0
+	}
+
+	// Simple string to float conversion
+	var result float64
+	fmt.Sscanf(numStr, "%f", &result)
+	return result
 }
 
 // bindMixinArguments binds mixin call arguments to parameter names

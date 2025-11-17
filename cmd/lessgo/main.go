@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/sourcegraph/lessgo/formatter"
+	"github.com/sourcegraph/lessgo/importer"
 	"github.com/sourcegraph/lessgo/parser"
 	"github.com/sourcegraph/lessgo/renderer"
 )
@@ -88,9 +89,9 @@ func formatFiles(patterns []string) error {
 }
 
 // compileFile reads, parses, compiles LESS to CSS and prints to stdout
-func compileFile(filepath string) error {
+func compileFile(filePath string) error {
 	// Read file
-	source, err := ioutil.ReadFile(filepath)
+	source, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return err
 	}
@@ -103,6 +104,14 @@ func compileFile(filepath string) error {
 	stylesheet, err := p.Parse()
 	if err != nil {
 		return fmt.Errorf("parse error: %w", err)
+	}
+
+	// Resolve imports
+	dir := filepath.Dir(filePath)
+	basename := filepath.Base(filePath)
+	imp := importer.New(os.DirFS(dir))
+	if err := imp.ResolveImports(stylesheet, basename); err != nil {
+		return fmt.Errorf("import error: %w", err)
 	}
 
 	// Render to CSS
@@ -115,9 +124,9 @@ func compileFile(filepath string) error {
 }
 
 // formatFile reads, parses, formats, and writes back a LESS file
-func formatFile(filepath string) error {
+func formatFile(filePath string) error {
 	// Read file
-	source, err := ioutil.ReadFile(filepath)
+	source, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return err
 	}
@@ -132,10 +141,18 @@ func formatFile(filepath string) error {
 		return fmt.Errorf("parse error: %w", err)
 	}
 
+	// Resolve imports - this will error if any import is not found
+	dir := filepath.Dir(filePath)
+	basename := filepath.Base(filePath)
+	imp := importer.New(os.DirFS(dir))
+	if err := imp.ResolveImports(stylesheet, basename); err != nil {
+		return fmt.Errorf("import error: %w", err)
+	}
+
 	// Format with double-space indentation
 	fmt := formatter.New(2) // 2 spaces indentation
 	formatted := fmt.Format(stylesheet)
 
 	// Write back
-	return ioutil.WriteFile(filepath, []byte(formatted), 0644)
+	return ioutil.WriteFile(filePath, []byte(formatted), 0644)
 }

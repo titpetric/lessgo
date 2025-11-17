@@ -27,6 +27,7 @@ type Rule struct {
 	Rules        []Statement // nested rules
 	Position     Position
 	Parameters   []string // for parametric mixins: parameter names like ["@v", "@size"]
+	Guard        *Guard   // optional guard condition for mixins
 }
 
 func (r *Rule) node() {}
@@ -149,6 +150,23 @@ type Interpolation struct {
 
 func (i *Interpolation) node()  {}
 func (i *Interpolation) value() {}
+
+// Guard represents a mixin guard condition (@when or @unless)
+type Guard struct {
+	Conditions []*GuardCondition
+	IsWhen     bool // true for @when, false for @unless
+}
+
+// GuardCondition represents a single guard condition
+type GuardCondition struct {
+	Left     Value
+	Operator string // "=", "<", ">", "<=", ">=", "!="
+	Right    Value
+}
+
+func (g *Guard) node() {}
+
+func (gc *GuardCondition) node() {}
 
 // Position tracks location in source for error reporting
 type Position struct {

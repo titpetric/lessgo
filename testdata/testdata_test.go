@@ -3,10 +3,12 @@ package testdata_test
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/sourcegraph/lessgo/importer"
 	"github.com/sourcegraph/lessgo/parser"
 	"github.com/sourcegraph/lessgo/renderer"
 	"github.com/stretchr/testify/require"
@@ -27,6 +29,10 @@ func TestFixtures(t *testing.T) {
 		}
 
 		name := entry.Name()
+		// Skip helper files starting with underscore
+		if strings.HasPrefix(name, "_") {
+			continue
+		}
 		ext := filepath.Ext(name)
 		baseName := strings.TrimSuffix(name, ext)
 
@@ -76,6 +82,23 @@ func compileLESS(lessSource string) (string, error) {
 	stylesheet, err := p.Parse()
 	if err != nil {
 		return "", fmt.Errorf("parse error: %w", err)
+	}
+
+	// Resolve imports from the fixtures directory
+	fixturesDir, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("failed to get working directory: %w", err)
+	}
+	// Construct path to fixtures directory
+	if !strings.HasSuffix(fixturesDir, "testdata") {
+		fixturesDir = filepath.Join(fixturesDir, "testdata")
+	}
+	fixturesDir = filepath.Join(fixturesDir, "fixtures")
+
+	imp := importer.New(os.DirFS(fixturesDir))
+	// Use a placeholder filename - imports resolve relative to this
+	if err := imp.ResolveImports(stylesheet, "main.less"); err != nil {
+		return "", fmt.Errorf("import error: %w", err)
 	}
 
 	// Render

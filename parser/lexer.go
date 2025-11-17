@@ -79,13 +79,14 @@ type Token struct {
 
 // Lexer tokenizes LESS source code
 type Lexer struct {
-	input  string
-	pos    int // current position
-	line   int // current line
-	column int // current column
-	start  int // start of current token
-	width  int // width of last rune read
-	tokens []Token
+	input          string
+	pos            int // current position
+	line           int // current line
+	column         int // current column
+	start          int // start of current token
+	width          int // width of last rune read
+	tokens         []Token
+	interpDepth    int // tracks nesting depth of interpolation @{...}
 }
 
 // NewLexer creates a new lexer for the given input
@@ -129,6 +130,11 @@ func (l *Lexer) nextToken() Token {
 		return l.makeToken(TokenLBrace, "{")
 	case '}':
 		l.advance()
+		// Check if we're inside interpolation
+		if l.interpDepth > 0 {
+			l.interpDepth--
+			return l.makeToken(TokenInterpEnd, "}")
+		}
 		return l.makeToken(TokenRBrace, "}")
 	case '(':
 		l.advance()
@@ -176,6 +182,7 @@ func (l *Lexer) nextToken() Token {
 		if l.peekAhead(1) == '{' {
 			l.advance()
 			l.advance()
+			l.interpDepth++
 			return l.makeToken(TokenInterp, "@{")
 		}
 		// Check for variable (@var)
