@@ -792,10 +792,13 @@ func (r *Renderer) evaluateTypeCheckingFunction(fn *ast.FunctionCall) string {
 		}
 		return IsUnitFunction(args[0], args[1])
 	case "isruleset":
-		if len(args) != 1 {
+		if len(astArgs) != 1 {
 			return ""
 		}
-		return IsRulesetFunction(args[0])
+		if r.isRulesetAST(astArgs[0]) {
+			return "true"
+		}
+		return "false"
 	case "islist":
 		if len(astArgs) != 1 {
 			return ""
@@ -890,6 +893,22 @@ func (r *Renderer) isListAST(v ast.Value) bool {
 	switch v.(type) {
 	case *ast.List:
 		return true
+	default:
+		return false
+	}
+}
+
+// isRulesetAST checks if an AST value is a ruleset literal
+func (r *Renderer) isRulesetAST(v ast.Value) bool {
+	switch val := v.(type) {
+	case *ast.Literal:
+		return val.Type == ast.RulesetLiteral
+	case *ast.Variable:
+		// Check if the variable contains a ruleset
+		if varVal, ok := r.vars.Lookup(val.Name); ok {
+			return r.isRulesetAST(varVal)
+		}
+		return false
 	default:
 		return false
 	}

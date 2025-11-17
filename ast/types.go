@@ -83,6 +83,7 @@ const (
 	URLLiteral        LiteralType = "url"
 	UnitLiteral       LiteralType = "unit"
 	PercentageLiteral LiteralType = "percentage"
+	RulesetLiteral    LiteralType = "ruleset"
 )
 
 // Variable represents a variable reference (@varname)

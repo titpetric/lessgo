@@ -918,6 +918,19 @@ func (p *Parser) parseVariableDeclaration() (*ast.VariableDeclaration, error) {
 		return nil, fmt.Errorf("expected ':' after variable name at %v", p.peek())
 	}
 
+	// Check for detached ruleset: @var: { ... };
+	if p.check(TokenLBrace) {
+		ruleset, err := p.parseDetachedRuleset()
+		if err != nil {
+			return nil, err
+		}
+		p.match(TokenSemicolon)
+		return &ast.VariableDeclaration{
+			Name:  name,
+			Value: ruleset,
+		}, nil
+	}
+
 	value, err := p.parseValue()
 	if err != nil {
 		return nil, err
@@ -928,6 +941,34 @@ func (p *Parser) parseVariableDeclaration() (*ast.VariableDeclaration, error) {
 	return &ast.VariableDeclaration{
 		Name:  name,
 		Value: value,
+	}, nil
+}
+
+// parseDetachedRuleset parses a detached ruleset: { declarations }
+// Returns a Ruleset value that can be stored in a variable
+func (p *Parser) parseDetachedRuleset() (ast.Value, error) {
+	if !p.match(TokenLBrace) {
+		return nil, fmt.Errorf("expected '{' at %v", p.peek())
+	}
+
+	// For now, just skip over the ruleset content and return a Ruleset literal
+	// We're not fully supporting detached rulesets yet, but we need to parse them
+	// to avoid parser errors
+	depth := 1
+	for depth > 0 && !p.isAtEnd() {
+		if p.match(TokenLBrace) {
+			depth++
+		} else if p.match(TokenRBrace) {
+			depth--
+		} else {
+			p.advance()
+		}
+	}
+
+	// Return a Ruleset literal
+	return &ast.Literal{
+		Type:  ast.RulesetLiteral,
+		Value: "", // We don't use Value for rulesets
 	}, nil
 }
 
