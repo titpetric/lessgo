@@ -152,6 +152,44 @@ func (r *Renderer) RenderValuePublic(value ast.Value) string {
 	return r.renderValue(value)
 }
 
+// FormatValue renders a value for formatting (preserves variables without evaluation)
+func (r *Renderer) FormatValue(value ast.Value) string {
+	return r.formatValue(value)
+}
+
+// formatValue renders a value for formatting without evaluating variables
+func (r *Renderer) formatValue(value ast.Value) string {
+	switch v := value.(type) {
+	case *ast.Literal:
+		return v.Value
+	case *ast.Variable:
+		// Keep variable as-is without evaluating
+		return "@" + v.Name
+	case *ast.FunctionCall:
+		// Format function call without evaluation
+		args := []string{}
+		for _, arg := range v.Arguments {
+			args = append(args, r.formatValue(arg))
+		}
+		return v.Name + "(" + strings.Join(args, ", ") + ")"
+	case *ast.List:
+		parts := []string{}
+		for _, val := range v.Values {
+			parts = append(parts, r.formatValue(val))
+		}
+		sep := v.Separator
+		if sep == "" {
+			sep = " "
+		}
+		return strings.Join(parts, sep)
+	case *ast.BinaryOp:
+		// Format binary op without evaluation
+		return r.formatValue(v.Left) + " " + v.Operator + " " + r.formatValue(v.Right)
+	default:
+		return ""
+	}
+}
+
 // renderValue renders a value to CSS
 func (r *Renderer) renderValue(value ast.Value) string {
 	switch v := value.(type) {

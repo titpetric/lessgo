@@ -66,7 +66,7 @@ func (f *Formatter) formatRule(rule *ast.Rule) {
 		f.writeIndent()
 		f.output.WriteString(decl.Property)
 		f.output.WriteString(": ")
-		f.output.WriteString(renderValue(decl.Value))
+		f.output.WriteString(formatValue(decl.Value))
 		f.output.WriteString(";\n")
 	}
 
@@ -78,7 +78,8 @@ func (f *Formatter) formatRule(rule *ast.Rule) {
 			f.formatMixinCall(nestedStmt.(*ast.MixinCall))
 			f.output.WriteString(";\n")
 		} else {
-			if i > 0 || len(rule.Declarations) > 0 {
+			// Add blank line before nested rules (except first rule or right after declarations)
+			if i > 0 && len(rule.Declarations) == 0 {
 				f.output.WriteString("\n")
 			}
 			f.formatStatement(nestedStmt)
@@ -97,7 +98,7 @@ func (f *Formatter) formatVariableDeclaration(decl *ast.VariableDeclaration) {
 	f.output.WriteString("@")
 	f.output.WriteString(decl.Name)
 	f.output.WriteString(": ")
-	f.output.WriteString(renderValue(decl.Value))
+	f.output.WriteString(formatValue(decl.Value))
 	f.output.WriteString(";\n")
 }
 
@@ -137,10 +138,10 @@ func (f *Formatter) formatMixinCall(call *ast.MixinCall) {
 	f.output.WriteString("()")
 }
 
-// renderValue renders a value (reuse renderer logic)
-func renderValue(value ast.Value) string {
+// formatValue renders a value for formatting (preserves variables)
+func formatValue(value ast.Value) string {
 	r := renderer.NewRenderer()
-	return r.RenderValuePublic(value)
+	return r.FormatValue(value)
 }
 
 // writeIndent writes the current indentation level
