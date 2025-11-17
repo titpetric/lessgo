@@ -139,7 +139,7 @@ func (r *Renderer) renderFunctionCall(fn *ast.FunctionCall) string {
 	return fn.Name + "(" + strings.Join(args, ", ") + ")"
 }
 
-// evaluateColorFunction evaluates color functions
+// evaluateColorFunction evaluates color and math functions
 func (r *Renderer) evaluateColorFunction(name string, args []string) string {
 	switch name {
 	case "rgb":
@@ -182,6 +182,46 @@ func (r *Renderer) evaluateColorFunction(name string, args []string) string {
 			return ""
 		}
 		return r.evalGreyscale(args[0])
+	case "ceil":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.Ceil(args[0])
+	case "floor":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.Floor(args[0])
+	case "round":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.Round(args[0])
+	case "abs":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.Abs(args[0])
+	case "sqrt":
+		if len(args) != 1 {
+			return ""
+		}
+		return functions.Sqrt(args[0])
+	case "pow":
+		if len(args) != 2 {
+			return ""
+		}
+		return functions.Pow(args[0], args[1])
+	case "min":
+		if len(args) < 1 {
+			return ""
+		}
+		return functions.Min(args...)
+	case "max":
+		if len(args) < 1 {
+			return ""
+		}
+		return functions.Max(args...)
 	}
 	return ""
 }

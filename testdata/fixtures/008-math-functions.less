@@ -1,0 +1,9 @@
+@value: 12.5;
+@negative: -12.5;
+
+.container {
+  width: ceil(@value);
+  height: floor(@value);
+  padding: round(@value);
+  margin: abs(@negative);
+}
