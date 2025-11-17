@@ -142,6 +142,16 @@ func (r *Renderer) renderFunctionCall(fn *ast.FunctionCall) string {
 // evaluateColorFunction evaluates color functions
 func (r *Renderer) evaluateColorFunction(name string, args []string) string {
 	switch name {
+	case "rgb":
+		if len(args) != 3 {
+			return ""
+		}
+		return r.evalRGB(args)
+	case "rgba":
+		if len(args) != 4 {
+			return ""
+		}
+		return r.evalRGBA(args)
 	case "lighten":
 		if len(args) != 2 {
 			return ""
@@ -174,6 +184,33 @@ func (r *Renderer) evaluateColorFunction(name string, args []string) string {
 		return r.evalGreyscale(args[0])
 	}
 	return ""
+}
+
+func (r *Renderer) evalRGB(args []string) string {
+	if len(args) != 3 {
+		return ""
+	}
+
+	r1, _ := strconv.ParseFloat(strings.TrimSpace(args[0]), 64)
+	g1, _ := strconv.ParseFloat(strings.TrimSpace(args[1]), 64)
+	b1, _ := strconv.ParseFloat(strings.TrimSpace(args[2]), 64)
+
+	c := &functions.Color{R: r1, G: g1, B: b1, A: 1.0}
+	return c.ToHex()
+}
+
+func (r *Renderer) evalRGBA(args []string) string {
+	if len(args) != 4 {
+		return ""
+	}
+
+	r1, _ := strconv.ParseFloat(strings.TrimSpace(args[0]), 64)
+	g1, _ := strconv.ParseFloat(strings.TrimSpace(args[1]), 64)
+	b1, _ := strconv.ParseFloat(strings.TrimSpace(args[2]), 64)
+	a1, _ := strconv.ParseFloat(strings.TrimSpace(args[3]), 64)
+
+	c := &functions.Color{R: r1, G: g1, B: b1, A: a1}
+	return c.ToRGB()
 }
 
 func (r *Renderer) evalLighten(colorStr, amountStr string) string {
