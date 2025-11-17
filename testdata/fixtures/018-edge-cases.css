@@ -1,0 +1,18 @@
+[data-test = value ] {
+  color: blue;
+}
+input[type = text ][required ] {
+  border: 1px solid red;
+}
+a:hover {
+  color: green;
+}
+a:active, a:visited {
+  color: purple;
+}
+.container>.child+.sibling {
+  color: red;
+}
+.text::before, .text::after {
+  content: "*";
+}

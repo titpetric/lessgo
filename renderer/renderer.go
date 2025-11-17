@@ -283,6 +283,10 @@ func (r *Renderer) formatValue(value ast.Value) string {
 func (r *Renderer) renderValue(value ast.Value) string {
 	switch v := value.(type) {
 	case *ast.Literal:
+		// StringLiteral should be quoted
+		if v.Type == ast.StringLiteral {
+			return `"` + v.Value + `"`
+		}
 		return v.Value
 	case *ast.Variable:
 		// Look up variable

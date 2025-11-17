@@ -1,0 +1,36 @@
+/* Test edge cases */
+
+/* Attribute selectors */
+[data-test="value"] {
+  color: blue;
+}
+
+/* Multiple attribute selectors */
+input[type="text"][required] {
+  border: 1px solid red;
+}
+
+/* Pseudo-classes */
+a:hover {
+  color: green;
+}
+
+a:active,
+a:visited {
+  color: purple;
+}
+
+/* Complex nesting */
+.container {
+  & > .child {
+    & + .sibling {
+      color: red;
+    }
+  }
+}
+
+/* Multiple pseudo-elements */
+.text::before,
+.text::after {
+  content: "*";
+}
