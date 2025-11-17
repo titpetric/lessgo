@@ -520,7 +520,7 @@ func (r *Renderer) resolveVariableValue(v ast.Value) ast.Value {
 func isTypeCheckingFunction(name string) bool {
 	switch name {
 	case "isnumber", "isstring", "iscolor", "iskeyword", "isurl", "ispixel",
-		"isem", "ispercentage", "isunit", "isruleset", "islist", "boolean", "length":
+		"isem", "ispercentage", "isunit", "isruleset", "islist", "boolean", "length", "isdefined":
 		return true
 	}
 	return false
@@ -659,6 +659,14 @@ func (r *Renderer) evaluateTypeCheckingFunction(fn *ast.FunctionCall) string {
 			return ""
 		}
 		return r.lengthAST(astArgs[0])
+	case "isdefined":
+		// isdefined() is just output literally with variable substitution
+		// Build the function call with the resolved arguments
+		argStrs := []string{}
+		for _, arg := range fn.Arguments {
+			argStrs = append(argStrs, r.renderValue(arg))
+		}
+		return fn.Name + "(" + strings.Join(argStrs, ", ") + ")"
 	}
 	return ""
 }
