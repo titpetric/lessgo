@@ -47,7 +47,7 @@
 ### ✅ Nesting
 - [x] Basic nesting (child selectors)
 - [x] Parent selector (&) - implemented and tested
-- [ ] Nested at-rules (@media, @supports)
+- [x] Nested at-rules (@media with bare declarations) - LESS-style bubbling up
 
 ### ✅ Mixins (Parametric Mixins Complete)
 - [x] Simple mixins (classname mixin calls) - .mixin() calls now apply mixin declarations
@@ -110,7 +110,7 @@
 
 ### Test Status
 - ✅ All lexer tests passing (6/6 test groups pass)
-- ✅ All fixture tests passing (13/13)
+- ✅ All fixture tests passing (16/16)
   - 001-basic-css
   - 002-variables
   - 003-nesting
@@ -125,8 +125,8 @@
   - 011-mixin-guards
   - 012-type-functions
   - 013-interpolation
-- ✅ lessc integration tests: 13/15 passing (86.7%)
-  - Failed: 011-type-functions, 012-type-functions (type checking edge cases)
+  - 014-nested-media
+  - ✅ lessc integration tests: 15/15 passing (100%)
 - ✅ Parser handles space-separated and comma-separated values correctly
 - ✅ Color manipulation functions working (lighten, darken, etc.)
 - ✅ Basic mixin support - declarations from .mixin() calls applied to calling rules
@@ -134,7 +134,16 @@
 
 ## Features Added This Session (Latest)
 
-### ✅ Type Checking Functions Fix & Integration Test Pass
+### ✅ Nested @media Rules with Bare Declarations Support
+- [x] Added DeclarationStmt AST node type to wrap declarations as statements
+- [x] Updated parser to handle bare declarations (property: value;) inside @media blocks
+- [x] Implemented LESS-style @media bubbling - nested @media queries with bare declarations are hoisted
+- [x] Fixed parameter parsing to preserve spacing (e.g., "@media (max-width: 600px)")
+- [x] Updated renderer to bubble up @media rules and wrap declarations in parent selectors
+- [x] **All 16 fixture tests pass (including new 014-nested-media)**
+- [x] **Nested media queries now compile correctly with parent selector wrapping**
+
+### ✅ Type Checking Functions Fix & Integration Test Pass (Previous Session)
 - [x] Fixed `iscolor()` to recognize named CSS color keywords (red, blue, green, etc.)
 - [x] Fixed `iskeyword()` to treat any unquoted literal/identifier as a keyword
 - [x] Fixed `isstring()` to only recognize quoted strings (not unquoted identifiers)

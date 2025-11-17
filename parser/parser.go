@@ -520,6 +520,12 @@ func (p *Parser) parseCommaListWithSpaces(allowSpaces bool) (ast.Value, error) {
 			break
 		}
 
+		// Check for at-rules like @media that should not be part of property values
+		if nextTok.Type == TokenVariable && isAtRuleKeyword(nextTok.Value) {
+			// This is an at-rule, not a value
+			break
+		}
+
 		if isValueStart(nextTok.Type) {
 			// Continue to parse space-separated values
 			separator = " " // ensure we use space separator for space-separated values
@@ -615,6 +621,10 @@ func (p *Parser) parseSimpleValue() (ast.Value, error) {
 
 	case TokenVariable:
 		name := tok.Value
+		// Don't treat @media, @import, etc. as variable references in values
+		if isAtRuleKeyword(name) {
+			return nil, nil
+		}
 		p.advance()
 		return &ast.Variable{Name: name}, nil
 
@@ -773,7 +783,19 @@ func (p *Parser) parseAtRule() (*ast.AtRule, error) {
 
 	// Collect parameters until { or ;
 	for !p.check(TokenLBrace) && !p.check(TokenSemicolon) && !p.isAtEnd() {
-		params += p.advance().Value
+		tok := p.advance()
+		if params != "" {
+			// Add space unless:
+			// - current token is ), ], :, ;, . or
+			// - previous char is (, [, or .
+			lastChar := params[len(params)-1]
+			if tok.Value != ")" && tok.Value != "]" && tok.Value != ":" && 
+				tok.Value != ";" && tok.Value != "." &&
+				lastChar != '(' && lastChar != '[' && lastChar != '.' {
+				params += " "
+			}
+		}
+		params += tok.Value
 	}
 
 	rule := &ast.AtRule{
@@ -782,15 +804,59 @@ func (p *Parser) parseAtRule() (*ast.AtRule, error) {
 	}
 
 	if p.match(TokenLBrace) {
-		// Parse block
+		// Parse block - can contain rules and/or declarations
 		var stmts []ast.Statement
 		for !p.check(TokenRBrace) && !p.isAtEnd() {
-			stmt, err := p.parseStatement()
-			if err != nil {
-				return nil, err
+			if p.match(TokenSemicolon) {
+				continue
 			}
-			if stmt != nil {
-				stmts = append(stmts, stmt)
+
+			// Check if this looks like a rule (starts with selector) or a declaration
+			// Selectors start with: . # [ & > or identifiers that could be pseudo-selectors
+			if p.check(TokenDot) || p.check(TokenHash) || p.check(TokenLBracket) ||
+				p.check(TokenAmpersand) || p.check(TokenGreater) {
+				// It's a nested rule
+				nestedStmt, err := p.parseStatement()
+				if err != nil {
+					return nil, err
+				}
+				if nestedStmt != nil {
+					stmts = append(stmts, nestedStmt)
+				}
+			} else if p.check(TokenVariable) || p.check(TokenAt) {
+				// Could be a nested at-rule or variable declaration
+				stmt, err := p.parseStatement()
+				if err != nil {
+					return nil, err
+				}
+				if stmt != nil {
+					stmts = append(stmts, stmt)
+				}
+			} else if p.checkIdent() {
+				// Try to parse as a declaration first
+				decl, err := p.parseDeclaration()
+				if err != nil {
+					// Not a declaration, try as a rule (pseudo-selectors, etc.)
+					nestedStmt, err := p.parseStatement()
+					if err != nil {
+						return nil, err
+					}
+					if nestedStmt != nil {
+						stmts = append(stmts, nestedStmt)
+					}
+				} else if decl != nil {
+					stmts = append(stmts, &ast.DeclarationStmt{Declaration: *decl})
+					p.match(TokenSemicolon)
+				}
+			} else {
+				// Try to parse as statement (covers other cases)
+				stmt, err := p.parseStatement()
+				if err != nil {
+					return nil, err
+				}
+				if stmt != nil {
+					stmts = append(stmts, stmt)
+				}
 			}
 		}
 		if !p.match(TokenRBrace) {
@@ -970,6 +1036,26 @@ func (p *Parser) peekIdentValue() string {
 }
 
 // isValueStart checks if a token type can start a value
+// isValueStartWithContext checks if a token can start a value
+// Special handling needed to avoid treating @media, @import etc. as values
+func isValueStartWithContext(tt TokenType, nextValue string) bool {
+	switch tt {
+	case TokenString, TokenNumber, TokenColor,
+		TokenFunction, TokenIdent, TokenLParen, TokenInterp:
+		return true
+	case TokenVariable:
+		// @variable is a value, but @media, @import, etc. are at-rules
+		// We need to check if this is an at-rule keyword
+		if isAtRuleKeyword(nextValue) {
+			return false // It's an at-rule, not a value
+		}
+		return true // It's a variable reference
+	default:
+		return false
+	}
+}
+
+// Fallback for cases where we don't have context
 func isValueStart(tt TokenType) bool {
 	switch tt {
 	case TokenString, TokenNumber, TokenColor, TokenVariable,

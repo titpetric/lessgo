@@ -1,0 +1,22 @@
+.button {
+  color: blue;
+}
+@media (max-width: 600px) {
+  .button {
+    font-size: 12px;
+  }
+}
+.button:hover {
+  color: darkblue;
+}
+.card {
+  padding: 10px;
+}
+.card.active {
+  border: 1px solid green;
+}
+@media screen and (min-width: 768px) {
+  .card.active {
+    padding: 20px;
+  }
+}

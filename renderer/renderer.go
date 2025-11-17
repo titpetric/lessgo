@@ -65,9 +65,11 @@ func (r *Renderer) renderStatement(stmt ast.Statement, parentSelector string) {
 	case *ast.VariableDeclaration:
 		r.renderVariableDeclaration(s)
 	case *ast.AtRule:
-		r.renderAtRule(s)
+		r.renderAtRuleWithContext(s, parentSelector)
 	case *ast.MixinCall:
 		r.renderMixinCall(s)
+	case *ast.DeclarationStmt:
+		r.renderDeclarationStmt(s, parentSelector)
 	}
 }
 
@@ -885,6 +887,60 @@ func (r *Renderer) renderVariableDeclaration(decl *ast.VariableDeclaration) {
 }
 
 // renderAtRule renders an at-rule
+// renderAtRuleWithContext renders an at-rule with awareness of parent selector context
+// This handles LESS-style @media nesting where media queries can contain bare declarations
+func (r *Renderer) renderAtRuleWithContext(rule *ast.AtRule, parentSelector string) {
+	// For @media with nested declarations in a rule context, we need to bubble up the @media
+	// and wrap the declarations in the parent selector
+	if rule.Name == "media" && parentSelector != "" && rule.Block != nil {
+		if stmts, ok := rule.Block.([]ast.Statement); ok {
+			// Check if this @media contains any declaration statements
+			hasDeclarations := false
+			for _, stmt := range stmts {
+				if _, ok := stmt.(*ast.DeclarationStmt); ok {
+					hasDeclarations = true
+					break
+				}
+			}
+
+			if hasDeclarations {
+				// Bubble up the @media and wrap declarations in parent rule
+				r.output.WriteString("@media ")
+				r.output.WriteString(rule.Parameters)
+				r.output.WriteString(" {\n")
+
+				for _, stmt := range stmts {
+					switch s := stmt.(type) {
+					case *ast.DeclarationStmt:
+						// Render declaration wrapped in parent selector
+						r.output.WriteString(parentSelector)
+						r.output.WriteString(" {\n")
+						r.output.WriteString("  ")
+						property := r.resolveInterpolation(s.Declaration.Property)
+						r.output.WriteString(property)
+						r.output.WriteString(": ")
+						r.output.WriteString(r.renderValue(s.Declaration.Value))
+						r.output.WriteString(";\n")
+						r.output.WriteString("}\n")
+					case *ast.Rule:
+						// Nested rules inside @media get rendered normally (with parent context)
+						r.renderStatement(s, parentSelector)
+					default:
+						r.renderStatement(s, "")
+					}
+				}
+
+				r.output.WriteString("}\n")
+				return
+			}
+		}
+	}
+
+	// Default at-rule rendering (no parent context or not a special case)
+	r.renderAtRule(rule)
+}
+
+// renderAtRule renders an at-rule without context
 func (r *Renderer) renderAtRule(rule *ast.AtRule) {
 	r.output.WriteString("@")
 	r.output.WriteString(rule.Name)
@@ -900,6 +956,20 @@ func (r *Renderer) renderAtRule(rule *ast.AtRule) {
 		}
 	}
 
+	r.output.WriteString("}\n")
+}
+
+// renderDeclarationStmt renders a bare declaration statement (should only appear in at-rule blocks)
+func (r *Renderer) renderDeclarationStmt(stmt *ast.DeclarationStmt, parentSelector string) {
+	// This shouldn't be called in normal rendering, but if it is, output the declaration
+	r.output.WriteString(parentSelector)
+	r.output.WriteString(" {\n")
+	r.output.WriteString("  ")
+	property := r.resolveInterpolation(stmt.Declaration.Property)
+	r.output.WriteString(property)
+	r.output.WriteString(": ")
+	r.output.WriteString(r.renderValue(stmt.Declaration.Value))
+	r.output.WriteString(";\n")
 	r.output.WriteString("}\n")
 }
 

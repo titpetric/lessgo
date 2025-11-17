@@ -119,6 +119,14 @@ type VariableDeclaration struct {
 func (v *VariableDeclaration) node() {}
 func (v *VariableDeclaration) stmt() {}
 
+// DeclarationStmt wraps a Declaration as a Statement (used in @media blocks, etc.)
+type DeclarationStmt struct {
+	Declaration Declaration
+}
+
+func (d *DeclarationStmt) node() {}
+func (d *DeclarationStmt) stmt() {}
+
 // AtRule represents @-rules like @media, @import, @keyframes, etc.
 type AtRule struct {
 	Name       string // "media", "import", "keyframes", etc.
