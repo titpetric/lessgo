@@ -6,32 +6,52 @@ A comprehensive LESS CSS compiler implementation in Go with no external dependen
 
 ```
 lessgo/
-├── AGENTS.md           # This file
-├── PROGRESS.md         # Implementation status and open tasks
-├── FEATURES.md         # Supported features checklist
+├── AGENTS.md                   # This file (developer guide)
+├── README.md                   # Quick start and overview
+├── LICENSE                     # MIT License
 ├── go.mod
-├── parser/             # LESS lexer and parser
+├── go.sum
+│
+├── cmd/lessgo/                 # CLI tool
+│   ├── main.go
+│   └── README.md
+│
+├── parser/                     # Lexer and parser
 │   ├── lexer.go
 │   ├── parser.go
 │   └── lexer_test.go
-├── ast/                # Abstract Syntax Tree definitions
+│
+├── ast/                        # Abstract Syntax Tree
 │   ├── types.go
 │   └── ast_test.go
-├── renderer/           # CSS output generation
-│   ├── renderer.go
-│   └── renderer_test.go
-├── functions/          # Built-in LESS functions
+│
+├── renderer/                   # CSS output generation
+│   └── renderer.go
+│
+├── evaluator/                  # Expression evaluation
+│   └── evaluator.go
+│
+├── functions/                  # Built-in LESS functions
 │   ├── colors.go
 │   ├── math.go
 │   ├── strings.go
 │   └── functions_test.go
-├── testdata/           # Fixture tests (*.less and *.css pairs)
-│   └── fixtures/
-├── integration/        # Integration tests with lesscss
-│   ├── integration_test.go
-│   └── lesscss_compat.go
-└── docs/               # Feature documentation
-    └── feat-*.md
+│
+├── importer/                   # Import resolution
+│   └── importer.go
+│
+├── formatter/                  # LESS code formatting
+│   └── formatter.go
+│
+├── testdata/                   # Fixture tests
+│   ├── README.md              # Code examples
+│   ├── testdata_test.go       # Fixture test runner
+│   └── fixtures/              # Test cases (*.less and *.css pairs)
+│
+└── docs/                       # Documentation
+    ├── features.md            # Feature status
+    ├── progress.md            # Implementation status
+    └── *.md                   # Other reference docs
 ```
 
 ## Common Commands
@@ -66,12 +86,12 @@ goimports -w . && go fmt ./...      # Format code
 
 ## Development Workflow
 
-1. **Check PROGRESS.md** - Review the current status and next tasks
+1. **Check docs/progress.md** - Review the current status and next tasks
 2. **Implement feature** - Add parser, AST, and renderer support
 3. **Create fixtures** - Add test .less and expected .css files
 4. **Run tests** - `go test ./...`
-5. **Update PROGRESS.md** - Mark completion and note any issues
-6. **Update FEATURES.md** - Check off implemented features
+5. **Update docs/progress.md** - Mark completion and note any issues
+6. **Update docs/features.md** - Check off implemented features
 
 ## Testing Strategy
 
@@ -101,8 +121,8 @@ goimports -w . && go fmt ./...      # Format code
 
 ## References
 
-- See PROGRESS.md for current work and blockers
-- See FEATURES.md for complete feature list with doc links
+- See docs/progress.md for current work and blockers
+- See docs/features.md for complete feature list
 - LESS official docs: https://lesscss.org/features/
 
 ## Integration Points

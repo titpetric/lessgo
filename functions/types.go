@@ -498,10 +498,30 @@ func Format(format string, args ...string) string {
 		if argIdx < len(args) {
 			arg := args[argIdx]
 			argIdx++
-			return strings.TrimSpace(arg)
+			// Remove quotes from argument if present
+			arg = strings.TrimSpace(arg)
+			if len(arg) >= 2 && ((arg[0] == '"' && arg[len(arg)-1] == '"') ||
+				(arg[0] == '\'' && arg[len(arg)-1] == '\'')) {
+				arg = arg[1 : len(arg)-1]
+			}
+			return arg
 		}
 		return match
 	})
 
 	return result
+}
+
+// If - logical conditional function
+// if(condition, value-if-true, value-if-false)
+func If(condition string, valueIfTrue string, valueIfFalse string) string {
+	condition = strings.TrimSpace(condition)
+
+	// Check if condition is true
+	// In LESS, non-empty strings and non-zero numbers are true
+	if condition == "" || condition == "false" || condition == "0" {
+		return valueIfFalse
+	}
+
+	return valueIfTrue
 }

@@ -1,0 +1,5 @@
+/* Color Operation Functions - spin */
+div {
+  c1: hsl(180, 100%, 50%);
+  c2: hsl(0, 100%, 50%);
+}

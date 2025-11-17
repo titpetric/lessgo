@@ -1,0 +1,5 @@
+/* Color Definition Functions - rgb, rgba */
+div {
+  color1: #ff8000;
+  color2: rgba(255, 128, 0, 0.5);
+}

@@ -1,0 +1,5 @@
+/* Color Operation Functions - lighten, darken */
+div {
+  c1: hsl(90, 80%, 70%);
+  c2: hsl(90, 80%, 30%);
+}

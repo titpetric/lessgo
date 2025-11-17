@@ -1,0 +1,15 @@
+/* Color Blending Functions - difference, exclusion, average, negation */
+@c1: #ff6600;
+@c2: #000000;
+
+@diff: difference(@c1, @c2);
+@excl: exclusion(@c1, @c2);
+@avg: average(@c1, @c2);
+@neg: negation(@c1, @c2);
+
+div {
+  diff: @diff;
+  excl: @excl;
+  avg: @avg;
+  neg: @neg;
+}

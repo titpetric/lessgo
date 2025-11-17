@@ -1,0 +1,9 @@
+/* List Functions - extract() */
+@list: "banana", "tomato", "potato", "peach";
+@first: extract(@list, 1);
+@second: extract(@list, 2);
+
+div {
+  first: @first;
+  second: @second;
+}

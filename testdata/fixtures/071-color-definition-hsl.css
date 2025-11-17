@@ -1,0 +1,5 @@
+/* Color Definition Functions - hsl, hsla */
+div {
+  color1: hsl(90, 100%, 50%);
+  color2: hsla(90, 100%, 50%, 0.5);
+}

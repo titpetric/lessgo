@@ -307,7 +307,12 @@ func (p *Parser) parseSelector() (ast.Selector, error) {
 				continue
 			}
 
-			part += tok.Value
+			// For STRING tokens, add quotes back
+			if tok.Type == TokenString {
+				part += `"` + tok.Value + `"`
+			} else {
+				part += tok.Value
+			}
 
 			// Handle whitespace between tokens in selectors
 			p.advance()
@@ -317,11 +322,12 @@ func (p *Parser) parseSelector() (ast.Selector, error) {
 				!p.check(TokenSemicolon) && !p.isAtEnd() {
 				nextTok := p.peek()
 				// Add space between tokens if needed
-				// Skip space before operators like +, -, ~, > and after punctuation
+				// Skip space before operators like +, -, ~, > and after punctuation, and brackets
 				if tok.Type != TokenGreater && nextTok.Type != TokenGreater &&
 					tok.Type != TokenPlus && nextTok.Type != TokenPlus &&
 					tok.Type != TokenTilde && nextTok.Type != TokenTilde &&
 					tok.Type != TokenMinus && nextTok.Type != TokenMinus &&
+					tok.Type != TokenLBracket && nextTok.Type != TokenRBracket &&
 					needsSpaceBetween(tok, nextTok) {
 					part += " "
 				}
@@ -1294,6 +1300,7 @@ func needsSpaceBetween(prev, next Token) bool {
 		TokenDot:       true,
 		TokenHash:      true,
 		TokenLBracket:  true,
+		TokenRBracket:  true,
 		TokenLParen:    true,
 		TokenColon:     true,
 		TokenSemicolon: true,
@@ -1301,6 +1308,12 @@ func needsSpaceBetween(prev, next Token) bool {
 		TokenGreater:   true,
 		TokenPlus:      true,
 		TokenTilde:     true,
+		TokenEq:        true,
+		TokenNe:        true,
+		TokenLt:        true,
+		TokenLe:        true,
+		TokenGt:        true,
+		TokenGe:        true,
 	}
 
 	if noSpace[next.Type] || noSpace[prev.Type] {

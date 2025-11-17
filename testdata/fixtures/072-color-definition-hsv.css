@@ -1,0 +1,5 @@
+/* Color Definition Functions - hsv, hsva */
+div {
+  color1: #80ff00;
+  color2: rgba(64, 128, 0, 0.5);
+}

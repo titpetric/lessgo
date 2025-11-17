@@ -1,0 +1,6 @@
+/* Color Operation Functions - greyscale, contrast */
+div {
+  grey: hsl(0, 0%, 50%);
+  contrast1: black;
+  contrast2: #333;
+}

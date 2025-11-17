@@ -1,0 +1,11 @@
+/* Color Operation Functions - greyscale, contrast */
+@c: hsl(90, 90%, 50%);
+@grey: greyscale(@c);
+@contrast1: contrast(@c, black, white);
+@contrast2: contrast(@c, #333, #999);
+
+div {
+  grey: @grey;
+  contrast1: @contrast1;
+  contrast2: @contrast2;
+}

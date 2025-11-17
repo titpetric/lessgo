@@ -1,0 +1,10 @@
+/* List Functions - range() */
+@r1: range(4);
+@r2: range(10px, 30px, 10px);
+
+div {
+  a: extract(@r1, 1);
+  b: extract(@r1, 4);
+  c: extract(@r2, 1);
+  d: extract(@r2, 3);
+}

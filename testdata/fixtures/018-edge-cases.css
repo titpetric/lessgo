@@ -1,23 +1,22 @@
 /* Test edge cases */
 /* Attribute selectors */
-[data-test = value ] {
+[data-test="value"] {
   color: blue;
 }
-
 /* Multiple attribute selectors */
-input[type = text ][required ] {
+input[type="text"][required] {
   border: 1px solid red;
 }
-
 /* Pseudo-classes */
 a:hover {
   color: green;
 }
-a:active, a:visited {
+a:active,
+a:visited {
   color: purple;
 }
-
 /* Multiple pseudo-elements */
-.text::before, .text::after {
+.text::before,
+.text::after {
   content: "*";
 }

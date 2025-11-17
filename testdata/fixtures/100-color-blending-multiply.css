@@ -1,0 +1,5 @@
+/* Color Blending Functions - multiply, screen */
+div {
+  mult: #000000;
+  scr: #ffffff;
+}

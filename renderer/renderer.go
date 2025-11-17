@@ -21,6 +21,7 @@ type Renderer struct {
 	mixins   map[string][]*ast.Rule // Store mixin definitions by name (can have multiple variants with guards)
 	extends  map[string][]string    // Map from extended selector to list of extending selectors
 	allRules []*ast.Rule            // Track all rules for extend processing
+	funcs    functions.FuncMap      // Custom function map
 }
 
 // NewRenderer creates a new renderer
@@ -30,7 +31,16 @@ func NewRenderer() *Renderer {
 		mixins:   make(map[string][]*ast.Rule),
 		extends:  make(map[string][]string),
 		allRules: []*ast.Rule{},
+		funcs:    functions.DefaultFuncMap(),
 	}
+}
+
+// Funcs sets the function map for the renderer
+func (r *Renderer) Funcs(funcMap functions.FuncMap) *Renderer {
+	if funcMap != nil {
+		r.funcs = funcMap
+	}
+	return r
 }
 
 // Render renders the stylesheet to CSS
@@ -220,7 +230,7 @@ func (r *Renderer) buildSelector(selector ast.Selector, parentSelector string) s
 		}
 	}
 
-	return strings.Join(parts, ", ")
+	return strings.Join(parts, ",\n")
 }
 
 // resolveInterpolation replaces @{varname} with variable values in a string
@@ -329,6 +339,15 @@ func (r *Renderer) renderFunctionCall(fn *ast.FunctionCall) string {
 	args := []string{}
 	for _, arg := range fn.Arguments {
 		args = append(args, r.renderValue(arg))
+	}
+
+	// Handle % format function
+	if fn.Name == "%" {
+		if len(args) > 0 {
+			result := functions.Format(args[0], args[1:]...)
+			return `"` + result + `"`
+		}
+		return ""
 	}
 
 	// Try to evaluate color functions
@@ -1126,19 +1145,35 @@ func (r *Renderer) renderAtRuleWithContext(rule *ast.AtRule, parentSelector stri
 				for _, stmt := range stmts {
 					switch s := stmt.(type) {
 					case *ast.DeclarationStmt:
-						// Render declaration wrapped in parent selector
+						// Render declaration wrapped in parent selector with indentation
+						r.output.WriteString("  ")
 						r.output.WriteString(parentSelector)
 						r.output.WriteString(" {\n")
-						r.output.WriteString("  ")
+						r.output.WriteString("    ")
 						property := r.resolveInterpolation(s.Declaration.Property)
 						r.output.WriteString(property)
 						r.output.WriteString(": ")
 						r.output.WriteString(r.renderValue(s.Declaration.Value))
 						r.output.WriteString(";\n")
-						r.output.WriteString("}\n")
+						r.output.WriteString("  }\n")
 					case *ast.Rule:
 						// Nested rules inside @media get rendered normally (with parent context)
-						r.renderStatement(s, parentSelector)
+						// Need to add indentation for rules inside @media
+						selector := r.buildSelector(s.Selector, parentSelector)
+						if len(s.Declarations) > 0 {
+							r.output.WriteString("  ")
+							r.output.WriteString(selector)
+							r.output.WriteString(" {\n")
+							for _, decl := range s.Declarations {
+								r.output.WriteString("    ")
+								property := r.resolveInterpolation(decl.Property)
+								r.output.WriteString(property)
+								r.output.WriteString(": ")
+								r.output.WriteString(r.renderValue(decl.Value))
+								r.output.WriteString(";\n")
+							}
+							r.output.WriteString("  }\n")
+						}
 					default:
 						r.renderStatement(s, "")
 					}

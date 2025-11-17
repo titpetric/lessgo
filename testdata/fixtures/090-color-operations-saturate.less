@@ -1,0 +1,9 @@
+/* Color Operation Functions - saturate, desaturate */
+@c: hsl(90, 80%, 50%);
+@c1: saturate(@c, 10%);
+@c2: desaturate(@c, 10%);
+
+div {
+  c1: @c1;
+  c2: @c2;
+}

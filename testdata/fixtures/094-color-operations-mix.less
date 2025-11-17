@@ -1,0 +1,14 @@
+/* Color Operation Functions - mix, tint, shade */
+@c1: #ff0000;
+@c2: #0000ff;
+@c3: hsl(0, 100%, 50%);
+
+@mixed: mix(@c1, @c2, 50%);
+@tinted: tint(@c3, 50%);
+@shaded: shade(@c3, 50%);
+
+div {
+  mixed: @mixed;
+  tinted: @tinted;
+  shaded: @shaded;
+}

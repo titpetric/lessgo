@@ -1,0 +1,6 @@
+/* Color Operation Functions - fadein, fadeout, fade */
+div {
+  c1: hsla(90, 90%, 50%, 0.6);
+  c2: hsla(90, 90%, 50%, 0.4);
+  c3: hsla(90, 90%, 50%, 0.3);
+}

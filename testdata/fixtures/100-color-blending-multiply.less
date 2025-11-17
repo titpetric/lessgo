@@ -1,0 +1,11 @@
+/* Color Blending Functions - multiply, screen */
+@c1: #ff6600;
+@c2: #000000;
+
+@mult: multiply(@c1, @c2);
+@scr: screen(@c1, #ffffff);
+
+div {
+  mult: @mult;
+  scr: @scr;
+}

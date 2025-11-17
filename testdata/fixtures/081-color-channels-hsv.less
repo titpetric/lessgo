@@ -1,0 +1,11 @@
+/* Color Channel Functions - hsv channels */
+@c: hsv(90, 100%, 100%);
+@h: hsvhue(@c);
+@s: hsvsaturation(@c);
+@v: hsvvalue(@c);
+
+div {
+  h: @h;
+  s: @s;
+  v: @v;
+}

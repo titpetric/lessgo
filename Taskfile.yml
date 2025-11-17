@@ -7,15 +7,16 @@ tasks:
       - go build -o bin/lessgo ./cmd/lessgo
 
   test:
-    desc: Run all tests
+    desc: Run all tests with race detection and 10 iterations (CSS rendering must be fast)
     cmds:
-      - go test -timeout 5s ./...
-      - go test -timeout 5s ./testdata -v
+      # CSS rendering should complete quickly - strict 5s timeout enforces performance
+      - go test -timeout 5s -race -failfast -count=10 ./...
+      - go test -timeout 5s -race -failfast -count=10 ./testdata -v
 
   test:fixture:
-    desc: Run fixture tests only
+    desc: Run fixture tests only with 10 iterations
     cmds:
-      - go test -timeout 5s ./testdata -v
+      - go test -timeout 5s -race -failfast -count=10 ./testdata -v
 
   test:lexer:
     desc: Run lexer tests only

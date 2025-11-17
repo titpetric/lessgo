@@ -219,6 +219,11 @@ func (l *Lexer) nextToken() Token {
 		l.advance()
 		return l.makeToken(TokenSlash, "/")
 	case '%':
+		// Check if this is a % format function (e.g., %("string", args))
+		if l.peekAhead(1) == '(' {
+			l.advance() // consume '%'
+			return l.makeToken(TokenFunction, "%")
+		}
 		l.advance()
 		return l.makeToken(TokenPercent, "%")
 	case '>':

@@ -1,0 +1,8 @@
+/* String Functions - % format */
+@format1: %("repetitions: %s file: %s", 1 + 2, "directory/file.less");
+@format2: %("value: %d", 5);
+
+div {
+  content: @format1;
+  attr: @format2;
+}

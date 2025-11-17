@@ -1,0 +1,12 @@
+/* Type Functions - other type checks */
+@k: keyword;
+@u: url("test.png");
+@em: 1.5em;
+
+div {
+  a: iskeyword(@k);
+  b: isurl(@u);
+  c: isem(@em);
+  d: isunit(@em, em);
+  e: isunit(@em, px);
+}

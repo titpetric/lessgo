@@ -1,0 +1,6 @@
+/* Color Operation Functions - mix, tint, shade */
+div {
+  mixed: #800080;
+  tinted: #ff8080;
+  shaded: #800000;
+}

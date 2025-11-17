@@ -1,0 +1,6 @@
+/* Color Blending Functions - overlay, softlight, hardlight */
+div {
+  overlay: #ff2900;
+  softlight: #ff4100;
+  hardlight: #662900;
+}

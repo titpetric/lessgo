@@ -1,0 +1,6 @@
+/* Type Functions - isdefined and isruleset */
+div {
+  a: isdefined(1);
+  c: true;
+  d: false;
+}

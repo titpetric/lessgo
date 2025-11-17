@@ -1,0 +1,9 @@
+/* Type Functions - isdefined and isruleset */
+@foo: 1;
+@rules: { color: red; };
+
+div {
+  a: isdefined(@foo);
+  c: isruleset(@rules);
+  d: isruleset(#ff0);
+}

@@ -1,0 +1,7 @@
+/* Color Blending Functions - difference, exclusion, average, negation */
+div {
+  diff: #ff6600;
+  excl: #ff6600;
+  avg: #803300;
+  neg: #ff6600;
+}

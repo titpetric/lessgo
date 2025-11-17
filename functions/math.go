@@ -138,3 +138,70 @@ func formatNumberWithUnit(num float64, unit string) string {
 	}
 	return result + unit
 }
+
+// Mod returns the remainder of a / b
+func Mod(a, b string) string {
+	aNum := parseNumber(a)
+	bNum := parseNumber(b)
+
+	if bNum == 0 {
+		return "0" // Avoid division by zero
+	}
+
+	result := math.Mod(aNum, bNum)
+	return formatNumber(result, a)
+}
+
+// Sin returns the sine of a number (in radians)
+func Sin(value string) string {
+	num := parseNumber(value)
+	result := math.Sin(num)
+	return formatNumber(result, value)
+}
+
+// Cos returns the cosine of a number (in radians)
+func Cos(value string) string {
+	num := parseNumber(value)
+	result := math.Cos(num)
+	return formatNumber(result, value)
+}
+
+// Tan returns the tangent of a number (in radians)
+func Tan(value string) string {
+	num := parseNumber(value)
+	result := math.Tan(num)
+	return formatNumber(result, value)
+}
+
+// Asin returns the arcsine of a number (in radians)
+func Asin(value string) string {
+	num := parseNumber(value)
+	result := math.Asin(num)
+	return formatNumber(result, value)
+}
+
+// Acos returns the arccosine of a number (in radians)
+func Acos(value string) string {
+	num := parseNumber(value)
+	result := math.Acos(num)
+	return formatNumber(result, value)
+}
+
+// Atan returns the arctangent of a number (in radians)
+func Atan(value string) string {
+	num := parseNumber(value)
+	result := math.Atan(num)
+	return formatNumber(result, value)
+}
+
+// Pi returns the value of pi
+func Pi() string {
+	return formatNumberWithUnit(math.Pi, "")
+}
+
+// Percentage converts a decimal number to a percentage
+func Percentage(value string) string {
+	num := parseNumber(value)
+	result := num * 100
+	return formatNumberWithUnit(result, "%")
+}

@@ -462,3 +462,500 @@ func gammaCorrect(value float64) float64 {
 	}
 	return math.Pow((value+0.055)/1.055, 2.4)
 }
+
+// RGB creates a color from RGB components (0-255)
+func RGB(r, g, b string) string {
+	rNum := parseChannelNumber(r)
+	gNum := parseChannelNumber(g)
+	bNum := parseChannelNumber(b)
+
+	color := &Color{rNum, gNum, bNum, 1.0}
+	return color.ToHex()
+}
+
+// RGBA creates a color from RGBA components (0-255, 0-1)
+func RGBA(r, g, b, a string) string {
+	rNum := parseChannelNumber(r)
+	gNum := parseChannelNumber(g)
+	bNum := parseChannelNumber(b)
+	aNum := parseAlpha(a)
+
+	color := &Color{rNum, gNum, bNum, aNum}
+	return color.ToRGB()
+}
+
+// HSL creates a color from HSL components (hue 0-360, saturation 0-100, lightness 0-100)
+func HSL(h, s, l string) string {
+	hNum := parseNumber(h)
+	sNum := parseNumber(s) / 100.0 // Convert from percentage to 0-1
+	lNum := parseNumber(l) / 100.0 // Convert from percentage to 0-1
+
+	color := HSLToColor(hNum, sNum, lNum, 1.0)
+	return color.ToHex()
+}
+
+// HSLA creates a color from HSLA components (hue 0-360, saturation 0-100, lightness 0-100, alpha 0-1)
+func HSLA(h, s, l, a string) string {
+	hNum := parseNumber(h)
+	sNum := parseNumber(s) / 100.0 // Convert from percentage to 0-1
+	lNum := parseNumber(l) / 100.0 // Convert from percentage to 0-1
+	aNum := parseAlpha(a)
+
+	color := HSLToColor(hNum, sNum, lNum, aNum)
+	return color.ToRGB()
+}
+
+// Hue extracts the hue component (0-360) from a color
+func Hue(colorStr string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return "0"
+	}
+	h, _, _ := color.ToHSL()
+	return strconv.FormatFloat(h, 'f', -1, 64)
+}
+
+// Saturation extracts the saturation component (0-100) from a color
+func Saturation(colorStr string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return "0%"
+	}
+	_, s, _ := color.ToHSL()
+	return strconv.FormatFloat(s*100, 'f', -1, 64) + "%"
+}
+
+// Lightness extracts the lightness component (0-100) from a color
+func Lightness(colorStr string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return "0%"
+	}
+	_, _, l := color.ToHSL()
+	return strconv.FormatFloat(l*100, 'f', -1, 64) + "%"
+}
+
+// Red extracts the red channel (0-255) from a color
+func Red(colorStr string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return "0"
+	}
+	return strconv.FormatInt(int64(math.Round(color.R)), 10)
+}
+
+// Green extracts the green channel (0-255) from a color
+func Green(colorStr string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return "0"
+	}
+	return strconv.FormatInt(int64(math.Round(color.G)), 10)
+}
+
+// Blue extracts the blue channel (0-255) from a color
+func Blue(colorStr string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return "0"
+	}
+	return strconv.FormatInt(int64(math.Round(color.B)), 10)
+}
+
+// Alpha extracts the alpha channel (0-1) from a color
+func Alpha(colorStr string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return "1"
+	}
+	return strconv.FormatFloat(color.A, 'f', -1, 64)
+}
+
+// LumaFunction returns the perceived brightness (luminance) of a color as a string
+func LumaFunction(colorStr string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return "0"
+	}
+
+	lum := color.Luma()
+	return strconv.FormatFloat(lum, 'f', -1, 64) + "%"
+}
+
+// Luminance calculates the luminance of a color (without gamma correction)
+func Luminance(colorStr string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return "0"
+	}
+
+	// Normalize RGB values to 0-1
+	r := color.R / 255.0
+	g := color.G / 255.0
+	b := color.B / 255.0
+
+	// ITU-R BT.709 luminance without gamma correction
+	lum := 0.2126*r + 0.7152*g + 0.0722*b
+	return strconv.FormatFloat(lum*100, 'f', -1, 64) + "%"
+}
+
+// Fade sets the opacity of a color (0-100%)
+func Fade(colorStr, amount string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return colorStr
+	}
+
+	amountNum := parseNumber(amount) / 100.0 // Convert percentage to 0-1
+	amountNum = math.Max(0, math.Min(1, amountNum))
+
+	color.A = amountNum
+	return color.ToRGB()
+}
+
+// Fadein increases opacity
+func Fadein(colorStr, amount string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return colorStr
+	}
+
+	amountNum := parseNumber(amount) / 100.0 // Convert percentage
+	color.A = math.Min(1, color.A+amountNum)
+
+	return color.ToRGB()
+}
+
+// Fadeout decreases opacity
+func Fadeout(colorStr, amount string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return colorStr
+	}
+
+	amountNum := parseNumber(amount) / 100.0 // Convert percentage
+	color.A = math.Max(0, color.A-amountNum)
+
+	return color.ToRGB()
+}
+
+// Tint mixes a color with white
+func Tint(colorStr, weight string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return colorStr
+	}
+
+	weightNum := parseNumber(weight) / 100.0 // Convert percentage
+	white := &Color{255, 255, 255, 1}
+	mixed := color.Mix(white, weightNum)
+
+	return mixed.ToHex()
+}
+
+// Shade mixes a color with black
+func Shade(colorStr, weight string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return colorStr
+	}
+
+	weightNum := parseNumber(weight) / 100.0 // Convert percentage
+	black := &Color{0, 0, 0, 1}
+	mixed := color.Mix(black, weightNum)
+
+	return mixed.ToHex()
+}
+
+// Contrast returns the dark or light color with greatest contrast
+func Contrast(colorStr string, args ...string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return colorStr
+	}
+
+	dark := &Color{0, 0, 0, 1}
+	light := &Color{255, 255, 255, 1}
+
+	// Parse optional arguments
+	if len(args) > 0 && args[0] != "" {
+		d, err := ParseColor(args[0])
+		if err == nil {
+			dark = d
+		}
+	}
+	if len(args) > 1 && args[1] != "" {
+		l, err := ParseColor(args[1])
+		if err == nil {
+			light = l
+		}
+	}
+
+	// Calculate luma of all colors to determine contrast
+	darkLuma := color.Luma()
+	lightLuma := light.Luma()
+
+	// Return the color with greater contrast
+	if math.Abs(darkLuma-color.Luma()) > math.Abs(lightLuma-color.Luma()) {
+		return dark.ToHex()
+	}
+	return light.ToHex()
+}
+
+// Multiply blends two colors using multiply mode
+func Multiply(color1Str, color2Str string) string {
+	c1, err1 := ParseColor(color1Str)
+	c2, err2 := ParseColor(color2Str)
+	if err1 != nil || err2 != nil {
+		return color1Str
+	}
+
+	result := &Color{
+		R: (c1.R / 255.0) * (c2.R / 255.0) * 255,
+		G: (c1.G / 255.0) * (c2.G / 255.0) * 255,
+		B: (c1.B / 255.0) * (c2.B / 255.0) * 255,
+		A: c1.A,
+	}
+	return result.ToHex()
+}
+
+// Screen blends two colors using screen mode
+func Screen(color1Str, color2Str string) string {
+	c1, err1 := ParseColor(color1Str)
+	c2, err2 := ParseColor(color2Str)
+	if err1 != nil || err2 != nil {
+		return color1Str
+	}
+
+	r := 1.0 - (1.0-(c1.R/255.0))*(1.0-(c2.R/255.0))
+	g := 1.0 - (1.0-(c1.G/255.0))*(1.0-(c2.G/255.0))
+	b := 1.0 - (1.0-(c1.B/255.0))*(1.0-(c2.B/255.0))
+
+	result := &Color{
+		R: r * 255,
+		G: g * 255,
+		B: b * 255,
+		A: c1.A,
+	}
+	return result.ToHex()
+}
+
+// Overlay blends two colors using overlay mode
+func Overlay(color1Str, color2Str string) string {
+	c1, err1 := ParseColor(color1Str)
+	c2, err2 := ParseColor(color2Str)
+	if err1 != nil || err2 != nil {
+		return color1Str
+	}
+
+	blendChannel := func(a, b float64) float64 {
+		a = a / 255.0
+		b = b / 255.0
+		if a < 0.5 {
+			return 2 * a * b
+		}
+		return 1.0 - 2*(1.0-a)*(1.0-b)
+	}
+
+	result := &Color{
+		R: blendChannel(c2.R, c1.R) * 255,
+		G: blendChannel(c2.G, c1.G) * 255,
+		B: blendChannel(c2.B, c1.B) * 255,
+		A: c1.A,
+	}
+	return result.ToHex()
+}
+
+// Softlight blends two colors using soft light mode
+func Softlight(color1Str, color2Str string) string {
+	c1, err1 := ParseColor(color1Str)
+	c2, err2 := ParseColor(color2Str)
+	if err1 != nil || err2 != nil {
+		return color1Str
+	}
+
+	blendChannel := func(a, b float64) float64 {
+		a = a / 255.0
+		b = b / 255.0
+		if b < 0.5 {
+			return a - (1-2*b)*a*(1-a)
+		}
+		var g float64
+		if a < 0.25 {
+			g = ((16*a-12)*a + 4) * a
+		} else {
+			g = math.Sqrt(a)
+		}
+		return a + (2*b-1)*(g-a)
+	}
+
+	result := &Color{
+		R: blendChannel(c1.R, c2.R) * 255,
+		G: blendChannel(c1.G, c2.G) * 255,
+		B: blendChannel(c1.B, c2.B) * 255,
+		A: c1.A,
+	}
+	return result.ToHex()
+}
+
+// Hardlight blends two colors using hard light mode
+func Hardlight(color1Str, color2Str string) string {
+	c1, err1 := ParseColor(color1Str)
+	c2, err2 := ParseColor(color2Str)
+	if err1 != nil || err2 != nil {
+		return color1Str
+	}
+
+	blendChannel := func(a, b float64) float64 {
+		a = a / 255.0
+		b = b / 255.0
+		if b < 0.5 {
+			return 2 * a * b
+		}
+		return 1.0 - 2*(1.0-a)*(1.0-b)
+	}
+
+	result := &Color{
+		R: blendChannel(c1.R, c2.R) * 255,
+		G: blendChannel(c1.G, c2.G) * 255,
+		B: blendChannel(c1.B, c2.B) * 255,
+		A: c1.A,
+	}
+	return result.ToHex()
+}
+
+// Difference blends two colors using difference mode
+func Difference(color1Str, color2Str string) string {
+	c1, err1 := ParseColor(color1Str)
+	c2, err2 := ParseColor(color2Str)
+	if err1 != nil || err2 != nil {
+		return color1Str
+	}
+
+	result := &Color{
+		R: math.Abs(c1.R - c2.R),
+		G: math.Abs(c1.G - c2.G),
+		B: math.Abs(c1.B - c2.B),
+		A: c1.A,
+	}
+	return result.ToHex()
+}
+
+// Exclusion blends two colors using exclusion mode
+func Exclusion(color1Str, color2Str string) string {
+	c1, err1 := ParseColor(color1Str)
+	c2, err2 := ParseColor(color2Str)
+	if err1 != nil || err2 != nil {
+		return color1Str
+	}
+
+	blendChannel := func(a, b float64) float64 {
+		a = a / 255.0
+		b = b / 255.0
+		return a + b - 2*a*b
+	}
+
+	result := &Color{
+		R: blendChannel(c1.R, c2.R) * 255,
+		G: blendChannel(c1.G, c2.G) * 255,
+		B: blendChannel(c1.B, c2.B) * 255,
+		A: c1.A,
+	}
+	return result.ToHex()
+}
+
+// Average blends two colors using average mode
+func Average(color1Str, color2Str string) string {
+	c1, err1 := ParseColor(color1Str)
+	c2, err2 := ParseColor(color2Str)
+	if err1 != nil || err2 != nil {
+		return color1Str
+	}
+
+	result := &Color{
+		R: (c1.R + c2.R) / 2,
+		G: (c1.G + c2.G) / 2,
+		B: (c1.B + c2.B) / 2,
+		A: c1.A,
+	}
+	return result.ToHex()
+}
+
+// Negation blends two colors using negation mode
+func Negation(color1Str, color2Str string) string {
+	c1, err1 := ParseColor(color1Str)
+	c2, err2 := ParseColor(color2Str)
+	if err1 != nil || err2 != nil {
+		return color1Str
+	}
+
+	result := &Color{
+		R: 255 - math.Abs(255-c1.R-c2.R),
+		G: 255 - math.Abs(255-c1.G-c2.G),
+		B: 255 - math.Abs(255-c1.B-c2.B),
+		A: c1.A,
+	}
+	return result.ToHex()
+}
+
+// ColorFunction parses a string as a color
+func ColorFunction(colorStr string) string {
+	color, err := ParseColor(colorStr)
+	if err != nil {
+		return colorStr
+	}
+	return color.ToHex()
+}
+
+// Unit removes or changes the unit of a dimension
+func Unit(value string, newUnit string) string {
+	value = strings.TrimSpace(value)
+	newUnit = strings.TrimSpace(newUnit)
+
+	// Remove quotes from newUnit if present
+	if len(newUnit) >= 2 && ((newUnit[0] == '"' && newUnit[len(newUnit)-1] == '"') ||
+		(newUnit[0] == '\'' && newUnit[len(newUnit)-1] == '\'')) {
+		newUnit = newUnit[1 : len(newUnit)-1]
+	}
+
+	// Extract the numeric part
+	num := parseNumber(value)
+
+	// Format with new unit
+	if num == math.Floor(num) && num >= -1e15 && num <= 1e15 {
+		return strconv.FormatInt(int64(num), 10) + newUnit
+	}
+
+	result := strconv.FormatFloat(num, 'f', -1, 64)
+	if strings.Contains(result, ".") {
+		result = strings.TrimRight(result, "0")
+		result = strings.TrimRight(result, ".")
+	}
+	return result + newUnit
+}
+
+// GetUnit returns the unit of a dimension as a string
+func GetUnit(value string) string {
+	value = strings.TrimSpace(value)
+	unit := extractUnit(value)
+	return "\"" + unit + "\""
+}
+
+// Convert converts a number to a different unit
+func Convert(value string, targetUnit string) string {
+	return Unit(value, targetUnit)
+}
+
+// parseChannelNumber parses a number in the range 0-255
+func parseChannelNumber(s string) float64 {
+	s = strings.TrimSpace(s)
+	num, _ := strconv.ParseFloat(s, 64)
+	return math.Max(0, math.Min(255, num))
+}
+
+// parseAlpha parses an alpha value (0-1)
+func parseAlpha(s string) float64 {
+	s = strings.TrimSpace(s)
+	num, _ := strconv.ParseFloat(s, 64)
+	return math.Max(0, math.Min(1, num))
+}

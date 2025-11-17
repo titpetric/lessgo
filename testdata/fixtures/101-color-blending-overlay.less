@@ -1,0 +1,13 @@
+/* Color Blending Functions - overlay, softlight, hardlight */
+@c1: #ff6600;
+@c2: #333333;
+
+@overlay: overlay(@c1, @c2);
+@softlight: softlight(@c1, @c2);
+@hardlight: hardlight(@c1, @c2);
+
+div {
+  overlay: @overlay;
+  softlight: @softlight;
+  hardlight: @hardlight;
+}
