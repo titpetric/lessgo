@@ -195,12 +195,17 @@ func (p *Parser) parseDeclaration() (*ast.Declaration, error) {
 	}, nil
 }
 
-// parseValue parses a CSS value
+// parseValue parses a CSS value (handles operators and comma-separated lists)
 func (p *Parser) parseValue() (ast.Value, error) {
+	return p.parseCommaList()
+}
+
+// parseCommaList parses comma-separated values
+func (p *Parser) parseCommaList() (ast.Value, error) {
 	values := []ast.Value{}
 
 	for !p.check(TokenSemicolon) && !p.check(TokenRBrace) && !p.isAtEnd() {
-		val, err := p.parseSimpleValue()
+		val, err := p.parseBinaryOp()
 		if err != nil {
 			return nil, err
 		}
@@ -209,12 +214,7 @@ func (p *Parser) parseValue() (ast.Value, error) {
 		}
 		values = append(values, val)
 
-		// Check for comma-separated values
-		if p.match(TokenComma) {
-			// Continue parsing more values
-		} else if p.check(TokenRBrace) || p.check(TokenSemicolon) {
-			break
-		} else if !p.checkOperator() {
+		if !p.match(TokenComma) {
 			break
 		}
 	}
@@ -231,6 +231,39 @@ func (p *Parser) parseValue() (ast.Value, error) {
 		Values:    values,
 		Separator: ", ",
 	}, nil
+}
+
+// parseBinaryOp parses binary operations (+ - * /)
+func (p *Parser) parseBinaryOp() (ast.Value, error) {
+	left, err := p.parseSimpleValue()
+	if err != nil {
+		return nil, err
+	}
+	if left == nil {
+		return nil, nil
+	}
+
+	// Check for operators
+	for p.checkOperator() && !p.check(TokenComma) {
+		opToken := p.advance()
+		operator := opToken.Value
+
+		right, err := p.parseSimpleValue()
+		if err != nil {
+			return nil, err
+		}
+		if right == nil {
+			return nil, fmt.Errorf("expected value after operator %s at %v", operator, p.peek())
+		}
+
+		left = &ast.BinaryOp{
+			Left:     left,
+			Operator: operator,
+			Right:    right,
+		}
+	}
+
+	return left, nil
 }
 
 // parseSimpleValue parses a single value token
