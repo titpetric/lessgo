@@ -2,7 +2,6 @@ package renderer
 
 import (
 	"bytes"
-	"fmt"
 	"strings"
 
 	"github.com/sourcegraph/lessgo/ast"

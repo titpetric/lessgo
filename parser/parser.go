@@ -229,7 +229,7 @@ func (p *Parser) parseValue() (ast.Value, error) {
 
 	return &ast.List{
 		Values:    values,
-		Separator: ",",
+		Separator: ", ",
 	}, nil
 }
 
