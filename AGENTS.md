@@ -39,18 +39,21 @@ lessgo/
 ### Using Task (recommended)
 ```bash
 task fmt          # Format Go files (goimports + go fmt)
-task test         # Run all tests
-task test:fixture # Run fixture tests only
-task test:lexer   # Run lexer tests only
+task test         # Run all tests (5s budget for test, 5s for compile)
+task test:fixture # Run fixture tests only (5s timeout)
+task test:lexer   # Run lexer tests only (5s timeout)
 task build        # Build the project
 task              # Default: fmt + test
 ```
 
 ### Manual commands
 ```bash
-go test ./... -timeout 5s           # Run all tests (MUST use -timeout, parser can hang)
+# Always use -timeout 5s - this is our strict budget
+go test ./... -timeout 5s           # Run all tests
 go test ./testdata -v -timeout 5s   # Run fixture tests
 go test ./parser -v -timeout 5s     # Run lexer tests  
+timeout 5s go run ./cmd/lessgo compile <file>.less  # Compile with 5s timeout
+timeout 5s go run ./cmd/lessgo fmt <file>.less      # Format with 5s timeout
 goimports -w . && go fmt ./...      # Format code
 ```
 

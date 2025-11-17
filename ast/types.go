@@ -7,6 +7,15 @@ type Node interface {
 	node()
 }
 
+// Comment represents a CSS/LESS comment
+type Comment struct {
+	Text    string // Content without delimiters
+	IsBlock bool   // true for /* */, false for //
+}
+
+func (c *Comment) node() {}
+func (c *Comment) stmt() {}
+
 // Stylesheet is the root node containing all rules and statements
 type Stylesheet struct {
 	Rules []Statement
