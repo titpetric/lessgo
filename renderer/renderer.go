@@ -9,20 +9,21 @@ import (
 
 	"github.com/sourcegraph/lessgo/ast"
 	"github.com/sourcegraph/lessgo/functions"
+	"github.com/sourcegraph/lessgo/parser"
 )
 
 // Renderer converts an AST to CSS
 type Renderer struct {
 	output bytes.Buffer
 	indent int
-	vars   map[string]ast.Value
+	vars   *parser.Stack          // Stack-based variable scoping
 	mixins map[string][]*ast.Rule // Store mixin definitions by name (can have multiple variants with guards)
 }
 
 // NewRenderer creates a new renderer
 func NewRenderer() *Renderer {
 	return &Renderer{
-		vars:   make(map[string]ast.Value),
+		vars:   parser.NewStack(make(map[string]ast.Value)),
 		mixins: make(map[string][]*ast.Rule),
 	}
 }
@@ -155,7 +156,7 @@ func (r *Renderer) buildSelector(selector ast.Selector, parentSelector string) s
 	for _, part := range selector.Parts {
 		// Resolve interpolation in selectors
 		part = r.resolveInterpolation(part)
-		
+
 		if strings.Contains(part, "&") {
 			// Replace & with parent selector
 			result := strings.ReplaceAll(part, "&", parentSelector)
@@ -178,9 +179,9 @@ func (r *Renderer) resolveInterpolation(input string) string {
 	return re.ReplaceAllStringFunc(input, func(match string) string {
 		// Extract variable name from @{varname}
 		varName := match[2 : len(match)-1] // Remove @{ and }
-		
+
 		// Look up variable
-		if val, ok := r.vars[varName]; ok {
+		if val, ok := r.vars.Lookup(varName); ok {
 			return r.renderValue(val)
 		}
 		// If not found, return the original (though this is probably an error)
@@ -238,7 +239,7 @@ func (r *Renderer) renderValue(value ast.Value) string {
 		return v.Value
 	case *ast.Variable:
 		// Look up variable
-		if val, ok := r.vars[v.Name]; ok {
+		if val, ok := r.vars.Lookup(v.Name); ok {
 			return r.renderValue(val)
 		}
 		return "@" + v.Name // Fallback
@@ -286,7 +287,7 @@ func (r *Renderer) renderFunctionCall(fn *ast.FunctionCall) string {
 // resolveVariableValue resolves a variable to its value, if it's a variable
 func (r *Renderer) resolveVariableValue(v ast.Value) ast.Value {
 	if varRef, ok := v.(*ast.Variable); ok {
-		if val, ok := r.vars[varRef.Name]; ok {
+		if val, ok := r.vars.Lookup(varRef.Name); ok {
 			return r.resolveVariableValue(val) // Recurse in case of nested variables
 		}
 	}
@@ -311,11 +312,40 @@ func (r *Renderer) evaluateTypeCheckingFunction(fn *ast.FunctionCall) string {
 	// Get the rendered arguments and resolve variables
 	args := []string{}
 	astArgs := []ast.Value{}
+	expandedArgs := []string{} // For variable expansion check
+	var expandedFromVar bool      // Did we expand any arguments from variables?
 	for _, arg := range fn.Arguments {
+		// Check if this argument is a variable reference
+		_, isVarRef := arg.(*ast.Variable)
+		
 		// Resolve variables to their values
 		resolvedArg := r.resolveVariableValue(arg)
 		astArgs = append(astArgs, resolvedArg)
+		
+		// If the argument WAS a variable and resolves to a List, expand it
+		// This is used to detect if the function should be evaluated or output literally
+		if isVarRef {
+			if list, ok := resolvedArg.(*ast.List); ok {
+				expandedFromVar = true
+				for _, item := range list.Values {
+					expandedArgs = append(expandedArgs, r.renderValue(item))
+				}
+			} else {
+				expandedArgs = append(expandedArgs, r.renderValue(resolvedArg))
+			}
+		} else {
+			expandedArgs = append(expandedArgs, r.renderValue(resolvedArg))
+		}
+		
 		args = append(args, r.renderValue(resolvedArg))
+	}
+	
+	// Special handling: if a variable argument expanded to a list, output function call literally
+	// This happens when you pass a list variable to a function expecting a single argument
+	// Example: islist(@list) where @list: 1, 2, 3 should output islist(1, 2, 3) literally
+	if expandedFromVar && len(expandedArgs) != len(astArgs) {
+		// Variable expanded to multiple arguments - output function call literally
+		return fn.Name + "(" + strings.Join(expandedArgs, ", ") + ")"
 	}
 
 	switch name {
@@ -344,10 +374,11 @@ func (r *Renderer) evaluateTypeCheckingFunction(fn *ast.FunctionCall) string {
 		}
 		return "false"
 	case "iskeyword":
-		if len(args) != 1 {
+		if len(astArgs) != 1 {
 			return ""
 		}
-		if functions.IsKeyword(args[0]) {
+		// In LESS, any unquoted identifier/literal is a keyword
+		if r.isKeywordAST(astArgs[0]) {
 			return "true"
 		}
 		return "false"
@@ -442,8 +473,9 @@ func (r *Renderer) isNumberAST(v ast.Value) bool {
 func (r *Renderer) isStringAST(v ast.Value) bool {
 	switch val := v.(type) {
 	case *ast.Literal:
-		// Both quoted strings and unquoted keywords can be strings in LESS
-		return val.Type == ast.StringLiteral || val.Type == ast.KeywordLiteral
+		// Only quoted strings are strings in LESS type system
+		// Unquoted keywords/identifiers are keywords, not strings
+		return val.Type == ast.StringLiteral
 	default:
 		return false
 	}
@@ -453,7 +485,26 @@ func (r *Renderer) isStringAST(v ast.Value) bool {
 func (r *Renderer) isColorAST(v ast.Value) bool {
 	switch val := v.(type) {
 	case *ast.Literal:
-		return val.Type == ast.ColorLiteral
+		if val.Type == ast.ColorLiteral {
+			return true
+		}
+		// Check if it's a named color keyword
+		if val.Type == ast.KeywordLiteral {
+			return functions.IsColor(val.Value)
+		}
+		return false
+	default:
+		return false
+	}
+}
+
+// isKeywordAST checks if an AST value is a keyword (any unquoted identifier/literal)
+func (r *Renderer) isKeywordAST(v ast.Value) bool {
+	switch val := v.(type) {
+	case *ast.Literal:
+		// Keywords are unquoted literals: numbers, keywords, colors, etc.
+		// NOT strings (quoted literals)
+		return val.Type != ast.StringLiteral
 	default:
 		return false
 	}
@@ -470,12 +521,15 @@ func (r *Renderer) isListAST(v ast.Value) bool {
 }
 
 // lengthAST returns the length of an AST value
+// In LESS, length() returns:
+// - 1 for quoted strings (they're single values)
+// - The number of items in a list
+// - 1 for single values
 func (r *Renderer) lengthAST(v ast.Value) string {
 	switch val := v.(type) {
 	case *ast.Literal:
-		if val.Type == ast.StringLiteral {
-			return strconv.Itoa(len(val.Value))
-		}
+		// Quoted strings are single values, so length is 1
+		// (not the character count)
 		return "1"
 	case *ast.List:
 		return strconv.Itoa(len(val.Values))
@@ -827,7 +881,7 @@ func (r *Renderer) evaluateBinaryOp(op *ast.BinaryOp) string {
 
 // renderVariableDeclaration renders a variable declaration (stores it)
 func (r *Renderer) renderVariableDeclaration(decl *ast.VariableDeclaration) {
-	r.vars[decl.Name] = decl.Value
+	r.vars.Set(decl.Name, decl.Value)
 }
 
 // renderAtRule renders an at-rule
@@ -980,18 +1034,10 @@ func (r *Renderer) bindMixinArguments(mixin *ast.Rule, args []ast.Value) []ast.D
 		return mixin.Declarations
 	}
 
-	// Create a temporary renderer with the bound parameters
-	tmpRenderer := &Renderer{
-		vars:   make(map[string]ast.Value),
-		mixins: r.mixins,
-	}
+	// Push a new scope for mixin parameters
+	r.vars.Push(nil) // Push a new empty scope
 
-	// Copy all current variables
-	for k, v := range r.vars {
-		tmpRenderer.vars[k] = v
-	}
-
-	// Bind arguments to parameters
+	// Bind arguments to parameters in the new scope
 	for i, param := range mixin.Parameters {
 		if i < len(args) {
 			// Remove @ prefix if present
@@ -999,21 +1045,24 @@ func (r *Renderer) bindMixinArguments(mixin *ast.Rule, args []ast.Value) []ast.D
 			if strings.HasPrefix(paramName, "@") {
 				paramName = paramName[1:]
 			}
-			tmpRenderer.vars[paramName] = args[i]
+			r.vars.Set(paramName, args[i])
 		}
 	}
 
 	// Render declarations with bound parameters and create new literals with rendered values
 	renderedDecls := make([]ast.Declaration, len(mixin.Declarations))
 	for i, decl := range mixin.Declarations {
-		// Render the value through the temp renderer with bound parameters
-		renderedValue := tmpRenderer.renderValue(decl.Value)
+		// Render the value through the renderer with bound parameters in scope
+		renderedValue := r.renderValue(decl.Value)
 		// Create a literal with the rendered value
 		renderedDecls[i] = ast.Declaration{
 			Property: decl.Property,
 			Value:    &ast.Literal{Type: ast.KeywordLiteral, Value: renderedValue},
 		}
 	}
+
+	// Pop the scope
+	r.vars.Pop()
 
 	return renderedDecls
 }

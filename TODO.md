@@ -2,29 +2,25 @@
 
 ## High Priority
 
-### 1. Improve Formatter - Handle Nested Rules Better
-- [ ] Formatter currently doesn't handle nested rules properly
-- [ ] Need to maintain proper nesting indentation for nested selectors
-- [ ] Example: `.parent { .child { color: red; } }` should format with proper indentation
-- [ ] Currently renders all nested rules at the same level
+### 1. ✅ COMPLETED: Stack-Based Variable Scoping
+- [x] Implemented parser/stack.go with Push/Pop scope management
+- [x] Updated Renderer to use Stack instead of flat map
+- [x] Proper scope management for mixin parameters
+- [x] All existing tests passing
 
-### 2. Improve Value Rendering in Formatter  
-- [ ] The formatter uses `renderer.RenderValuePublic()` which evaluates variables
-- [ ] We want the formatter to preserve the original source form (e.g., keep `@primary` as `@primary`)
-- [ ] Solution: Create a separate `formatValue()` method that renders values without evaluation
-- [ ] This will preserve variable references in formatted output
+### 2. Implement Extend/Inheritance
+- [ ] Support `&:extend(.class)` syntax
+- [ ] Parse extend in rule declarations
+- [ ] Merge selectors from extended classes
+- [ ] Example: `.success { &:extend(.message); }` should include .message selector
+- [ ] Add test fixture for extend functionality
 
-### 3. Better Handling of Missing Semicolons
-- [ ] Current solution uses `peekAhead(1)` to detect new properties
-- [ ] This is fragile and only works because properties use `: ` pattern
-- [ ] Better solution: Add NEWLINE tokens to lexer (or at least detect declaration boundaries)
-- [ ] Consider how this affects CSS constructs like space-separated values (e.g., `box-shadow: 1px 2px 3px red;`)
-
-### 4. Implement Parametric Mixins
-- [ ] Parser needs to support mixin parameters: `.mixin(@param1; @param2) { ... }`
-- [ ] Renderer needs to bind arguments to parameters when applying mixins
-- [ ] Add test fixture for parametric mixins
-- [ ] Handle parameter defaults and guards
+### 3. Implement Nested At-Rules
+- [ ] Support `@media` and other at-rules nested inside rules
+- [ ] Bubble at-rules back to stylesheet level
+- [ ] Prepend parent selector to rules inside at-rule
+- [ ] Example: `.btn { @media (...) { width: 100%; } }` should become `@media (...) { .btn { width: 100%; } }`
+- [ ] Add test fixtures for nested @media, @supports, etc.
 
 ## Medium Priority
 

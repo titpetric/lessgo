@@ -172,7 +172,7 @@ func (p *Parser) parseSelector() (ast.Selector, error) {
 			}
 
 			tok := p.peek()
-			
+
 			// Handle interpolation in selectors
 			if tok.Type == TokenInterp {
 				// Store interpolation marker and the variable/expression that follows
@@ -691,6 +691,8 @@ func (p *Parser) parseFunctionArg() (ast.Value, error) {
 			break
 		}
 		values = append(values, val)
+		// Debug: uncomment to see what we parsed
+		// fmt.Fprintf(os.Stderr, "DEBUG parseFunctionArg: parsed value %v, now at %v\n", val, p.peek())
 
 		// Check if there's another value (space-separated)
 		if p.check(TokenComma) || p.check(TokenRParen) || p.isAtEnd() {

@@ -71,7 +71,41 @@ func IsColor(value string) bool {
 		return strings.HasPrefix(value, "hsl(") || strings.HasPrefix(value, "hsla(")
 	}
 
-	return false
+	// Check for named colors (CSS color keywords)
+	namedColors := map[string]bool{
+		"red": true, "green": true, "blue": true, "yellow": true, "orange": true,
+		"purple": true, "pink": true, "cyan": true, "magenta": true, "white": true,
+		"black": true, "gray": true, "grey": true, "silver": true, "gold": true,
+		"maroon": true, "navy": true, "teal": true, "olive": true, "lime": true,
+		"aqua": true, "fuchsia": true, "indigo": true, "turquoise": true, "khaki": true,
+		"tomato": true, "coral": true, "salmon": true, "chocolate": true, "peru": true,
+		"wheat": true, "tan": true, "beige": true, "ivory": true, "bisque": true,
+		"aliceblue": true, "antiquewhite": true, "aquamarine": true, "azure": true,
+		"brown": true, "burlywood": true, "cadetblue": true, "chartreuse": true,
+		"darkblue": true, "darkcyan": true, "darkgray": true, "darkgreen": true,
+		"darkkhaki": true, "darkmagenta": true, "darkolivegreen": true, "darkorange": true,
+		"darkorchid": true, "darkred": true, "darksalmon": true, "darkseagreen": true,
+		"darkslateblue": true, "darkslategray": true, "darkturquoise": true, "darkviolet": true,
+		"deeppink": true, "deepskyblue": true, "dimgray": true, "dodgerblue": true,
+		"firebrick": true, "floralwhite": true, "forestgreen": true, "gainsboro": true,
+		"ghostwhite": true, "goldenrod": true, "honeydew": true, "hotpink": true,
+		"indianred": true, "lavender": true, "lavenderblush": true, "lawngreen": true,
+		"lemonchiffon": true, "lightblue": true, "lightcoral": true, "lightcyan": true,
+		"lightgoldenrodyellow": true, "lightgray": true, "lightgreen": true, "lightpink": true,
+		"lightsalmon": true, "lightseagreen": true, "lightskyblue": true, "lightslategray": true,
+		"lightsteelblue": true, "lightyellow": true, "mediumaquamarine": true, "mediumblue": true,
+		"mediumorchid": true, "mediumpurple": true, "mediumseagreen": true, "mediumslateblue": true,
+		"mediumspringgreen": true, "mediumturquoise": true, "mediumvioletred": true, "midnightblue": true,
+		"mintcream": true, "mistyrose": true, "moccasin": true, "navajowhite": true, "oldlace": true,
+		"olivedrab": true, "orangered": true, "orchid": true, "palegoldenrod": true, "palegreen": true,
+		"paleturquoise": true, "palevioletred": true, "papayawhip": true, "peachpuff": true,
+		"plum": true, "powderblue": true, "rosybrown": true, "royalblue": true, "saddlebrown": true,
+		"sandybrown": true, "seagreen": true, "seashell": true, "sienna": true, "skyblue": true,
+		"slateblue": true, "slategray": true, "snow": true, "springgreen": true, "steelblue": true,
+		"thistle": true, "violet": true, "whitesmoke": true, "yellowgreen": true,
+	}
+
+	return namedColors[value]
 }
 
 // IsKeyword checks if a value is a CSS keyword
@@ -286,16 +320,18 @@ func IsListFunction(value string) string {
 	return "false"
 }
 
-// Boolean converts a value to a boolean (true if non-zero, non-false, non-empty)
+// Boolean converts a value to a boolean (only true for the literal keyword 'true')
+// In LESS, boolean() returns true ONLY for the keyword 'true', and false for everything else
 func Boolean(value string) string {
 	value = strings.TrimSpace(value)
 
-	// False cases
-	if value == "" || value == "false" || value == "0" || value == "none" {
-		return "false"
+	// Only true if the value is literally the keyword 'true'
+	if value == "true" {
+		return "true"
 	}
 
-	return "true"
+	// Everything else is false (including numbers, other keywords, etc.)
+	return "false"
 }
 
 // Length returns the length of a list/string value
@@ -387,7 +423,8 @@ func Range(start string, end string, step ...string) string {
 	return strings.Join(result, ", ")
 }
 
-// Escape URL-encodes a string
+// Escape URL-encodes a string (using strict LESS escaping rules)
+// LESS escape() does NOT escape all special characters - only specific ones
 func Escape(str string) string {
 	// Remove quotes if present
 	str = strings.TrimSpace(str)
@@ -396,10 +433,9 @@ func Escape(str string) string {
 		str = str[1 : len(str)-1]
 	}
 
-	// URL encode special characters
+	// URL encode only specific characters (matching LESS behavior)
 	replacer := strings.NewReplacer(
 		" ", "%20",
-		"!", "%21",
 		"\"", "%22",
 		"#", "%23",
 		"$", "%24",

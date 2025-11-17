@@ -11,12 +11,12 @@
 .test-iscolor {
   is-color-1: true;
   is-color-2: true;
-  is-color-3: false;
+  is-color-3: true;
 }
 .test-iskeyword {
   is-keyword-1: true;
   is-keyword-2: true;
-  is-keyword-3: false;
+  is-keyword-3: true;
 }
 .test-isurl {
   is-url-1: true;
@@ -43,13 +43,13 @@
 .test-boolean {
   bool-1: true;
   bool-2: false;
-  bool-3: true;
+  bool-3: false;
   bool-4: false;
 }
 .test-length {
-  len-1: 5;
+  len-1: 1;
   len-2: 3;
 }
 .test-escape {
-  escaped: hello%20world%21;
+  escaped: hello%20world!;
 }

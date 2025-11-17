@@ -79,14 +79,14 @@ type Token struct {
 
 // Lexer tokenizes LESS source code
 type Lexer struct {
-	input          string
-	pos            int // current position
-	line           int // current line
-	column         int // current column
-	start          int // start of current token
-	width          int // width of last rune read
-	tokens         []Token
-	interpDepth    int // tracks nesting depth of interpolation @{...}
+	input       string
+	pos         int // current position
+	line        int // current line
+	column      int // current column
+	start       int // start of current token
+	width       int // width of last rune read
+	tokens      []Token
+	interpDepth int // tracks nesting depth of interpolation @{...}
 }
 
 // NewLexer creates a new lexer for the given input

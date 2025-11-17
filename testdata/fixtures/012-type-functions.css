@@ -1,8 +1,8 @@
 .test {
   number: true;
-  string: true;
+  string: false;
   color: true;
-  list: true;
+  list: islist(1, 2, 3);
   keyword: true;
   pixel: true;
   em: true;
