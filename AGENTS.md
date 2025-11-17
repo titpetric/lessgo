@@ -48,16 +48,18 @@ task              # Default: fmt + test
 
 ### Manual commands
 ```bash
-go test ./...     # Run all tests
-go test ./testdata -v   # Run fixture tests
-go test ./parser -v     # Run lexer tests
-goimports -w . && go fmt ./...  # Format code
+go test ./... -timeout 5s           # Run all tests (MUST use -timeout, parser can hang)
+go test ./testdata -v -timeout 5s   # Run fixture tests
+go test ./parser -v -timeout 5s     # Run lexer tests  
+goimports -w . && go fmt ./...      # Format code
 ```
 
 ### Best Practices
 - **Always run `task fmt` after modifying .go files** - This ensures consistent formatting
 - **Run `task test` before committing** - Verify all tests pass
 - **Use `task` for rapid development** - Combines formatting and testing in one command
+- **Do NOT modify Taskfile.yml unless explicitly requested** - Keep build tasks stable
+- **Always use -timeout flag on tests** - Parser can hang on invalid input
 
 ## Development Workflow
 

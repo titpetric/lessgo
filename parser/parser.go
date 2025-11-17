@@ -272,6 +272,7 @@ func (p *Parser) parseDeclaration() (*ast.Declaration, error) {
 	property := ""
 
 	// Parse property name (may include interpolation like @{prop})
+	// CSS3 custom properties start with -- (two hyphens)
 	for {
 		if p.check(TokenInterp) {
 			// Handle interpolation in property name
@@ -286,6 +287,9 @@ func (p *Parser) parseDeclaration() (*ast.Declaration, error) {
 			if !p.match(TokenInterpEnd) {
 				return nil, fmt.Errorf("expected '}' in property interpolation at %v", p.peek())
 			}
+		} else if p.check(TokenMinus) {
+			// Handle CSS3 custom properties (--name) and property names with hyphens
+			property += p.advance().Value
 		} else if p.checkIdent() {
 			property += p.advance().Value
 		} else {
@@ -675,6 +679,15 @@ func (p *Parser) parseSimpleValue() (ast.Value, error) {
 		p.advance()
 		return &ast.Literal{Type: ast.KeywordLiteral, Value: tok.Value}, nil
 
+	case TokenMinus:
+		// Handle CSS3 custom properties (--name) and negative keywords
+		// Collect all consecutive minus and ident tokens
+		value := ""
+		for p.check(TokenMinus) || p.checkIdent() {
+			value += p.advance().Value
+		}
+		return &ast.Literal{Type: ast.KeywordLiteral, Value: value}, nil
+
 	case TokenOperator:
 		// Binary operators will be handled at a higher level
 		return nil, nil
@@ -756,7 +769,12 @@ func (p *Parser) parseFunctionArg() (ast.Value, error) {
 		}
 
 		// If the next token can't start a value, stop
-		if !canStartValue(nextTok.Type) {
+		// Special case: TokenMinus only starts a value if followed by a number
+		if nextTok.Type == TokenMinus {
+			if p.peekAhead(1).Type != TokenNumber {
+				break
+			}
+		} else if !canStartValue(nextTok.Type) {
 			break
 		}
 	}
@@ -826,7 +844,7 @@ func (p *Parser) parseAtRule() (*ast.AtRule, error) {
 			// - current token is ), ], :, ;, . or
 			// - previous char is (, [, or .
 			lastChar := params[len(params)-1]
-			if tok.Value != ")" && tok.Value != "]" && tok.Value != ":" && 
+			if tok.Value != ")" && tok.Value != "]" && tok.Value != ":" &&
 				tok.Value != ";" && tok.Value != "." &&
 				lastChar != '(' && lastChar != '[' && lastChar != '.' {
 				params += " "
@@ -1061,7 +1079,7 @@ func (p *Parser) parseExtend() ([]ast.Extend, error) {
 		}
 
 		selector = strings.TrimSpace(selector)
-		
+
 		// Check for 'all' keyword
 		all := false
 		if strings.HasSuffix(selector, " all") {

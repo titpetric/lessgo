@@ -1,0 +1,27 @@
+:root {
+  --primary-color: #3498db;
+  --secondary-color: #2ecc71;
+  --spacing-unit: 16px;
+  --border-radius: 4px;
+}
+.button {
+  background-color: var(--primary-color);
+  padding: var(--spacing-unit);
+  border-radius: var(--border-radius);
+}
+.button-secondary {
+  background-color: var(--secondary-color);
+  padding: var(--spacing-unit);
+  border-radius: var(--border-radius);
+}
+.button:hover {
+  background-color: var(--secondary-color);
+}
+.element {
+  color: var(--text-color, #333);
+  background: var(--bg-color, white);
+}
+.card {
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow);
+}

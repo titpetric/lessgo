@@ -10,6 +10,7 @@ tasks:
     desc: Run all tests
     cmds:
       - go test -timeout 5s ./...
+      - go test -timeout 5s ./testdata -v
 
   test:fixture:
     desc: Run fixture tests only

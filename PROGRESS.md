@@ -136,6 +136,31 @@
 
 ## Features Added This Session (Current Session)
 
+### ✅ CSS3 Variables (Custom Properties) Support
+- [x] Fixed parser to handle CSS3 `--property-name` syntax (double-dash)
+- [x] Updated `parseDeclaration()` to consume TokenMinus for property names
+- [x] Fixed `parseFunctionArg()` to prevent infinite loops with `--identifier` patterns
+- [x] Added special handling in `parseSimpleValue()` for minus tokens followed by identifiers
+- [x] CSS3 variables like `var(--primary-color)` now compile correctly
+- [x] Fallback values in var() work: `var(--color, #333)`
+- [x] Test fixture for CSS3 variables (017) now passes
+- [x] **All 20 fixture tests pass**
+
+### ✅ Developer Quality of Life Improvements
+- [x] Fixed timeout issue - parser was hanging on CSS3 variable syntax
+- [x] Updated AGENTS.md to enforce `-timeout 5s` on all go test commands
+- [x] Updated Taskfile.yml to include testdata tests in main test task
+- [x] Fixed extend test fixture (015) to have actual extend syntax
+- [x] All tests now complete in <1s with proper timeout handling
+
+### Known Issues to Address
+- [ ] Comment preservation in formatter (comments dropped during parsing)
+- [ ] Escaped strings in double quotes need lexer fix (`\"` handling)
+- [ ] Some edge cases with complex selectors in functions
+- [ ] Performance: Comments are stripped from AST (cannot preserve in formatter)
+
+## Features Added Previous Session
+
 ### ✅ Extend/Inheritance Feature
 - [x] Added Extend AST node type for &:extend(.selector) declarations
 - [x] Parser support for extend syntax within rules

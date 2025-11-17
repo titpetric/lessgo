@@ -14,12 +14,12 @@ import (
 
 // Renderer converts an AST to CSS
 type Renderer struct {
-	output  bytes.Buffer
-	indent  int
-	vars    *parser.Stack          // Stack-based variable scoping
-	mixins  map[string][]*ast.Rule // Store mixin definitions by name (can have multiple variants with guards)
-	extends map[string][]string    // Map from extended selector to list of extending selectors
-	allRules []*ast.Rule           // Track all rules for extend processing
+	output   bytes.Buffer
+	indent   int
+	vars     *parser.Stack          // Stack-based variable scoping
+	mixins   map[string][]*ast.Rule // Store mixin definitions by name (can have multiple variants with guards)
+	extends  map[string][]string    // Map from extended selector to list of extending selectors
+	allRules []*ast.Rule            // Track all rules for extend processing
 }
 
 // NewRenderer creates a new renderer
@@ -52,7 +52,7 @@ func (r *Renderer) collectRulesAndMixins(stylesheet *ast.Stylesheet) {
 			// Track all rules for extend processing
 			r.allRules = append(r.allRules, rule)
 			r.collectNestedRules(rule)
-			
+
 			// Check if this is a mixin definition (class or id selector that could be used as mixin)
 			if len(rule.Selector.Parts) == 1 {
 				selector := rule.Selector.Parts[0]
@@ -118,7 +118,7 @@ func (r *Renderer) renderRule(rule *ast.Rule, parentSelector string) {
 	}
 
 	selector := r.buildSelector(rule.Selector, parentSelector)
-	
+
 	// Apply extends: add any selectors that extend this one
 	extendingSelectors := []string{}
 	for _, selectorPart := range rule.Selector.Parts {
@@ -126,7 +126,7 @@ func (r *Renderer) renderRule(rule *ast.Rule, parentSelector string) {
 			extendingSelectors = append(extendingSelectors, extenders...)
 		}
 	}
-	
+
 	if len(extendingSelectors) > 0 {
 		// Add extending selectors to this rule's selector
 		selector = selector + ",\n" + strings.Join(extendingSelectors, ",\n")
@@ -360,15 +360,15 @@ func (r *Renderer) evaluateTypeCheckingFunction(fn *ast.FunctionCall) string {
 	args := []string{}
 	astArgs := []ast.Value{}
 	expandedArgs := []string{} // For variable expansion check
-	var expandedFromVar bool      // Did we expand any arguments from variables?
+	var expandedFromVar bool   // Did we expand any arguments from variables?
 	for _, arg := range fn.Arguments {
 		// Check if this argument is a variable reference
 		_, isVarRef := arg.(*ast.Variable)
-		
+
 		// Resolve variables to their values
 		resolvedArg := r.resolveVariableValue(arg)
 		astArgs = append(astArgs, resolvedArg)
-		
+
 		// If the argument WAS a variable and resolves to a List, expand it
 		// This is used to detect if the function should be evaluated or output literally
 		if isVarRef {
@@ -383,10 +383,10 @@ func (r *Renderer) evaluateTypeCheckingFunction(fn *ast.FunctionCall) string {
 		} else {
 			expandedArgs = append(expandedArgs, r.renderValue(resolvedArg))
 		}
-		
+
 		args = append(args, r.renderValue(resolvedArg))
 	}
-	
+
 	// Special handling: if a variable argument expanded to a list, output function call literally
 	// This happens when you pass a list variable to a function expecting a single argument
 	// Example: islist(@list) where @list: 1, 2, 3 should output islist(1, 2, 3) literally
