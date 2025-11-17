@@ -128,7 +128,7 @@ func (p *Parser) parseSelector() (ast.Selector, error) {
 
 	for {
 		part := ""
-		
+
 		// Collect selector tokens until comma or brace
 		for !p.check(TokenLBrace) && !p.check(TokenComma) && !p.isAtEnd() {
 			if p.check(TokenSemicolon) {
@@ -140,10 +140,10 @@ func (p *Parser) parseSelector() (ast.Selector, error) {
 
 			// Handle whitespace between tokens in selectors
 			p.advance()
-			
+
 			// Look ahead for space
-			if !p.check(TokenLBrace) && !p.check(TokenComma) && 
-			   !p.check(TokenSemicolon) && !p.isAtEnd() {
+			if !p.check(TokenLBrace) && !p.check(TokenComma) &&
+				!p.check(TokenSemicolon) && !p.isAtEnd() {
 				nextTok := p.peek()
 				// Add space between tokens if needed
 				if tok.Type != TokenGreater && nextTok.Type != TokenGreater &&

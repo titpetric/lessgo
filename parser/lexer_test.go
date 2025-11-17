@@ -3,8 +3,8 @@ package parser_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"github.com/sourcegraph/lessgo/parser"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLexerBasics(t *testing.T) {

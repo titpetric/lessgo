@@ -1,0 +1,39 @@
+version: '3'
+
+tasks:
+  build:
+    desc: Build the project
+    cmds:
+      - go build ./...
+
+  test:
+    desc: Run all tests
+    cmds:
+      - go test -timeout 5s ./...
+
+  test:fixture:
+    desc: Run fixture tests only
+    cmds:
+      - go test -timeout 5s ./testdata -v
+
+  test:lexer:
+    desc: Run lexer tests only
+    cmds:
+      - go test -timeout 5s ./parser -v
+
+  fmt:
+    desc: Format all Go files
+    cmds:
+      - goimports -w .
+      - go fmt ./...
+
+  watch:
+    desc: Watch for changes and run tests
+    cmds:
+      - task: fmt
+      - task: test
+
+  default:
+    cmds:
+      - task: fmt
+      - task: test

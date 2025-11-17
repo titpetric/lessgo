@@ -36,25 +36,28 @@ lessgo/
 
 ## Common Commands
 
-### Run all tests
+### Using Task (recommended)
 ```bash
-go test ./...
+task fmt          # Format Go files (goimports + go fmt)
+task test         # Run all tests
+task test:fixture # Run fixture tests only
+task test:lexer   # Run lexer tests only
+task build        # Build the project
+task              # Default: fmt + test
 ```
 
-### Run fixture tests only
+### Manual commands
 ```bash
-go test ./... -run Fixture
+go test ./...     # Run all tests
+go test ./testdata -v   # Run fixture tests
+go test ./parser -v     # Run lexer tests
+goimports -w . && go fmt ./...  # Format code
 ```
 
-### Run integration tests
-```bash
-go test ./integration/...
-```
-
-### Watch mode (requires entr or similar)
-```bash
-find . -name '*.go' | entr go test ./...
-```
+### Best Practices
+- **Always run `task fmt` after modifying .go files** - This ensures consistent formatting
+- **Run `task test` before committing** - Verify all tests pass
+- **Use `task` for rapid development** - Combines formatting and testing in one command
 
 ## Development Workflow
 

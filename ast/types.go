@@ -105,7 +105,7 @@ type MixinCall struct {
 	Important bool
 }
 
-func (m *MixinCall) node()  {}
+func (m *MixinCall) node() {}
 func (m *MixinCall) stmt() {}
 
 // VariableDeclaration represents @variable: value
@@ -114,7 +114,7 @@ type VariableDeclaration struct {
 	Value Value
 }
 
-func (v *VariableDeclaration) node()  {}
+func (v *VariableDeclaration) node() {}
 func (v *VariableDeclaration) stmt() {}
 
 // AtRule represents @-rules like @media, @import, @keyframes, etc.
@@ -129,7 +129,7 @@ type AtRule struct {
 	Position Position
 }
 
-func (a *AtRule) node()  {}
+func (a *AtRule) node() {}
 func (a *AtRule) stmt() {}
 
 // List represents comma or space-separated values

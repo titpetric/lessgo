@@ -14,34 +14,34 @@ const (
 	TokenNewline TokenType = "NEWLINE"
 
 	// Literals
-	TokenString    TokenType = "STRING"
-	TokenNumber    TokenType = "NUMBER"
-	TokenColor     TokenType = "COLOR"
-	TokenKeyword   TokenType = "KEYWORD"
-	TokenIdent     TokenType = "IDENT"
-	TokenSelector  TokenType = "SELECTOR"
-	TokenProperty  TokenType = "PROPERTY"
+	TokenString   TokenType = "STRING"
+	TokenNumber   TokenType = "NUMBER"
+	TokenColor    TokenType = "COLOR"
+	TokenKeyword  TokenType = "KEYWORD"
+	TokenIdent    TokenType = "IDENT"
+	TokenSelector TokenType = "SELECTOR"
+	TokenProperty TokenType = "PROPERTY"
 
 	// Variables and functions
 	TokenVariable TokenType = "VARIABLE"
 	TokenFunction TokenType = "FUNCTION"
 
 	// Operators
-	TokenPlus      TokenType = "PLUS"
-	TokenMinus     TokenType = "MINUS"
-	TokenStar      TokenType = "STAR"
-	TokenSlash     TokenType = "SLASH"
-	TokenPercent   TokenType = "PERCENT"
-	TokenEq        TokenType = "EQ"
-	TokenNe        TokenType = "NE"
-	TokenLt        TokenType = "LT"
-	TokenLe        TokenType = "LE"
-	TokenGt        TokenType = "GT"
-	TokenGe        TokenType = "GE"
-	TokenAnd       TokenType = "AND"
-	TokenOr        TokenType = "OR"
-	TokenNot       TokenType = "NOT"
-	TokenOperator  TokenType = "OPERATOR"
+	TokenPlus     TokenType = "PLUS"
+	TokenMinus    TokenType = "MINUS"
+	TokenStar     TokenType = "STAR"
+	TokenSlash    TokenType = "SLASH"
+	TokenPercent  TokenType = "PERCENT"
+	TokenEq       TokenType = "EQ"
+	TokenNe       TokenType = "NE"
+	TokenLt       TokenType = "LT"
+	TokenLe       TokenType = "LE"
+	TokenGt       TokenType = "GT"
+	TokenGe       TokenType = "GE"
+	TokenAnd      TokenType = "AND"
+	TokenOr       TokenType = "OR"
+	TokenNot      TokenType = "NOT"
+	TokenOperator TokenType = "OPERATOR"
 
 	// Delimiters
 	TokenLBrace    TokenType = "LBRACE"
@@ -62,10 +62,10 @@ const (
 
 	// Special
 	TokenAmpersand TokenType = "AMPERSAND"
-	TokenInterp    TokenType = "INTERP"      // #{ or @{
-	TokenInterpEnd TokenType = "INTERPEND"   // }
-	TokenEscape    TokenType = "ESCAPE"      // ~ escape prefix
-	TokenImportant TokenType = "IMPORTANT"   // !important
+	TokenInterp    TokenType = "INTERP"    // #{ or @{
+	TokenInterpEnd TokenType = "INTERPEND" // }
+	TokenEscape    TokenType = "ESCAPE"    // ~ escape prefix
+	TokenImportant TokenType = "IMPORTANT" // !important
 )
 
 // Token represents a lexical token
@@ -80,11 +80,11 @@ type Token struct {
 // Lexer tokenizes LESS source code
 type Lexer struct {
 	input  string
-	pos    int    // current position
-	line   int    // current line
-	column int    // current column
-	start  int    // start of current token
-	width  int    // width of last rune read
+	pos    int // current position
+	line   int // current line
+	column int // current column
+	start  int // start of current token
+	width  int // width of last rune read
 	tokens []Token
 }
 

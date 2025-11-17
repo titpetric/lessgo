@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"github.com/sourcegraph/lessgo/parser"
 	"github.com/sourcegraph/lessgo/renderer"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFixtures(t *testing.T) {
