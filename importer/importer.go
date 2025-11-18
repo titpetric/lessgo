@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sourcegraph/lessgo/ast"
-	"github.com/sourcegraph/lessgo/parser"
+	"github.com/titpetric/lessgo/ast"
+	"github.com/titpetric/lessgo/parser"
 )
 
 // Importer resolves and processes @import statements

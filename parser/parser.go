@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sourcegraph/lessgo/ast"
+	"github.com/titpetric/lessgo/ast"
 )
 
 // Parser parses LESS tokens into an AST

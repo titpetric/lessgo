@@ -4,7 +4,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/sourcegraph/lessgo/ast"
+	"github.com/titpetric/lessgo/ast"
 )
 
 // pathCache caches parsed paths to avoid re-parsing frequently-used expressions.

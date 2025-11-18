@@ -57,6 +57,7 @@ lessgo/
 ## Common Commands
 
 ### Using Task (recommended)
+
 ```bash
 task fmt          # Format Go files (goimports + go fmt)
 task test         # Run all tests (5s budget for test, 5s for compile)
@@ -67,6 +68,7 @@ task              # Default: fmt + test
 ```
 
 ### Manual commands
+
 ```bash
 # Always use -timeout 5s - this is our strict budget
 go test ./... -timeout 5s           # Run all tests
@@ -135,6 +137,7 @@ When working on integration with the actual LESS compiler, use:
 - Online playground: https://lesscss.org/less-preview
 
 ### Using lessc for validation
+
 ```bash
 lessc testdata/fixtures/001-basic-css.less # Compile with official LESS
 lessc testdata/fixtures/001-basic-css.less > /tmp/official.css

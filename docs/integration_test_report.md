@@ -1,11 +1,10 @@
 # Integration Test Report: lessc v3.12.2
 
 ## Summary
+
 ✅ **All 36 Test Fixtures Verified Against Official lessc Compiler**
 
-**Test Date:** 2025-11-17
-**lessc Version:** 3.12.2 (Less Compiler) [JavaScript]
-**Test Status:** 100% PASS (36/36)
+**Test Date:** 2025-11-17 **lessc Version:** 3.12.2 (Less Compiler) [JavaScript] **Test Status:** 100% PASS (36/36)
 
 ---
 
@@ -18,6 +17,7 @@
 - Verification: 36 fixture pairs (72 files)
 
 ### Command Used
+
 ```bash
 lessc testdata/fixtures/NNN-*.less > output.css
 # Compare output with testdata/fixtures/NNN-*.css
@@ -28,80 +28,90 @@ lessc testdata/fixtures/NNN-*.less > output.css
 ## Results by Category
 
 ### Logical Functions (2/2 ✓)
-| Fixture | Function | Status |
-|---------|----------|--------|
-| 030 | `if(condition, val1, val2)` | ✓ PASS |
-| 031 | `boolean(condition)` | ✓ PASS |
+
+| Fixture | Function                    | Status |
+|---------|-----------------------------|--------|
+| 030     | `if(condition, val1, val2)` | ✓ PASS |
+| 031     | `boolean(condition)`        | ✓ PASS |
 
 ### String Functions (4/4 ✓)
-| Fixture | Function | Status |
-|---------|----------|--------|
-| 032 | `escape(string)` | ✓ PASS |
-| 033 | `e(string)` | ✓ PASS |
-| 034 | `%(format, args)` | ✓ PASS |
-| 035 | `replace(string, pattern, replacement)` | ✓ PASS |
+
+| Fixture | Function                                | Status |
+|---------|-----------------------------------------|--------|
+| 032     | `escape(string)`                        | ✓ PASS |
+| 033     | `e(string)`                             | ✓ PASS |
+| 034     | `%(format, args)`                       | ✓ PASS |
+| 035     | `replace(string, pattern, replacement)` | ✓ PASS |
 
 ### List Functions (4/4 ✓)
-| Fixture | Function | Status |
-|---------|----------|--------|
-| 040 | `length(list)` | ✓ PASS |
-| 041 | `extract(list, index)` | ✓ PASS |
-| 042 | `range(start, end, step)` | ✓ PASS |
-| 043 | `each(list, ruleset)` | ✓ PASS |
+
+| Fixture | Function                  | Status |
+|---------|---------------------------|--------|
+| 040     | `length(list)`            | ✓ PASS |
+| 041     | `extract(list, index)`    | ✓ PASS |
+| 042     | `range(start, end, step)` | ✓ PASS |
+| 043     | `each(list, ruleset)`     | ✓ PASS |
 
 ### Math Functions (18/18 ✓)
-| Fixture | Functions | Status |
-|---------|-----------|--------|
-| 050 | ceil, floor, round, abs | ✓ PASS |
-| 051 | sqrt, pow, min, max, percentage | ✓ PASS |
-| 052 | sin, cos, tan, asin, acos, atan, pi, mod | ✓ PASS |
+
+| Fixture | Functions                                | Status |
+|---------|------------------------------------------|--------|
+| 050     | ceil, floor, round, abs                  | ✓ PASS |
+| 051     | sqrt, pow, min, max, percentage          | ✓ PASS |
+| 052     | sin, cos, tan, asin, acos, atan, pi, mod | ✓ PASS |
 
 ### Type Functions (11/11 ✓)
-| Fixture | Functions | Status |
-|---------|-----------|--------|
-| 060 | isnumber, isstring | ✓ PASS |
-| 061 | iscolor, ispixel, ispercentage | ✓ PASS |
-| 062 | iskeyword, isurl, isem, isunit | ✓ PASS |
-| 063 | isruleset, isdefined | ✓ PASS |
+
+| Fixture | Functions                      | Status |
+|---------|--------------------------------|--------|
+| 060     | isnumber, isstring             | ✓ PASS |
+| 061     | iscolor, ispixel, ispercentage | ✓ PASS |
+| 062     | iskeyword, isurl, isem, isunit | ✓ PASS |
+| 063     | isruleset, isdefined           | ✓ PASS |
 
 ### Color Definition Functions (7/7 ✓)
+
 | Fixture | Functions | Status |
 |---------|-----------|--------|
-| 070 | rgb, rgba | ✓ PASS |
-| 071 | hsl, hsla | ✓ PASS |
-| 072 | hsv, hsva | ✓ PASS |
-| 073 | argb | ✓ PASS |
+| 070     | rgb, rgba | ✓ PASS |
+| 071     | hsl, hsla | ✓ PASS |
+| 072     | hsv, hsva | ✓ PASS |
+| 073     | argb      | ✓ PASS |
 
 ### Color Channel Functions (12/12 ✓)
-| Fixture | Functions | Status |
-|---------|-----------|--------|
-| 080 | hue, saturation, lightness | ✓ PASS |
-| 081 | hsvhue, hsvsaturation, hsvvalue | ✓ PASS |
-| 082 | red, green, blue, alpha | ✓ PASS |
-| 083 | luma, luminance | ✓ PASS |
+
+| Fixture | Functions                       | Status |
+|---------|---------------------------------|--------|
+| 080     | hue, saturation, lightness      | ✓ PASS |
+| 081     | hsvhue, hsvsaturation, hsvvalue | ✓ PASS |
+| 082     | red, green, blue, alpha         | ✓ PASS |
+| 083     | luma, luminance                 | ✓ PASS |
 
 ### Color Operation Functions (13/13 ✓)
-| Fixture | Functions | Status |
-|---------|-----------|--------|
-| 090 | saturate, desaturate | ✓ PASS |
-| 091 | lighten, darken | ✓ PASS |
-| 092 | fadein, fadeout, fade | ✓ PASS |
-| 093 | spin | ✓ PASS |
-| 094 | mix, tint, shade | ✓ PASS |
-| 095 | greyscale, contrast | ✓ PASS |
+
+| Fixture | Functions             | Status |
+|---------|-----------------------|--------|
+| 090     | saturate, desaturate  | ✓ PASS |
+| 091     | lighten, darken       | ✓ PASS |
+| 092     | fadein, fadeout, fade | ✓ PASS |
+| 093     | spin                  | ✓ PASS |
+| 094     | mix, tint, shade      | ✓ PASS |
+| 095     | greyscale, contrast   | ✓ PASS |
 
 ### Color Blending Functions (9/9 ✓)
-| Fixture | Functions | Status |
-|---------|-----------|--------|
-| 100 | multiply, screen | ✓ PASS |
-| 101 | overlay, softlight, hardlight | ✓ PASS |
-| 102 | difference, exclusion, average, negation | ✓ PASS |
+
+| Fixture | Functions                                | Status |
+|---------|------------------------------------------|--------|
+| 100     | multiply, screen                         | ✓ PASS |
+| 101     | overlay, softlight, hardlight            | ✓ PASS |
+| 102     | difference, exclusion, average, negation | ✓ PASS |
 
 ### Misc Functions (2/2 ✓)
-| Fixture | Functions | Status |
-|---------|-----------|--------|
-| 110 | unit, get-unit, convert | ✓ PASS |
-| 111 | color | ✓ PASS |
+
+| Fixture | Functions               | Status |
+|---------|-------------------------|--------|
+| 110     | unit, get-unit, convert | ✓ PASS |
+| 111     | color                   | ✓ PASS |
 
 ---
 
@@ -159,12 +169,14 @@ lessc testdata/fixtures/NNN-*.less > output.css
 ### Output Format Notes
 
 1. **Comments Preserved**: lessc preserves LESS comments in output CSS
+
    ```less
    /* This comment appears in output */
    div { color: red; }
    ```
 
 2. **Color Format Variation**: Some operations return HSL notation instead of hex
+
    ```less
    @c: hsl(90, 80%, 50%);
    @saturated: saturate(@c, 10%);
@@ -172,6 +184,7 @@ lessc testdata/fixtures/NNN-*.less > output.css
    ```
 
 3. **Precision in Calculations**: Trigonometric and luminance functions may vary slightly
+
    ```less
    @luma: luma(rgb(100, 200, 30));
    // Output: 44.11161568% (or similar precision)
@@ -200,31 +213,27 @@ lessc testdata/fixtures/NNN-*.less > output.css
 
 ### Functions Verified
 
-| Category | Total | Verified | Status |
-|----------|-------|----------|--------|
-| Logical | 2 | 2 | ✓ |
-| Strings | 4 | 4 | ✓ |
-| Lists | 4 | 4 | ✓ |
-| Math | 18 | 18 | ✓ |
-| Types | 11 | 11 | ✓ |
-| Color Def | 7 | 7 | ✓ |
-| Channels | 12 | 12 | ✓ |
-| Operations | 13 | 13 | ✓ |
-| Blending | 9 | 9 | ✓ |
-| Misc | 9 | 2 | ✓ (7 req. file I/O) |
-| **TOTAL** | **89** | **83** | **100%** |
+| Category   | Total  | Verified | Status              |
+|------------|--------|----------|---------------------|
+| Logical    | 2      | 2        | ✓                   |
+| Strings    | 4      | 4        | ✓                   |
+| Lists      | 4      | 4        | ✓                   |
+| Math       | 18     | 18       | ✓                   |
+| Types      | 11     | 11       | ✓                   |
+| Color Def  | 7      | 7        | ✓                   |
+| Channels   | 12     | 12       | ✓                   |
+| Operations | 13     | 13       | ✓                   |
+| Blending   | 9      | 9        | ✓                   |
+| Misc       | 9      | 2        | ✓ (7 req. file I/O) |
+| **TOTAL**  | **89** | **83**   | **100%**            |
 
 ---
 
 ## Fixture Quality Assessment
 
 ### Strengths
-✓ All fixtures compile without syntax errors
-✓ Output matches lessc compiler exactly (whitespace-normalized)
-✓ Examples follow official LESS documentation
-✓ Good coverage of all function categories
-✓ Comments document function purpose
-✓ Various parameter combinations tested
+
+✓ All fixtures compile without syntax errors ✓ Output matches lessc compiler exactly (whitespace-normalized) ✓ Examples follow official LESS documentation ✓ Good coverage of all function categories ✓ Comments document function purpose ✓ Various parameter combinations tested
 
 ### Coverage Gaps
 - No fixtures for file-access functions (image-*, data-uri, svg-gradient)
@@ -244,18 +253,21 @@ lessc testdata/fixtures/NNN-*.less > output.css
 ## Regression Testing Protocol
 
 ### Quick Verification (All Fixtures)
+
 ```bash
 bash /tmp/verify_all.sh
 # Expected: 36 PASSED, 0 FAILED
 ```
 
 ### Individual Fixture Verification
+
 ```bash
 lessc testdata/fixtures/030-logical-functions-if.less > /tmp/out.css
 diff /tmp/out.css testdata/fixtures/030-logical-functions-if.css
 ```
 
 ### Batch Revalidation Against New lessc Version
+
 ```bash
 for less_file in testdata/fixtures/{030..111}-*.less; do
     base=$(basename "$less_file" .less)

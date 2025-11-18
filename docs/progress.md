@@ -10,95 +10,95 @@ All fixtures verified against official lessc compiler - output matches exactly.
 
 ### Phase 1: Core Infrastructure ✅ COMPLETE
 
-- [x] Lexer with full token recognition
-- [x] Parser for LESS syntax  
-- [x] AST type definitions
-- [x] Renderer to CSS output
-- [x] Test infrastructure (59 fixture test pairs)
-- [x] CLI tools (compile, fmt commands)
+- [X] Lexer with full token recognition
+- [X] Parser for LESS syntax
+- [X] AST type definitions
+- [X] Renderer to CSS output
+- [X] Test infrastructure (59 fixture test pairs)
+- [X] CLI tools (compile, fmt commands)
 
 ### Phase 2: Core Language Features ✅ COMPLETE
 
-| Feature | Status | Tests |
-|---------|--------|-------|
-| CSS Passthrough | ✅ | 001 |
-| Comments | ✅ | 019 |
-| Variables | ✅ | 002, 013 |
-| Nesting | ✅ | 003 |
-| Parent Selector (&) | ✅ | 005 |
-| Operations | ✅ | 004 |
-| Mixins | ✅ | 009, 010 |
-| Mixin Guards | ✅ | 011-mixin-guards |
-| @import | ✅ | 011 |
-| CSS3 Variables | ✅ | 017 |
-| @media Nesting | ✅ | 014 |
-| Extend | ✅ | 015, 016 |
+| Feature             | Status | Tests            |
+|---------------------|--------|------------------|
+| CSS Passthrough     | ✅     | 001              |
+| Comments            | ✅     | 019              |
+| Variables           | ✅     | 002, 013         |
+| Nesting             | ✅     | 003              |
+| Parent Selector (&) | ✅     | 005              |
+| Operations          | ✅     | 004              |
+| Mixins              | ✅     | 009, 010         |
+| Mixin Guards        | ✅     | 011-mixin-guards |
+| @import             | ✅     | 011              |
+| CSS3 Variables      | ✅     | 017              |
+| @media Nesting      | ✅     | 014              |
+| Extend              | ✅     | 015, 016         |
 
 ### Phase 3: Functions ✅ COMPLETE
 
 **String Functions (4/4)**
-- [x] escape() - 032
-- [x] e() - 033
-- [x] % format - 034
-- [x] replace() - 035
+- [X] escape() - 032
+- [X] e() - 033
+- [X] % format - 034
+- [X] replace() - 035
 
 **List Functions (4/4)**
-- [x] length() - 040
-- [x] extract() - 041
-- [x] range() - 042
-- [x] each() - 043
+- [X] length() - 040
+- [X] extract() - 041
+- [X] range() - 042
+- [X] each() - 043
 
 **Type Checking Functions (11/11)**
-- [x] isnumber(), isstring(), iscolor(), iskeyword() - 060, 061, 062
-- [x] isurl(), ispixel(), isem(), ispercentage(), isunit() - 061, 062
-- [x] isruleset(), isdefined() - 063
-- [x] boolean() - 031
+- [X] isnumber(), isstring(), iscolor(), iskeyword() - 060, 061, 062
+- [X] isurl(), ispixel(), isem(), ispercentage(), isunit() - 061, 062
+- [X] isruleset(), isdefined() - 063
+- [X] boolean() - 031
 
 **Math Functions (13/13)**
-- [x] ceil(), floor(), round(), abs(), sqrt(), pow(), min(), max(), percentage() - 050, 051
-- [x] sin(), cos(), tan(), asin(), acos(), atan(), pi(), mod() - 052
+- [X] ceil(), floor(), round(), abs(), sqrt(), pow(), min(), max(), percentage() - 050, 051
+- [X] sin(), cos(), tan(), asin(), acos(), atan(), pi(), mod() - 052
 
 **Color Definition (7/7)**
-- [x] rgb(), rgba() - 070
-- [x] hsl(), hsla() - 071
-- [x] hsv(), hsva() - 072
-- [x] argb() - 073
+- [X] rgb(), rgba() - 070
+- [X] hsl(), hsla() - 071
+- [X] hsv(), hsva() - 072
+- [X] argb() - 073
 
 **Color Channels (10/10)**
-- [x] hue(), saturation(), lightness() - 080
-- [x] hsvhue(), hsvsaturation(), hsvvalue() - 081
-- [x] red(), green(), blue(), alpha() - 082
-- [x] luma(), luminance() - 083
+- [X] hue(), saturation(), lightness() - 080
+- [X] hsvhue(), hsvsaturation(), hsvvalue() - 081
+- [X] red(), green(), blue(), alpha() - 082
+- [X] luma(), luminance() - 083
 
 **Color Operations (7/7)**
-- [x] saturate(), desaturate() - 090
-- [x] lighten(), darken() - 091
-- [x] fade(), fadein(), fadeout() - 092
-- [x] spin() - 093
-- [x] mix(), tint(), shade() - 094
-- [x] greyscale(), contrast() - 095
+- [X] saturate(), desaturate() - 090
+- [X] lighten(), darken() - 091
+- [X] fade(), fadein(), fadeout() - 092
+- [X] spin() - 093
+- [X] mix(), tint(), shade() - 094
+- [X] greyscale(), contrast() - 095
 
 **Color Blending (9/9)**
-- [x] multiply(), screen() - 100
-- [x] overlay(), softlight(), hardlight() - 101
-- [x] difference(), exclusion(), average(), negation() - 102
+- [X] multiply(), screen() - 100
+- [X] overlay(), softlight(), hardlight() - 101
+- [X] difference(), exclusion(), average(), negation() - 102
 
 **Logical Functions (2/2)**
-- [x] if() - 020, _030
-- [x] boolean() - 031
+- [X] if() - 020, _030
+- [X] boolean() - 031
 
 **Misc Functions (4/7)**
-- [x] unit(), get-unit(), convert() - 110
-- [x] color() - 111
+- [X] unit(), get-unit(), convert() - 110
+- [X] color() - 111
 
 ### Phase 4: Infrastructure & Quality
 
-- [x] Comment preservation in output
-- [x] Stack-based variable scoping
-- [x] Mixin parameter binding
-- [x] Import resolution
-- [x] Extend/inheritance
-- [x] Edge case handling (CSS3 vars, pseudo-classes, attribute selectors)
+- [X] Comment preservation in output
+- [X] Stack-based variable scoping
+- [X] Mixin parameter binding
+- [X] Import resolution
+- [X] Extend/inheritance
+- [X] Edge case handling (CSS3 vars, pseudo-classes, attribute selectors)
 
 ## Test Results Summary
 
@@ -257,7 +257,7 @@ All fixtures verified against official lessc compiler - output matches exactly.
 ### Not Implemented
 
 - [ ] Pattern matching in mixins
-- [ ] Recursive mixins  
+- [ ] Recursive mixins
 - [ ] Namespace mixins (#ns > .mixin)
 - [ ] Maps/object literals
 - [ ] Plugin system

@@ -5,12 +5,14 @@ Based on official documentation: https://lesscss.org/functions/
 ## Quick Reference by Category
 
 ### Logical Functions (2 total)
+
 ```less
 if(condition, value1, value2)           // Returns value1 if condition true, else value2
 boolean(condition)                      // Evaluates a boolean expression
 ```
 
 ### String Functions (4 total)
+
 ```less
 escape(string)                          // URL-encodes special characters
 e(string)                               // Returns string without quotes
@@ -19,6 +21,7 @@ replace(string, pattern, replacement)   // Replaces pattern in string
 ```
 
 ### List Functions (4 total)
+
 ```less
 length(list)                            // Returns number of elements
 extract(list, index)                    // Gets element at index (1-indexed)
@@ -27,6 +30,7 @@ each(list, ruleset)                     // Iterates over list with ruleset
 ```
 
 ### Math Functions (18 total)
+
 ```less
 // Basic
 ceil(number)                            // Round up to next integer
@@ -53,6 +57,7 @@ pi()                                    // π constant (3.14159...)
 ```
 
 ### Type Functions (11 total)
+
 ```less
 // Value type checks
 isnumber(value)                         // Is number?
@@ -73,6 +78,7 @@ isdefined(variable)                     // Is variable defined? (v4.0.0+)
 ```
 
 ### Color Definition Functions (7 total)
+
 ```less
 // RGB color space
 rgb(red, green, blue)                   // Create color from RGB (0-255)
@@ -91,6 +97,7 @@ argb(color)                             // Convert to ARGB hex (#AARRGGBB)
 ```
 
 ### Color Channel Functions (12 total)
+
 ```less
 // HSL channels
 hue(color)                              // Extract hue (0-360)
@@ -114,6 +121,7 @@ luminance(color)                        // Luminance without gamma
 ```
 
 ### Color Operation Functions (13 total)
+
 ```less
 // Saturation operations
 saturate(color, amount, method)         // Increase saturation
@@ -140,6 +148,7 @@ contrast(color, dark, light, threshold) // Return most contrasting color
 ```
 
 ### Color Blending Functions (9 total)
+
 ```less
 multiply(color1, color2)                // Multiply blend mode
 screen(color1, color2)                  // Screen blend mode
@@ -153,6 +162,7 @@ negation(color1, color2)                // Negation blend mode
 ```
 
 ### Misc Functions (9 total)
+
 ```less
 // Unit/dimension manipulation
 unit(dimension, unit)                   // Remove or change unit
@@ -204,6 +214,7 @@ default()                               // True if no other mixin matches
 ## Usage Examples by Category
 
 ### Logical Functions
+
 ```less
 @width: 100px;
 div { width: if(@width > 50px, @width, 50px); }  // 100px
@@ -212,6 +223,7 @@ div { width: if(@width > 50px, @width, 50px); }  // 100px
 ```
 
 ### String Functions
+
 ```less
 @url: "hello world";
 div { content: escape(@url); }  // hello%20world
@@ -224,6 +236,7 @@ div { filter: e(@filter); }  // alpha(opacity=50)
 ```
 
 ### List Functions
+
 ```less
 @colors: red, green, blue;
 @n: length(@colors);  // 3
@@ -236,6 +249,7 @@ each(@range, { .col-@{value} { width: @value * 10%; } })
 ```
 
 ### Math Functions
+
 ```less
 @a: ceil(2.4);      // 3
 @b: floor(2.6);     // 2
@@ -251,6 +265,7 @@ each(@range, { .col-@{value} { width: @value * 10%; } })
 ```
 
 ### Type Functions
+
 ```less
 @n: 42;
 @s: "hello";
@@ -267,6 +282,7 @@ iskeyword(bold);    // true
 ```
 
 ### Color Functions
+
 ```less
 // Definition
 @c1: rgb(255, 128, 0);              // #ff8000
@@ -335,6 +351,7 @@ None in v4.1.3, but note:
 ## Common Patterns
 
 ### Responsive sizing
+
 ```less
 @base: 16px;
 div { font-size: @base; }
@@ -342,6 +359,7 @@ h1 { font-size: @base * 1.5; }  // 24px
 ```
 
 ### Color theming
+
 ```less
 @primary: #0066cc;
 @light: lighten(@primary, 20%);
@@ -350,6 +368,7 @@ h1 { font-size: @base * 1.5; }  // 24px
 ```
 
 ### Grid system with ranges
+
 ```less
 @cols: 12;
 @gutter: 20px;
@@ -359,6 +378,7 @@ each(range(@cols), {
 ```
 
 ### Guard conditions
+
 ```less
 .mixin(@value) when (isnumber(@value)) {
   width: @value * 1px;

@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sourcegraph/lessgo/formatter"
-	"github.com/sourcegraph/lessgo/importer"
-	"github.com/sourcegraph/lessgo/parser"
-	"github.com/sourcegraph/lessgo/renderer"
+	"github.com/titpetric/lessgo/formatter"
+	"github.com/titpetric/lessgo/importer"
+	"github.com/titpetric/lessgo/parser"
+	"github.com/titpetric/lessgo/renderer"
 )
 
 func main() {

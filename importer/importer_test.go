@@ -5,9 +5,9 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/sourcegraph/lessgo/ast"
-	"github.com/sourcegraph/lessgo/parser"
 	"github.com/stretchr/testify/require"
+	"github.com/titpetric/lessgo/ast"
+	"github.com/titpetric/lessgo/parser"
 )
 
 func TestExtractImportPath(t *testing.T) {

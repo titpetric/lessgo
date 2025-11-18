@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"strings"
 
-	"github.com/sourcegraph/lessgo/ast"
-	"github.com/sourcegraph/lessgo/renderer"
+	"github.com/titpetric/lessgo/ast"
+	"github.com/titpetric/lessgo/renderer"
 )
 
 // Formatter formats LESS code with proper indentation and semicolons

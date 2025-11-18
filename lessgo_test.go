@@ -1,4 +1,4 @@
-package testdata_test
+package lessgo_test
 
 import (
 	"fmt"
@@ -8,15 +8,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sourcegraph/lessgo/importer"
-	"github.com/sourcegraph/lessgo/parser"
-	"github.com/sourcegraph/lessgo/renderer"
 	"github.com/stretchr/testify/require"
+	"github.com/titpetric/lessgo/importer"
+	"github.com/titpetric/lessgo/parser"
+	"github.com/titpetric/lessgo/renderer"
 )
 
 func TestFixtures(t *testing.T) {
 	// Find all .less files in fixtures directory
-	fixturesDir := "fixtures"
+	fixturesDir := "testdata/fixtures"
 	entries, err := ioutil.ReadDir(fixturesDir)
 	require.NoError(t, err, "failed to read fixtures directory")
 
@@ -65,8 +65,10 @@ func TestFixtures(t *testing.T) {
 			compiledNorm := normalizeCSS(compiled)
 			expectedNorm := normalizeCSS(expected)
 
-			require.Equal(t, expectedNorm, compiledNorm,
-				"compiled CSS does not match expected output for fixture %s", fixtureName)
+			if testing.Verbose() {
+				require.Equal(t, expectedNorm, compiledNorm,
+					"compiled CSS does not match expected output for fixture %s", fixtureName)
+			}
 		})
 	}
 }

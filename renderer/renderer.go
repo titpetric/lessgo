@@ -8,9 +8,9 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/sourcegraph/lessgo/ast"
-	"github.com/sourcegraph/lessgo/evaluator"
-	"github.com/sourcegraph/lessgo/parser"
+	"github.com/titpetric/lessgo/ast"
+	"github.com/titpetric/lessgo/evaluator"
+	"github.com/titpetric/lessgo/parser"
 )
 
 // Renderer converts an AST to CSS
