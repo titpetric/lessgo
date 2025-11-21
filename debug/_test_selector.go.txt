@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/titpetric/lessgo/parser"
+
 	"github.com/titpetric/lessgo/ast"
+	"github.com/titpetric/lessgo/parser"
 )
 
 func main() {

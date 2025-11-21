@@ -1,0 +1,37 @@
+package main
+
+import (
+	"fmt"
+	"github.com/titpetric/lessgo/parser"
+	"github.com/titpetric/lessgo/ast"
+)
+
+func main() {
+	src := `.generate-classes(3);`
+	lexer := parser.NewLexer(src)
+	tokens := lexer.Tokenize()
+	
+	fmt.Println("Tokens:")
+	for i, tok := range tokens {
+		if tok.Type == "EOF" {
+			break
+		}
+		fmt.Printf("%d: %s = %q\n", i, tok.Type, tok.Value)
+	}
+	
+	p := parser.NewParserWithSource(tokens, src)
+	stylesheet, err := p.Parse()
+	if err != nil {
+		fmt.Printf("Parse Error: %v\n", err)
+		return
+	}
+	
+	fmt.Printf("Parsed: %d rules\n", len(stylesheet.Rules))
+	for i, rule := range stylesheet.Rules {
+		if m, ok := rule.(*ast.MixinCall); ok {
+			fmt.Printf("Rule %d: MixinCall path=%v\n", i, m.Path)
+		} else if r, ok := rule.(*ast.Rule); ok {
+			fmt.Printf("Rule %d: Rule selector=%v\n", i, r.Selector.Parts)
+		}
+	}
+}

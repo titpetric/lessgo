@@ -581,6 +581,10 @@ func (p *Parser) isMixinCall() bool {
 					// .name() { ... } - this is a rule definition, not a mixin call
 					p.pos = savedPos
 					return false
+				} else if p.checkIdentValue("when") || p.checkIdentValue("unless") {
+					// .name() when (...) { ... } - this is a rule definition with guard, not a mixin call
+					p.pos = savedPos
+					return false
 				} else if p.check(TokenSemicolon) || p.check(TokenGreater) || p.check(TokenComma) || p.isAtEnd() {
 					// .name(); or .name() > or just .name() - this is a mixin call
 					p.pos = savedPos
@@ -1066,17 +1070,47 @@ func (p *Parser) parseParenthesizedExpr() (ast.Value, error) {
 		return nil, fmt.Errorf("expected '(' at %v", p.peek())
 	}
 
-	// Parse a full value expression inside the parentheses
-	val, err := p.parseValue()
-	if err != nil {
-		return nil, err
+	// For parenthesized expressions, extract raw text until the closing paren
+	// This respects nested parentheses and evaluates correctly
+	valueStr := ""
+	parenDepth := 0
+
+	for !p.isAtEnd() {
+		tok := p.peek()
+
+		// Track parenthesis depth
+		if tok.Type == TokenLParen {
+			parenDepth++
+		} else if tok.Type == TokenRParen {
+			if parenDepth == 0 {
+				// This is the closing paren we're looking for
+				break
+			}
+			parenDepth--
+		}
+
+		// Build the value string from tokens
+		if valueStr != "" && tok.Type != TokenLParen && tok.Type != TokenRParen &&
+			tok.Type != TokenComma && tok.Type != TokenDot && tok.Type != TokenLBracket &&
+			tok.Type != TokenRBracket && tok.Type != TokenColon && tok.Type != TokenSemicolon &&
+			tok.Type != TokenSlash && tok.Type != TokenPercent && tok.Type != TokenStar &&
+			tok.Type != TokenMinus && tok.Type != TokenPlus && tok.Type != TokenGreater {
+			// Add space before this token
+			lastChar := valueStr[len(valueStr)-1]
+			if lastChar != ' ' && lastChar != '(' {
+				valueStr += " "
+			}
+		}
+		valueStr += tok.Value
+		p.advance()
 	}
 
 	if !p.match(TokenRParen) {
 		return nil, fmt.Errorf("expected ')' at %v", p.peek())
 	}
 
-	return val, nil
+	valueStr = strings.TrimSpace(valueStr)
+	return &ast.Literal{Type: ast.KeywordLiteral, Value: valueStr}, nil
 }
 
 // parseFunctionCall parses a function call

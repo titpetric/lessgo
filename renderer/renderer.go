@@ -473,18 +473,18 @@ func (r *Renderer) normalizeSelectorCombinators(selector string) string {
 	// Regular expression to match combinators and add spaces
 	combinators := []string{"+", ">", "~"}
 	result := selector
-	
+
 	for _, combinator := range combinators {
 		// Replace combinator with spaced version
 		// But only if it's not already spaced
 		result = strings.ReplaceAll(result, combinator, " "+combinator+" ")
 	}
-	
+
 	// Clean up any multiple spaces
 	for strings.Contains(result, "  ") {
 		result = strings.ReplaceAll(result, "  ", " ")
 	}
-	
+
 	return strings.TrimSpace(result)
 }
 
@@ -559,6 +559,10 @@ func (r *Renderer) renderValue(value ast.Value) string {
 				quote = `"`
 			}
 			return quote + v.Value + quote
+		}
+		// KeywordLiteral might contain variable references or expressions
+		if v.Type == ast.KeywordLiteral {
+			return r.evaluateLiteralExpression(v.Value)
 		}
 		return v.Value
 	case *ast.Variable:
@@ -1407,6 +1411,222 @@ func (r *Renderer) evaluateBinaryOp(op *ast.BinaryOp) string {
 	}
 
 	return resultStr + unit
+}
+
+// evaluateLiteralExpression evaluates a literal expression that may contain variables
+// For example: "(10px * @n)" where @n is a variable
+func (r *Renderer) evaluateLiteralExpression(expr string) string {
+	// First, replace @variable references with their values
+	result := expr
+	searchStart := 0
+	
+	for {
+		// Find @variable patterns
+		idx := strings.Index(result[searchStart:], "@")
+		if idx == -1 {
+			break
+		}
+		idx += searchStart
+		
+		// Extract variable name (letters, digits, hyphens, underscores)
+		varEnd := idx + 1
+		for varEnd < len(result) {
+			ch := result[varEnd]
+			if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+				(ch >= '0' && ch <= '9') || ch == '-' || ch == '_' {
+				varEnd++
+			} else {
+				break
+			}
+		}
+		
+		if varEnd == idx+1 {
+			// No variable name found, skip past this @
+			searchStart = idx + 1
+			continue
+		}
+		
+		varName := result[idx+1 : varEnd]
+		
+		// Look up the variable value
+		if val, ok := r.vars.Lookup(varName); ok {
+			valStr := r.renderValue(val)
+			result = result[:idx] + valStr + result[varEnd:]
+			searchStart = idx + len(valStr)
+		} else {
+			// Variable not found, skip to next
+			searchStart = varEnd
+		}
+	}
+	
+	// If the expression contains operators, try to evaluate it
+	if strings.ContainsAny(result, "+-*/%") {
+		// Try to evaluate the mathematical expression
+		evaluated := r.evaluateBinaryOpExpression(result)
+		if evaluated != result {
+			return evaluated
+		}
+	}
+	
+	return result
+}
+
+// evaluateBinaryOpExpression evaluates a simple mathematical expression with units
+// For example: "(10px * 3)" -> "30px"
+func (r *Renderer) evaluateBinaryOpExpression(expr string) string {
+	// Remove parentheses from the outside
+	expr = strings.TrimSpace(expr)
+	if strings.HasPrefix(expr, "(") && strings.HasSuffix(expr, ")") {
+		expr = expr[1 : len(expr)-1]
+	}
+	expr = strings.TrimSpace(expr)
+	
+	// Split by operators while tracking units
+	// We need to handle expressions like "10px * 3" or "3 * 10px"
+	tokens := splitExpressionTokens(expr)
+	if len(tokens) < 3 {
+		return expr // Not a valid expression
+	}
+	
+	// Parse and evaluate
+	result, err := evaluateTokens(tokens)
+	if err != nil {
+		return expr // If evaluation fails, return original
+	}
+	
+	return result
+}
+
+// splitExpressionTokens splits an expression into tokens (value, operator, value, ...)
+func splitExpressionTokens(expr string) []string {
+	var tokens []string
+	var current string
+	
+	for i, ch := range expr {
+		if ch == '*' || ch == '/' || ch == '+' || ch == '-' {
+			// Check if minus is part of a number or an operator
+			if ch == '-' && i > 0 && current != "" {
+				// It's an operator
+				tokens = append(tokens, strings.TrimSpace(current))
+				tokens = append(tokens, string(ch))
+				current = ""
+			} else if ch == '-' && i == 0 {
+				// Negative number at start
+				current += string(ch)
+			} else if ch == '-' && i > 0 && (expr[i-1] == ' ' || expr[i-1] == '(' || expr[i-1] == '*' || expr[i-1] == '/') {
+				// Negative number after operator
+				if current != "" {
+					tokens = append(tokens, strings.TrimSpace(current))
+				}
+				current = string(ch)
+			} else {
+				tokens = append(tokens, strings.TrimSpace(current))
+				tokens = append(tokens, string(ch))
+				current = ""
+			}
+		} else if ch == ' ' {
+			if current != "" && !strings.HasSuffix(current, " ") {
+				current += string(ch)
+			}
+		} else {
+			current += string(ch)
+		}
+	}
+	
+	if current != "" {
+		tokens = append(tokens, strings.TrimSpace(current))
+	}
+	
+	return tokens
+}
+
+// evaluateTokens evaluates a token sequence [value, op, value, op, value, ...]
+func evaluateTokens(tokens []string) (string, error) {
+	if len(tokens) < 1 {
+		return "", fmt.Errorf("empty expression")
+	}
+	
+	// Left to right evaluation for now (proper precedence would be more complex)
+	// Handle simple cases: number*number, number*unit, unit*number
+	
+	if len(tokens) == 3 {
+		left := tokens[0]
+		op := tokens[1]
+		right := tokens[2]
+		
+		leftVal, leftUnit := extractValueAndUnit(left)
+		rightVal, rightUnit := extractValueAndUnit(right)
+		
+		if leftVal == nil || rightVal == nil {
+			return "", fmt.Errorf("invalid values")
+		}
+		
+		var result float64
+		switch op {
+		case "*":
+			result = *leftVal * *rightVal
+		case "/":
+			if *rightVal == 0 {
+				return "", fmt.Errorf("division by zero")
+			}
+			result = *leftVal / *rightVal
+		case "+":
+			result = *leftVal + *rightVal
+		case "-":
+			result = *leftVal - *rightVal
+		default:
+			return "", fmt.Errorf("unknown operator: %s", op)
+		}
+		
+		// Determine result unit
+		unit := ""
+		if leftUnit != "" {
+			unit = leftUnit
+		} else if rightUnit != "" {
+			unit = rightUnit
+		}
+		
+		// Format result
+		resultStr := fmt.Sprintf("%g", result)
+		return resultStr + unit, nil
+	}
+	
+	return "", fmt.Errorf("complex expressions not supported")
+}
+
+// extractValueAndUnit extracts numeric value and unit from a value string
+// E.g., "10px" -> (10, "px"), "3" -> (3, "")
+func extractValueAndUnit(s string) (*float64, string) {
+	s = strings.TrimSpace(s)
+	
+	// Try to parse as float with optional unit
+	i := 0
+	hasDecimal := false
+	for i < len(s) {
+		ch := s[i]
+		if (ch >= '0' && ch <= '9') || (ch == '.' && !hasDecimal) {
+			if ch == '.' {
+				hasDecimal = true
+			}
+			i++
+		} else {
+			break
+		}
+	}
+	
+	if i == 0 {
+		return nil, ""
+	}
+	
+	numStr := s[:i]
+	unit := strings.TrimSpace(s[i:])
+	
+	val, err := strconv.ParseFloat(numStr, 64)
+	if err != nil {
+		return nil, ""
+	}
+	
+	return &val, unit
 }
 
 // renderVariableDeclaration renders a variable declaration (stores it)
