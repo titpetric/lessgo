@@ -619,6 +619,11 @@ func (p *Parser) isMixinCall() bool {
 					p.pos = savedPos
 					return false
 				}
+				// If followed by an identifier (like h1 in .slide h1), it's a selector continuation, not a mixin call
+				if p.check(TokenIdent) {
+					p.pos = savedPos
+					return false
+				}
 				// For other cases (like (){), it might still be a mixin call
 				p.pos = savedPos
 				return true

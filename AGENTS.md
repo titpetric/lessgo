@@ -54,6 +54,16 @@ lessgo/
     └── *.md                   # Other reference docs
 ```
 
+## Debug Scripts
+
+Create test programs in the `debug/` folder for reusable testing:
+```bash
+go run ./debug/test_selector.go
+go run ./debug/test_parse.go
+```
+
+This keeps the codebase clean and allows iterating on test cases.
+
 ## Common Commands
 
 ### Using Task (recommended)

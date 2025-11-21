@@ -418,24 +418,74 @@ func (r *Renderer) buildSelector(selector ast.Selector, parentSelector string) s
 		return parentSelector
 	}
 
+	// Split parent selector if it contains commas (multi-part parent from nested rules)
+	// This handles cases like:
+	//   .slide { h1, h2, h3 { a { ... } } }
+	// Should produce: .slide h1 a, .slide h2 a, .slide h3 a
+	var parentParts []string
+	if parentSelector != "" {
+		// Split by comma and trim/clean
+		for _, p := range strings.Split(parentSelector, ",") {
+			parentParts = append(parentParts, strings.TrimSpace(p))
+		}
+	}
+
 	parts := []string{}
 	for _, part := range selector.Parts {
 		// Resolve interpolation in selectors
 		part = r.resolveInterpolation(part)
+		// Normalize selector: add spaces around CSS combinators (+, >, ~)
+		part = r.normalizeSelectorCombinators(part)
 
 		if strings.Contains(part, "&") {
-			// Replace & with parent selector
-			result := strings.ReplaceAll(part, "&", parentSelector)
-			parts = append(parts, result)
+			// Replace & with parent selector(s)
+			if len(parentParts) > 0 {
+				// Apply to each parent part
+				for _, parentPart := range parentParts {
+					result := strings.ReplaceAll(part, "&", parentPart)
+					parts = append(parts, result)
+				}
+			} else {
+				result := strings.ReplaceAll(part, "&", parentSelector)
+				parts = append(parts, result)
+			}
 		} else if parentSelector != "" {
-			// Append to parent selector
-			parts = append(parts, parentSelector+" "+part)
+			// Append to parent selector(s)
+			if len(parentParts) > 0 {
+				// Apply to each parent part
+				for _, parentPart := range parentParts {
+					parts = append(parts, parentPart+" "+part)
+				}
+			} else {
+				parts = append(parts, parentSelector+" "+part)
+			}
 		} else {
 			parts = append(parts, part)
 		}
 	}
 
 	return strings.Join(parts, ",\n")
+}
+
+// normalizeSelectorCombinators adds spaces around CSS combinators (+, >, ~)
+// E.g., "blockquote+figcaption" becomes "blockquote + figcaption"
+func (r *Renderer) normalizeSelectorCombinators(selector string) string {
+	// Regular expression to match combinators and add spaces
+	combinators := []string{"+", ">", "~"}
+	result := selector
+	
+	for _, combinator := range combinators {
+		// Replace combinator with spaced version
+		// But only if it's not already spaced
+		result = strings.ReplaceAll(result, combinator, " "+combinator+" ")
+	}
+	
+	// Clean up any multiple spaces
+	for strings.Contains(result, "  ") {
+		result = strings.ReplaceAll(result, "  ", " ")
+	}
+	
+	return strings.TrimSpace(result)
 }
 
 // resolveInterpolation replaces @{varname} with variable values in a string
