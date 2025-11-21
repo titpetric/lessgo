@@ -102,6 +102,8 @@ func (p *Parser) parseDeclarationOrNestedNode() (*Node, error) {
 		}
 		if tok.Type == parser.TokenLBrace && bracePos == -1 {
 			bracePos = i
+			// Found opening brace - we can stop here, it's definitely a declaration
+			break
 		}
 		if tok.Type == parser.TokenSemicolon {
 			// Found semicolon before any brace - it's a property
@@ -121,13 +123,11 @@ func (p *Parser) parseDeclarationOrNestedNode() (*Node, error) {
 	// Decide based on what we found
 	// If we have a brace, treat as declaration (even if we also have colon for pseudo-selector)
 	if bracePos != -1 {
-		// fmt.Fprintf(os.Stderr, "[DEBUG] Choosing parseDeclaration (bracePos=%d)\n", bracePos)
 		return p.parseDeclaration()
 	}
 	
 	// Otherwise if we have colon, treat as property
 	if colonPos != -1 {
-		// fmt.Fprintf(os.Stderr, "[DEBUG] Choosing parseProperty (colonPos=%d)\n", colonPos)
 		return p.parseProperty()
 	}
 
