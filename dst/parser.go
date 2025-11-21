@@ -87,28 +87,28 @@ func (p *Parser) parseDeclarationOrNestedNode() (*Node, error) {
 	// Check if this is a property or declaration
 	// Properties have: name : value;
 	// Declarations have: selector { ... }
+	// Pseudo-selectors: &:hover { ... } - have { but also : so prioritize {
 
 	// Look ahead for : or { within reasonable distance
 	savePos := p.pos
-	hasColon := false
-	hasBrace := false
+	colonPos := -1
+	bracePos := -1
 
 	for i := 0; i < 20 && !p.isAtEnd(); i++ {
-		if p.peek().Type == parser.TokenColon {
-			hasColon = true
-			break
+		tok := p.peek()
+		
+		if tok.Type == parser.TokenColon && colonPos == -1 {
+			colonPos = i
 		}
-		if p.peek().Type == parser.TokenLBrace {
-			hasBrace = true
-			break
+		if tok.Type == parser.TokenLBrace && bracePos == -1 {
+			bracePos = i
 		}
-		if p.peek().Type == parser.TokenSemicolon {
-			// Found semicolon before : or { - skip this statement
+		if tok.Type == parser.TokenSemicolon {
+			// Found semicolon before any brace - it's a property
 			p.pos = savePos
-			p.skipUntilStatementEnd()
-			return nil, nil
+			return p.parseProperty()
 		}
-		if p.peek().Type == parser.TokenRBrace {
+		if tok.Type == parser.TokenRBrace {
 			// End of block, no property or rule
 			p.pos = savePos
 			return nil, nil
@@ -119,13 +119,15 @@ func (p *Parser) parseDeclarationOrNestedNode() (*Node, error) {
 	p.pos = savePos
 
 	// Decide based on what we found
-	if hasBrace {
-		// Has {, try as declaration
+	// If we have a brace, treat as declaration (even if we also have colon for pseudo-selector)
+	if bracePos != -1 {
+		// fmt.Fprintf(os.Stderr, "[DEBUG] Choosing parseDeclaration (bracePos=%d)\n", bracePos)
 		return p.parseDeclaration()
 	}
-
-	if hasColon {
-		// Has :, it's likely a property
+	
+	// Otherwise if we have colon, treat as property
+	if colonPos != -1 {
+		// fmt.Fprintf(os.Stderr, "[DEBUG] Choosing parseProperty (colonPos=%d)\n", colonPos)
 		return p.parseProperty()
 	}
 
