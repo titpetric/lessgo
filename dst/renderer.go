@@ -641,6 +641,208 @@ func (r *Renderer) callFunction(name string, args []string) string {
 		if len(args) >= 1 {
 			return renderer.Boolean(args[0])
 		}
+
+	// String functions
+	case "escape":
+		if len(args) >= 1 {
+			return renderer.Escape(args[0])
+		}
+	case "e":
+		if len(args) >= 1 {
+			return renderer.E(args[0])
+		}
+	case "replace":
+		if len(args) >= 3 {
+			return renderer.Replace(args[0], args[1], args[2])
+		}
+
+	// List functions
+	case "length":
+		if len(args) >= 1 {
+			return renderer.Length(args[0])
+		}
+	case "extract":
+		if len(args) >= 2 {
+			return renderer.Extract(args[0], args[1])
+		}
+	case "range":
+		if len(args) >= 1 {
+			start := args[0]
+			end := ""
+			var step []string
+			if len(args) >= 2 {
+				end = args[1]
+			}
+			if len(args) >= 3 {
+				step = args[2:]
+			}
+			return renderer.Range(start, end, step...)
+		}
+
+	// Type checking functions
+	case "isnumber":
+		if len(args) >= 1 {
+			return renderer.IsNumberFunction(args[0])
+		}
+	case "isstring":
+		if len(args) >= 1 {
+			return renderer.IsStringFunction(args[0])
+		}
+	case "iscolor":
+		if len(args) >= 1 {
+			return renderer.IsColorFunction(args[0])
+		}
+	case "iskeyword":
+		if len(args) >= 1 {
+			return renderer.IsKeywordFunction(args[0])
+		}
+	case "isurl":
+		if len(args) >= 1 {
+			return renderer.IsURLFunction(args[0])
+		}
+	case "ispixel":
+		if len(args) >= 1 {
+			return renderer.IsPixelFunction(args[0])
+		}
+	case "isem":
+		if len(args) >= 1 {
+			return renderer.IsEmFunction(args[0])
+		}
+	case "ispercentage":
+		if len(args) >= 1 {
+			return renderer.IsPercentageFunction(args[0])
+		}
+	case "isunit":
+		if len(args) >= 2 {
+			return renderer.IsUnitFunction(args[0], args[1])
+		}
+	case "isruleset":
+		if len(args) >= 1 {
+			return renderer.IsRulesetFunction(args[0])
+		}
+	case "isdefined":
+		if len(args) >= 1 {
+			if renderer.IsDefined(args[0]) {
+				return "true"
+			}
+			return "false"
+		}
+
+	// Color definition
+	case "hsv":
+		if len(args) >= 3 {
+			return renderer.HSV(args[0], args[1], args[2])
+		}
+	case "hsva":
+		if len(args) >= 4 {
+			return renderer.HSVA(args[0], args[1], args[2], args[3])
+		}
+	case "argb":
+		if len(args) >= 1 {
+			return renderer.ARGB(args[0])
+		}
+
+	// More color channels
+	case "hsvhue":
+		if len(args) >= 1 {
+			return renderer.HSVHue(args[0])
+		}
+	case "hsvsaturation":
+		if len(args) >= 1 {
+			return renderer.HSVSaturation(args[0])
+		}
+	case "hsvvalue":
+		if len(args) >= 1 {
+			return renderer.HSVValue(args[0])
+		}
+
+	// More color operations
+	case "fade":
+		if len(args) >= 2 {
+			return renderer.Fade(args[0], args[1])
+		}
+	case "fadein":
+		if len(args) >= 2 {
+			return renderer.Fadein(args[0], args[1])
+		}
+	case "fadeout":
+		if len(args) >= 2 {
+			return renderer.Fadeout(args[0], args[1])
+		}
+	case "tint":
+		if len(args) >= 2 {
+			return renderer.Tint(args[0], args[1])
+		}
+	case "shade":
+		if len(args) >= 2 {
+			return renderer.Shade(args[0], args[1])
+		}
+	case "contrast":
+		if len(args) >= 1 {
+			return renderer.Contrast(args[0])
+		}
+
+	// Color blending
+	case "multiply":
+		if len(args) >= 2 {
+			return renderer.Multiply(args[0], args[1])
+		}
+	case "screen":
+		if len(args) >= 2 {
+			return renderer.Screen(args[0], args[1])
+		}
+	case "overlay":
+		if len(args) >= 2 {
+			return renderer.Overlay(args[0], args[1])
+		}
+	case "softlight":
+		if len(args) >= 2 {
+			return renderer.Softlight(args[0], args[1])
+		}
+	case "hardlight":
+		if len(args) >= 2 {
+			return renderer.Hardlight(args[0], args[1])
+		}
+	case "difference":
+		if len(args) >= 2 {
+			return renderer.Difference(args[0], args[1])
+		}
+	case "exclusion":
+		if len(args) >= 2 {
+			return renderer.Exclusion(args[0], args[1])
+		}
+	case "average":
+		if len(args) >= 2 {
+			return renderer.Average(args[0], args[1])
+		}
+	case "negation":
+		if len(args) >= 2 {
+			return renderer.Negation(args[0], args[1])
+		}
+
+	// Unit functions
+	case "unit":
+		if len(args) >= 2 {
+			return renderer.Unit(args[0], args[1])
+		}
+	case "get-unit":
+		if len(args) >= 1 {
+			return renderer.GetUnit(args[0])
+		}
+	case "convert":
+		if len(args) >= 2 {
+			return renderer.Convert(args[0], args[1])
+		}
+
+	// Misc functions
+	case "color":
+		if len(args) >= 1 {
+			return renderer.ColorFunction(args[0])
+		}
+	case "format":
+		if len(args) >= 1 {
+			return renderer.Format(args[0], args[1:]...)
+		}
 	}
 
 	return ""
