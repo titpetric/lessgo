@@ -1,0 +1,175 @@
+// original shower styles
+
+header h1 {
+	color: #000;
+}
+
+figure {
+	&.large {
+		blockquote {
+			font-size: 230%;
+			line-height: 1.1;
+		}
+		figcaption {
+			color: #555;
+			text-align: right;
+			font-size: 150%;
+		}
+		blockquote::before {
+			margin-top: 0;
+		}
+	}
+
+	&.medium {
+		blockquote {
+			font-size: 160%;
+			line-height: 1.1;
+		}
+		figcaption {
+			color: #555;
+			text-align: right;
+			font-size: 125%;
+		}
+	}
+
+}
+
+.slide h1 {
+	text-align: center;
+	margin: 0 0 50px;
+	color:#666;
+	font: 700 100px/1 'PT Sans Narrow',sans-serif;
+}
+
+.slide h3 {
+	text-align: left;
+	margin: 0 0 20px;
+	color: #000;
+	font: 700 30px/1 'PT Sans Narrow',sans-serif;
+}
+
+.slide.shout h3 {
+	text-align: center;
+	bottom: 10%;
+	left: 0;
+	right: 0;
+	position: absolute;
+}
+.slide.shout h2 {
+	text-align: center;
+	font-size: 120px;
+}
+
+.slide {
+	ul, ol {
+		margin: 0 0 50px 50px;
+	}
+	h1, h2, h3 {
+		a {
+			background: none;
+		}
+	}
+}
+
+.bar {
+	border-radius: 5px;
+	padding: 5px;
+	color:#fff;
+	font-weight: bold;
+	line-height: 1.1;
+	margin-bottom: 20px;
+	&.red {
+		background: #900;
+		border: 5px solid #300;
+	}
+	&.green {
+		background: #090;
+		border: 5px solid #030;
+	}
+}
+
+.inspiration blockquote+figcaption {
+	margin: -50px 0 20px;
+}
+.slide.cover img {
+	width: 100%;
+}
+small, small a {
+	color: #777;
+	font-size: 18px;
+}
+.tinycode pre {
+	font-size: 13px;
+}
+.longcode pre {
+	font-size: 20px;
+	margin-bottom: 15px;
+}
+.longcode p {
+	margin: 0;
+}
+
+// slides extensions
+
+section.cover {
+	h2 {
+		color: #f0fef0 !important;
+		margin:60px 0 0;
+		color:#FFF;
+		text-align:center;
+		font-size:96px;
+		text-shadow: 0px 0px 15px #000;
+	}
+	p {
+		margin:10px 0 0;
+		text-align:center;
+		color:#fefdfc !important;
+		font-style:italic;
+		font-size:32px;
+		text-shadow: 0px 0px 10px #000;
+		a {
+			background: none !important;
+			color:#FeFdFc !important;
+			text-decoration: none !important;
+		}
+	}
+	small {
+		display: block;
+		margin-top: 250px;
+		text-align: right;
+		font-size: 12px;
+	}
+	img {
+		opacity: 0.6;
+	}
+}
+
+
+section {
+	&.slide_120_software {
+		h2 {
+			margin-top: -7%;
+		}
+		.image-slide {
+			background: url(pictures/docker.jpg);
+			background-repeat: no-repeat;
+			background-size: cover;
+			background-position: left 0%;
+			height: 78%;
+		}
+		p { margin: 0; padding: 0; }
+	}
+	&.slide_130_software {
+		h2 {
+			margin-top: -7%;
+		}
+		p { margin: 0; padding: 0; }
+		.image-slide {
+			background: url(pictures/example-model.jpg);
+			background-repeat: no-repeat;
+			background-size: cover;
+			background-position: left 70%;
+			height: 78%;
+		}
+	}
+}

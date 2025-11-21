@@ -97,16 +97,33 @@ goimports -w . && go fmt ./...      # Format code
 
 ## Testing Strategy
 
-### Fixture Tests
+### Fixture Tests (Preferred for Agent Work)
 - Located in `testdata/fixtures/`
 - File pairs: `name.less` and `name.css`
-- Automatically discovered and tested
+- Use `./test_fixtures_vs_lessc.sh` to validate against official lessc
 - Each fixture name is a test case
 
+**Recommended workflow for fixing failing tests:**
+```bash
+# 1. Run tests with prefix to focus on specific failures
+./test_fixtures_vs_lessc.sh 999          # Test only 999-* fixtures
+./test_fixtures_vs_lessc.sh 200-         # Test only 200-* fixtures
+
+# 2. Compare lessc vs lessgo output for a specific test
+lessc testdata/fixtures/999-sinog-index.less                    # Official output
+./bin/lessgo compile testdata/fixtures/999-sinog-index.less     # Our output
+
+# 3. Use diff to see exact differences
+diff -u <(lessc testdata/fixtures/999-sinog-index.less) <(./bin/lessgo compile testdata/fixtures/999-sinog-index.less)
+
+# 4. After fixes, re-run with same prefix to verify
+./test_fixtures_vs_lessc.sh 999
+```
+
 ### Integration Tests
-- Compare output with actual LESS compiler
+- Compare output with actual LESS compiler (lessc)
 - Document feature compatibility/incompatibility
-- Located in `integration/` package
+- Use the test script above for validation
 
 ### Unit Tests
 - Direct testing of parser, AST, and renderer

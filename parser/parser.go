@@ -268,6 +268,43 @@ func (p *Parser) parseRule() (ast.Statement, error) {
 			if stmt != nil {
 				rule.AddNestedRule(stmt)
 			}
+		} else if p.check(TokenIdent) {
+			// Check if this is a property (ident : value) or selector (ident or ident: or ident::)
+			nextTok := p.peekAhead(1)
+			if nextTok.Type == TokenColon {
+				// Could be property or pseudo-selector
+				// Check if it's :: (pseudo-element) - if so, it's a selector
+				nextNextTok := p.peekAhead(2)
+				if nextNextTok.Type == TokenColon {
+					// It's :: (pseudo-element like ::before), treat as selector
+					nestedStmt, err := p.parseStatement()
+					if err != nil {
+						return nil, err
+					}
+					if nestedStmt != nil {
+						rule.AddNestedRule(nestedStmt)
+					}
+				} else {
+					// Single :, treat as property declaration
+					decl, err := p.parseDeclaration()
+					if err != nil {
+						return nil, err
+					}
+					if decl != nil {
+						rule.AddDeclaration(*decl)
+						p.match(TokenSemicolon)
+					}
+				}
+			} else {
+				// It's a nested selector (e.g., "blockquote { ... }")
+				nestedStmt, err := p.parseStatement()
+				if err != nil {
+					return nil, err
+				}
+				if nestedStmt != nil {
+					rule.AddNestedRule(nestedStmt)
+				}
+			}
 		} else {
 			// Parse declaration
 			decl, err := p.parseDeclaration()
@@ -278,9 +315,6 @@ func (p *Parser) parseRule() (ast.Statement, error) {
 				rule.AddDeclaration(*decl)
 				p.match(TokenSemicolon)
 			}
-			// If decl is nil, it means there was no property/declaration, which can happen
-			// when we encounter unexpected tokens. Rather than error, we'll skip this.
-			// This prevents infinite loops on malformed input.
 		}
 	}
 
@@ -717,7 +751,115 @@ func (p *Parser) parseMixinCall() (*ast.MixinCall, error) {
 
 // parseValue parses a CSS value (handles operators and comma-separated lists)
 func (p *Parser) parseValue() (ast.Value, error) {
-	return p.parseCommaListWithSpaces(true)
+	// If we have source, extract raw value text directly from source
+	// Otherwise, reconstruct from tokens
+	if p.source != "" {
+		return p.parseValueFromSource()
+	}
+	return p.parseValueFromTokens()
+}
+
+// parseValueFromSource extracts the raw property value from source text
+// The value runs from current position to the next ; or }
+func (p *Parser) parseValueFromSource() (ast.Value, error) {
+	startPos := p.pos
+	
+	// Find the end token (semicolon or rbrace)
+	endPos := startPos
+	for endPos < len(p.tokens) {
+		if p.tokens[endPos].Type == TokenSemicolon || p.tokens[endPos].Type == TokenRBrace {
+			break
+		}
+		endPos++
+	}
+	
+	if endPos >= len(p.tokens) {
+		return nil, fmt.Errorf("expected ; or } to end value")
+	}
+	
+	// Get token range
+	startTok := p.tokens[startPos]
+	endTok := p.tokens[endPos]
+	
+	// Extract from source: from start of first value token to start of semicolon/brace
+	valueStart := startTok.Offset
+	valueEnd := endTok.Offset
+	
+	if valueEnd <= valueStart {
+		return nil, fmt.Errorf("invalid value range")
+	}
+	
+	// Extract raw text from source and trim
+	rawValue := p.source[valueStart:valueEnd]
+	valueStr := strings.TrimSpace(rawValue)
+	
+	if valueStr == "" {
+		return nil, fmt.Errorf("expected value")
+	}
+	
+	// Normalize spacing: ensure space after commas
+	valueStr = strings.ReplaceAll(valueStr, ",", ", ")
+	// Clean up any double spaces
+	for strings.Contains(valueStr, "  ") {
+		valueStr = strings.ReplaceAll(valueStr, "  ", " ")
+	}
+	
+	// Advance parser position to the semicolon/rbrace
+	p.pos = endPos
+	
+	return &ast.Literal{Type: ast.KeywordLiteral, Value: valueStr}, nil
+}
+
+// parseValueFromTokens reconstructs value from tokens when source unavailable
+func (p *Parser) parseValueFromTokens() (ast.Value, error) {
+	valueStr := ""
+	lastWasOperator := false
+
+	for !p.check(TokenSemicolon) && !p.check(TokenRBrace) && !p.isAtEnd() {
+		tok := p.peek()
+
+		// Check if current token is an operator/punctuation
+		isOperator := map[TokenType]bool{
+			TokenDot:      true,
+			TokenLBracket: true,
+			TokenRBracket: true,
+			TokenLParen:   true,
+			TokenRParen:   true,
+			TokenComma:    true,
+			TokenColon:    true,
+			TokenSlash:    true,
+			TokenPercent:  true,
+			TokenStar:     true,
+			TokenMinus:    true,
+			TokenPlus:     true,
+		}[tok.Type]
+
+		// Add space between tokens, but not around operators
+		// However, add space after comma
+		if valueStr != "" && !lastWasOperator && !isOperator {
+			valueStr += " "
+		} else if valueStr != "" && tok.Type == TokenIdent && p.pos > 0 && p.tokens[p.pos-1].Type == TokenComma {
+			// Add space after comma before next identifier
+			valueStr += " "
+		}
+
+		// Add quotes back for STRING tokens
+		if tok.Type == TokenString && tok.QuoteChar != "" {
+			valueStr += tok.QuoteChar + tok.Value + tok.QuoteChar
+		} else {
+			valueStr += tok.Value
+		}
+		lastWasOperator = isOperator
+		p.advance()
+	}
+
+	if valueStr == "" {
+		return nil, fmt.Errorf("expected value at %v", p.peek())
+	}
+
+	// Trim spaces
+	valueStr = strings.TrimSpace(valueStr)
+	return &ast.Literal{Type: ast.KeywordLiteral, Value: valueStr}, nil
 }
 
 // parseCommaListNoSpaces parses comma-separated values without space-separated values
@@ -967,61 +1109,34 @@ func (p *Parser) parseFunctionCall() (*ast.FunctionCall, error) {
 	}, nil
 }
 
-// parseFunctionArg parses a function argument, allowing space-separated values
-// but stopping at comma or closing parenthesis
+// parseFunctionArg parses a function argument as a literal string
+// Collects all tokens until comma or closing parenthesis as a single string value
+// This handles cases like url(pictures/docker.jpg) without trying to parse operators
 func (p *Parser) parseFunctionArg() (ast.Value, error) {
-	values := []ast.Value{}
+	argStr := ""
 
+	// Collect all tokens until comma or rparen as a literal string
 	for !p.check(TokenComma) && !p.check(TokenRParen) && !p.isAtEnd() {
-		val, err := p.parseBinaryOp()
-		if err != nil {
-			return nil, err
-		}
-		if val == nil {
-			break
-		}
-		values = append(values, val)
-		// Debug: uncomment to see what we parsed
-		// fmt.Fprintf(os.Stderr, "DEBUG parseFunctionArg: parsed value %v, now at %v\n", val, p.peek())
+		tok := p.peek()
 
-		// Check if there's another value (space-separated)
-		if p.check(TokenComma) || p.check(TokenRParen) || p.isAtEnd() {
-			break
+		// Add token value to argument string
+		if argStr != "" && tok.Type != TokenLParen && tok.Type != TokenRParen &&
+			tok.Type != TokenComma && tok.Type != TokenDot && tok.Type != TokenLBracket &&
+			tok.Type != TokenRBracket && tok.Type != TokenColon {
+			// Add space before token unless it's a punctuation
+			argStr += " "
 		}
 
-		// Look ahead to see if the next token could start a value
-		nextTok := p.peek()
-
-		// Check if this looks like the end of the argument
-		// (new property with COLON, semicolon, brace, etc)
-		if nextTok.Type == TokenIdent && p.peekAhead(1).Type == TokenColon {
-			break
-		}
-
-		// If the next token can't start a value, stop
-		// Special case: TokenMinus only starts a value if followed by a number
-		if nextTok.Type == TokenMinus {
-			if p.peekAhead(1).Type != TokenNumber {
-				break
-			}
-		} else if !canStartValue(nextTok.Type) {
-			break
-		}
+		argStr += tok.Value
+		p.advance()
 	}
 
-	if len(values) == 0 {
+	if argStr == "" {
 		return nil, nil
 	}
 
-	if len(values) == 1 {
-		return values[0], nil
-	}
-
-	// Multiple values - return as a space-separated list
-	return &ast.List{
-		Values:    values,
-		Separator: " ",
-	}, nil
+	// Return the collected argument as a single literal value
+	return &ast.Literal{Type: ast.KeywordLiteral, Value: argStr}, nil
 }
 
 // parseVariableDeclaration parses a variable declaration

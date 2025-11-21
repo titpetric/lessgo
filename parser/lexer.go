@@ -1,9 +1,5 @@
 package parser
 
-import (
-	"strings"
-)
-
 // TokenType represents the type of a lexical token
 type TokenType string
 
@@ -65,7 +61,6 @@ const (
 	TokenInterp    TokenType = "INTERP"    // #{ or @{
 	TokenInterpEnd TokenType = "INTERPEND" // }
 	TokenEscape    TokenType = "ESCAPE"    // ~ escape prefix
-	TokenImportant TokenType = "IMPORTANT" // !important
 )
 
 // Token represents a lexical token
@@ -250,12 +245,6 @@ func (l *Lexer) nextToken() Token {
 		return l.makeToken(TokenEq, "=")
 	case '!':
 		l.advance()
-		if l.pos+9 <= len(l.input) && strings.HasPrefix(l.input[l.pos:], "important") {
-			for i := 0; i < 9; i++ {
-				l.advance()
-			}
-			return l.makeToken(TokenImportant, "!important")
-		}
 		if l.peek() == '=' {
 			l.advance()
 			return l.makeToken(TokenNe, "!=")

@@ -1,6 +1,27 @@
 #!/bin/bash
 
-# Regenerate fixture .css files from lessc, then test lessgo against them
+# Test lessgo against lessc-generated fixtures
+#
+# Usage:
+#   ./test_fixtures_vs_lessc.sh              # Test all fixtures
+#   ./test_fixtures_vs_lessc.sh 999          # Test only fixtures matching prefix "999"
+#   ./test_fixtures_vs_lessc.sh 001-         # Test only fixtures with "001-" prefix
+#
+# This script:
+# 1. Regenerates fixture .css files from the official lessc compiler
+# 2. Tests lessgo output against the official lessc output
+# 3. Reports pass/fail for each fixture
+#
+# Preferred testing flow:
+#   - Run with prefix to focus on specific failing tests: ./test_fixtures_vs_lessc.sh 999
+#   - Fix bugs in lessgo
+#   - Re-run with same prefix to verify
+#   - When all pass, run full test without prefix
+#
+# For local debugging:
+#   lessc testdata/fixtures/999-sinog-index.less           # See lessc output
+#   ./bin/lessgo compile testdata/fixtures/999-sinog-index.less  # See lessgo output
+#   diff -u <(lessc ...) <(lessgo compile ...)             # Compare
 
 FIXTURES_DIR="testdata/fixtures"
 LESSC_BIN="/usr/bin/lessc"
@@ -9,6 +30,7 @@ REGENERATED=0
 PASSED=0
 FAILED=0
 ERRORS=0
+PREFIX="${1:-}"  # Optional prefix filter (e.g., "999" or "001-")
 
 # Build lessgo if needed
 if [ ! -f "$LESSGO_BIN" ]; then
@@ -16,10 +38,13 @@ if [ ! -f "$LESSGO_BIN" ]; then
 fi
 
 echo "Regenerating fixture .css files from lessc..."
+if [ -n "$PREFIX" ]; then
+    echo "Filtering by prefix: $PREFIX"
+fi
 echo ""
 
 # Find all .less files and regenerate from lessc
-for less_file in $(find "$FIXTURES_DIR" -maxdepth 1 -name "*.less" | sort); do
+for less_file in $(find "$FIXTURES_DIR" -maxdepth 1 -name "${PREFIX}*.less" | sort); do
     base_name=$(basename "$less_file" .less)
     css_file="$FIXTURES_DIR/${base_name}.css"
     
@@ -46,7 +71,7 @@ echo "Testing lessgo against regenerated fixtures..."
 echo ""
 
 # Now test lessgo against the fixture .css files
-for less_file in $(find "$FIXTURES_DIR" -maxdepth 1 -name "*.less" | sort); do
+for less_file in $(find "$FIXTURES_DIR" -maxdepth 1 -name "${PREFIX}*.less" | sort); do
     base_name=$(basename "$less_file" .less)
     css_file="$FIXTURES_DIR/${base_name}.css"
     

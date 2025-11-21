@@ -1,0 +1,235 @@
+header h1 {
+  color: #000;
+}
+.tac {
+  text-align: center;
+}
+figure.large blockquote {
+  font-size: 230%;
+  line-height: 1.1;
+}
+figure.large figcaption {
+  color: #555;
+  text-align: right;
+  font-size: 150%;
+}
+figure.large blockquote::before {
+  margin-top: 0;
+}
+figure.medium blockquote {
+  font-size: 160%;
+  line-height: 1.1;
+}
+figure.medium figcaption {
+  color: #555;
+  text-align: right;
+  font-size: 125%;
+}
+.slide h1 {
+  text-align: center;
+  margin: 0 0 50px;
+  color: #666;
+  font: 700 100px/1 'PT Sans Narrow', sans-serif;
+}
+.slide h3 {
+  text-align: left;
+  margin: 0 0 20px;
+  color: #000;
+  font: 700 30px/1 'PT Sans Narrow', sans-serif;
+}
+.slide.shout h3 {
+  text-align: center;
+  bottom: 10%;
+  left: 0;
+  right: 0;
+  position: absolute;
+}
+.slide.shout h2 {
+  text-align: center;
+  font-size: 120px;
+}
+.slide ul,
+.slide ol {
+  margin: 0 0 50px 50px;
+}
+.slide h1 a,
+.slide h2 a,
+.slide h3 a {
+  background: none;
+}
+.slide pre code {
+  line-height: 1.42;
+}
+.bar {
+  border-radius: 5px;
+  padding: 5px;
+  color: #fff;
+  font-weight: bold;
+  line-height: 1.1;
+  margin-bottom: 20px;
+}
+.bar.red {
+  background: #900;
+  border: 5px solid #300;
+}
+.bar.green {
+  background: #090;
+  border: 5px solid #030;
+}
+.inspiration blockquote + figcaption {
+  margin: -50px 0 20px;
+}
+.slide.cover img {
+  width: 100%;
+}
+small,
+small a {
+  color: #777;
+  font-size: 18px;
+}
+.tinycode pre {
+  font-size: 13px;
+}
+.longcode pre {
+  font-size: 20px;
+  margin-bottom: 15px;
+}
+.longcode p {
+  margin: 0;
+}
+section.cover h2 {
+  color: #f0fef0 !important;
+  margin: 60px 0 0;
+  color: #FFF;
+  text-align: center;
+  font-size: 96px;
+  text-shadow: 0px 0px 15px #000;
+}
+section.cover p {
+  margin: 10px 0 0;
+  text-align: center;
+  color: #fefdfc !important;
+  font-style: italic;
+  font-size: 32px;
+  text-shadow: 0px 0px 10px #000;
+}
+section.cover p a {
+  background: none !important;
+  color: #FeFdFc !important;
+  text-decoration: none !important;
+}
+section.cover small {
+  display: block;
+  margin-top: 250px;
+  text-align: right;
+  font-size: 12px;
+}
+section.cover img {
+  opacity: 0.6;
+}
+section.slide_050_start h1 {
+  margin-top: -7%;
+}
+section.slide_050_start .image-slide {
+  margin-top: 1em;
+  background: url(pictures/start.gif);
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: 50% 50%;
+  height: 65%;
+}
+section.slide_050_start p {
+  margin: 0;
+  padding: 0;
+}
+section.slide_060_setup_network h2 {
+  margin-top: -7%;
+}
+section.slide_060_setup_network .image-slide {
+  margin-top: 1em;
+  background: url(pictures/really.gif);
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: left 0%;
+  height: 68%;
+}
+section.slide_060_setup_network p {
+  margin: 0;
+  padding: 0;
+}
+section.slide_082_retry h2 {
+  margin-top: -7%;
+}
+section.slide_082_retry .image-slide {
+  background: url(pictures/retry.gif);
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: left 0%;
+  height: 78%;
+}
+section.slide_082_retry p {
+  margin: 0;
+  padding: 0;
+}
+section.slide_083_conductor h2 {
+  margin-top: -7%;
+}
+section.slide_083_conductor .image-slide {
+  background: url(pictures/conductor.gif);
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: left 0%;
+  height: 78%;
+}
+section.slide_083_conductor p {
+  margin: 0;
+  padding: 0;
+}
+section.slide_084_party h2 {
+  margin-top: -7%;
+}
+section.slide_084_party .image-slide {
+  background: url(pictures/party.gif);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: 50% 50%;
+  height: 58%;
+}
+section.slide_084_party p {
+  margin: 0;
+  padding: 0;
+}
+section.slide_100_chaos_monkey h2 {
+  margin-top: -7%;
+  text-align: center;
+}
+section.slide_100_chaos_monkey .image-slide {
+  background: url(pictures/chaos-monkey.jpg);
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: 50% 50%;
+  height: 58%;
+}
+section.slide_100_chaos_monkey p {
+  margin: 0;
+  padding: 0;
+}
+section.slide_100_chaos_monkey a {
+  margin-top: 1em;
+  display: inline-block;
+}
+section.slide_120_orchestration h2 {
+  margin-top: -7%;
+  text-align: center;
+}
+section.slide_120_orchestration .image-slide {
+  background: url(pictures/fire-5.gif);
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: left 0%;
+  height: 78%;
+}
+section.slide_120_orchestration p {
+  margin: 0;
+  padding: 0;
+}
