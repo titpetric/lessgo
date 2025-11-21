@@ -61,6 +61,10 @@ const (
 	TokenInterp    TokenType = "INTERP"    // #{ or @{
 	TokenInterpEnd TokenType = "INTERPEND" // }
 	TokenEscape    TokenType = "ESCAPE"    // ~ escape prefix
+
+	// Comments
+	TokenCommentOneline  TokenType = "COMMENT_ONELINE"
+	TokenCommentMultline TokenType = "COMMENT_MULTILINE"
 )
 
 // Token represents a lexical token
@@ -118,6 +122,14 @@ func (l *Lexer) nextToken() Token {
 	}
 
 	ch := l.peek()
+
+	// Check for comments first
+	if ch == '/' && l.peekAhead(1) == '/' {
+		return l.readLineComment()
+	}
+	if ch == '/' && l.peekAhead(1) == '*' {
+		return l.readBlockComment()
+	}
 
 	// Single character tokens
 	switch ch {
@@ -460,7 +472,67 @@ func (l *Lexer) readIdentifier() Token {
 	}
 }
 
-// skipWhitespaceAndComments skips over whitespace and comments
+// readLineComment reads a single-line comment (//)
+func (l *Lexer) readLineComment() Token {
+	startLine := l.line
+	startCol := l.column
+	startPos := l.pos
+
+	l.advance() // skip first /
+	l.advance() // skip second /
+
+	value := "//"
+	for l.pos < len(l.input) && l.peek() != '\n' {
+		value += string(l.peek())
+		l.advance()
+	}
+
+	return Token{
+		Type:   TokenCommentOneline,
+		Value:  value,
+		Line:   startLine,
+		Column: startCol,
+		Offset: startPos,
+	}
+}
+
+// readBlockComment reads a multi-line comment (/* */)
+func (l *Lexer) readBlockComment() Token {
+	startLine := l.line
+	startCol := l.column
+	startPos := l.pos
+
+	l.advance() // skip /
+	l.advance() // skip *
+
+	value := "/*"
+	for l.pos+1 < len(l.input) {
+		if l.input[l.pos] == '*' && l.input[l.pos+1] == '/' {
+			value += "*/"
+			l.advance()
+			l.advance()
+			break
+		}
+		if l.peek() == '\n' {
+			l.line++
+			l.column = 0
+		} else {
+			l.column++
+		}
+		value += string(l.peek())
+		l.pos++
+	}
+
+	return Token{
+		Type:   TokenCommentMultline,
+		Value:  value,
+		Line:   startLine,
+		Column: startCol,
+		Offset: startPos,
+	}
+}
+
+// skipWhitespaceAndComments skips over whitespace (not comments anymore)
 func (l *Lexer) skipWhitespaceAndComments() {
 	for l.pos < len(l.input) {
 		ch := l.peek()
@@ -474,36 +546,6 @@ func (l *Lexer) skipWhitespaceAndComments() {
 				l.column++
 			}
 			l.pos++
-			continue
-		}
-
-		// Skip line comments (//)
-		if l.pos+1 < len(l.input) && l.input[l.pos] == '/' && l.input[l.pos+1] == '/' {
-			for l.pos < len(l.input) && l.peek() != '\n' {
-				l.pos++
-				l.column++
-			}
-			continue
-		}
-
-		// Skip block comments (/* */)
-		if l.pos+1 < len(l.input) && l.input[l.pos] == '/' && l.input[l.pos+1] == '*' {
-			l.pos += 2
-			l.column += 2
-			for l.pos+1 < len(l.input) {
-				if l.input[l.pos] == '*' && l.input[l.pos+1] == '/' {
-					l.pos += 2
-					l.column += 2
-					break
-				}
-				if l.input[l.pos] == '\n' {
-					l.line++
-					l.column = 0
-				} else {
-					l.column++
-				}
-				l.pos++
-			}
 			continue
 		}
 

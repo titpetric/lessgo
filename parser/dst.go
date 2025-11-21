@@ -81,6 +81,14 @@ func (p *DSTParser) Parse() (*Node, error) {
 func (p *DSTParser) parseStatement() (*Node, error) {
 	tok := p.peek()
 
+	// Comment
+	if tok.Type == TokenCommentOneline {
+		return p.parseCommentOneline()
+	}
+	if tok.Type == TokenCommentMultline {
+		return p.parseCommentMultiline()
+	}
+
 	// Variable declaration: @name: value;
 	if tok.Type == TokenVariable {
 		return p.parseVariable()
@@ -93,6 +101,22 @@ func (p *DSTParser) parseStatement() (*Node, error) {
 
 	// Rule: selector { ... }
 	return p.parseRule()
+}
+
+// parseCommentOneline parses a single-line comment
+func (p *DSTParser) parseCommentOneline() (*Node, error) {
+	tok := p.advance()
+	node := NewNode("comment_oneline")
+	node.Value = tok.Value
+	return node, nil
+}
+
+// parseCommentMultiline parses a multi-line comment
+func (p *DSTParser) parseCommentMultiline() (*Node, error) {
+	tok := p.advance()
+	node := NewNode("comment_multiline")
+	node.Value = tok.Value
+	return node, nil
 }
 
 // parseVariable parses @name: value;
@@ -153,6 +177,16 @@ func (p *DSTParser) parseRule() (*Node, error) {
 // parseDeclarationOrRule parses a property: value; or nested rule
 func (p *DSTParser) parseDeclarationOrRule() (*Node, error) {
 	tok := p.peek()
+
+	// Comment: only render multiline comments
+	if tok.Type == TokenCommentMultline {
+		return p.parseCommentMultiline()
+	}
+	// Skip single-line comments
+	if tok.Type == TokenCommentOneline {
+		p.advance()
+		return nil, nil
+	}
 
 	// Parent selector & is always a nested rule
 	if tok.Type == TokenAmpersand {

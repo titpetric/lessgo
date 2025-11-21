@@ -213,3 +213,86 @@ func Percentage(value string) string {
 	result := num * 100
 	return formatNumberWithUnit(result, "%")
 }
+
+// EvaluateExpression evaluates a mathematical expression with units
+// e.g., "10px * 2" -> "20px", "20px - 5px" -> "15px"
+func EvaluateExpression(expr string) string {
+	expr = strings.TrimSpace(expr)
+
+	// Simple parser for left operand, operator, right operand
+	// Handle operators: +, -, *, /
+	
+	// Find the operator (rightmost operator with lowest precedence first)
+	// Look for + or - first (lower precedence)
+	for i := len(expr) - 1; i > 0; i-- {
+		if (expr[i] == '+' || expr[i] == '-') && !isPartOfNumber(expr, i) {
+			left := strings.TrimSpace(expr[:i])
+			op := string(expr[i])
+			right := strings.TrimSpace(expr[i+1:])
+			return evaluateBinaryOp(left, op, right)
+		}
+	}
+
+	// Look for * or / (higher precedence)
+	for i := len(expr) - 1; i > 0; i-- {
+		if (expr[i] == '*' || expr[i] == '/') && !isPartOfNumber(expr, i) {
+			left := strings.TrimSpace(expr[:i])
+			op := string(expr[i])
+			right := strings.TrimSpace(expr[i+1:])
+			return evaluateBinaryOp(left, op, right)
+		}
+	}
+
+	return ""
+}
+
+// isPartOfNumber checks if the character at position i is part of a number (not an operator)
+func isPartOfNumber(expr string, i int) bool {
+	if i == 0 {
+		return false
+	}
+	// Check if previous char is a digit or decimal point
+	prevChar := expr[i-1]
+	return (prevChar >= '0' && prevChar <= '9') || prevChar == '.'
+}
+
+// evaluateBinaryOp evaluates a binary operation (left op right)
+func evaluateBinaryOp(left, op, right string) string {
+	leftNum := parseNumber(left)
+	rightNum := parseNumber(right)
+
+	var result float64
+	var unit string
+
+	switch op {
+	case "+":
+		result = leftNum + rightNum
+		unit = extractUnit(left)
+		if unit == "" {
+			unit = extractUnit(right)
+		}
+	case "-":
+		result = leftNum - rightNum
+		unit = extractUnit(left)
+		if unit == "" {
+			unit = extractUnit(right)
+		}
+	case "*":
+		result = leftNum * rightNum
+		// When multiplying, prefer the unit from the value that has it
+		unit = extractUnit(left)
+		if unit == "" {
+			unit = extractUnit(right)
+		}
+	case "/":
+		if rightNum == 0 {
+			return ""
+		}
+		result = leftNum / rightNum
+		unit = extractUnit(left)
+	default:
+		return ""
+	}
+
+	return formatNumberWithUnit(result, unit)
+}

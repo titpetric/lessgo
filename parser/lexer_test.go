@@ -49,13 +49,15 @@ func TestLexerBasics(t *testing.T) {
 			name:  "comment removal",
 			input: "/* comment */ body { /* inline */ color: red; }",
 			expected: []parser.TokenType{
-				parser.TokenIdent,     // body
-				parser.TokenLBrace,    // {
-				parser.TokenIdent,     // color
-				parser.TokenColon,     // :
-				parser.TokenIdent,     // red
-				parser.TokenSemicolon, // ;
-				parser.TokenRBrace,    // }
+				parser.TokenCommentMultline, // /* comment */
+				parser.TokenIdent,           // body
+				parser.TokenLBrace,          // {
+				parser.TokenCommentMultline, // /* inline */
+				parser.TokenIdent,           // color
+				parser.TokenColon,           // :
+				parser.TokenIdent,           // red
+				parser.TokenSemicolon,       // ;
+				parser.TokenRBrace,          // }
 				parser.TokenEOF,
 			},
 		},
@@ -63,13 +65,14 @@ func TestLexerBasics(t *testing.T) {
 			name:  "line comment",
 			input: "body { // comment\ncolor: red; }",
 			expected: []parser.TokenType{
-				parser.TokenIdent,     // body
-				parser.TokenLBrace,    // {
-				parser.TokenIdent,     // color
-				parser.TokenColon,     // :
-				parser.TokenIdent,     // red
-				parser.TokenSemicolon, // ;
-				parser.TokenRBrace,    // }
+				parser.TokenIdent,          // body
+				parser.TokenLBrace,         // {
+				parser.TokenCommentOneline, // // comment
+				parser.TokenIdent,          // color
+				parser.TokenColon,          // :
+				parser.TokenIdent,          // red
+				parser.TokenSemicolon,      // ;
+				parser.TokenRBrace,         // }
 				parser.TokenEOF,
 			},
 		},

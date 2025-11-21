@@ -160,13 +160,16 @@ func (r *Renderer) renderDeclaration(node *Node) {
 		return
 	}
 
-	// Separate properties from nested rules
+	// Separate properties, comments, and nested rules
 	properties := make([]*Node, 0)
+	comments := make([]*Node, 0)
 	nestedRules := make([]*Node, 0)
 
 	for _, child := range node.Children {
 		if child.Type == NodeProperty {
 			properties = append(properties, child)
+		} else if child.Type == NodeComment {
+			comments = append(comments, child)
 		} else if child.Type == NodeDeclaration {
 			nestedRules = append(nestedRules, child)
 		}
@@ -179,12 +182,16 @@ func (r *Renderer) renderDeclaration(node *Node) {
 	}
 
 	// If there are properties, render as one rule with all selectors (comma-separated)
-	if len(properties) > 0 {
+	if len(properties) > 0 || len(comments) > 0 {
 		r.output.WriteString(strings.Join(fullSelectors, ",\n"))
 		r.output.WriteString(" {\n")
 
 		for _, prop := range properties {
 			r.renderPropertyIndented(prop, 2)
+		}
+
+		for _, comment := range comments {
+			r.renderCommentIndented(comment, 2)
 		}
 
 		r.output.WriteString("}\n")
@@ -279,20 +286,39 @@ func (r *Renderer) renderDeclarationIndented(node *Node, indent int) {
 	}
 }
 
-// renderComment renders a comment
+// renderComment renders a comment at top level (only multiline comments)
 func (r *Renderer) renderComment(node *Node) {
 	if node == nil || node.Value == "" {
+		return
+	}
+	// Skip single-line comments (they start with //)
+	if strings.HasPrefix(strings.TrimSpace(node.Value), "//") {
 		return
 	}
 	r.output.WriteString(node.Value)
 	r.output.WriteString("\n")
 }
 
+// renderCommentIndented renders a comment with indentation (only multiline comments)
+func (r *Renderer) renderCommentIndented(node *Node, indent int) {
+	if node == nil || node.Value == "" {
+		return
+	}
+	// Skip single-line comments (they start with //)
+	if strings.HasPrefix(strings.TrimSpace(node.Value), "//") {
+		return
+	}
+	indentStr := strings.Repeat(" ", indent)
+	r.output.WriteString(indentStr)
+	r.output.WriteString(node.Value)
+	r.output.WriteString("\n")
+}
+
 // buildSelector combines parent context with current selector
 func (r *Renderer) buildSelector(selector string) string {
-	// Normalize selector: handle pseudo-elements with space (:: before -> ::before)
-	selector = r.normalizePseudoElements(selector)
-
+	// Clean up selector - remove comments and trim
+	selector = cleanSelector(selector)
+	
 	if len(r.selectorStack) == 0 {
 		return selector
 	}
@@ -301,24 +327,31 @@ func (r *Renderer) buildSelector(selector string) string {
 	if strings.HasPrefix(selector, "&") {
 		// Replace & with parent selector
 		parent := r.selectorStack[len(r.selectorStack)-1]
-		parent = r.normalizePseudoElements(parent)
 		return strings.Replace(selector, "&", parent, 1)
 	}
 
 	// Descendant combinator (space)
 	parent := r.selectorStack[len(r.selectorStack)-1]
-	parent = r.normalizePseudoElements(parent)
 	return parent + " " + selector
 }
 
-// normalizePseudoElements removes spaces around :: in pseudo-elements
-func (r *Renderer) normalizePseudoElements(selector string) string {
-	// Remove space before and after ::
-	// E.g., "blockquote:: before" -> "blockquote::before"
-	selector = strings.ReplaceAll(selector, ": :", "::")
-	selector = strings.ReplaceAll(selector, " :", ":")
-	selector = strings.ReplaceAll(selector, ": ", ":")
-	return selector
+// cleanSelector removes comments from selectors
+func cleanSelector(selector string) string {
+	// Remove lines starting with //
+	lines := strings.Split(selector, "\n")
+	var cleaned []string
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(trimmed, "//") && trimmed != "" {
+			cleaned = append(cleaned, line)
+		}
+	}
+	result := strings.Join(cleaned, "\n")
+	// Clean up extra whitespace
+	result = strings.TrimSpace(result)
+	// Replace multiple spaces with single space
+	result = strings.Join(strings.Fields(result), " ")
+	return result
 }
 
 // evaluateValue substitutes variables and evaluates functions in a value
@@ -345,6 +378,9 @@ func (r *Renderer) evaluateValue(value string) string {
 		// Replace @varname with the variable value
 		result = strings.ReplaceAll(result, "@"+varName, r.variables[varName])
 	}
+
+	// Evaluate math operations (must be after variable substitution)
+	result = r.evaluateMath(result)
 
 	// Basic function evaluation
 	result = r.evaluateFunctions(result)
@@ -827,6 +863,30 @@ func (r *Renderer) callFunction(name string, args []string) string {
 	}
 
 	return ""
+}
+
+// evaluateMath evaluates mathematical operations in a value
+// e.g., "10px * 2" -> "20px", "@base + 5px" -> result
+func (r *Renderer) evaluateMath(value string) string {
+	// Check if the value contains math operators
+	if !strings.ContainsAny(value, "+-*/%") {
+		return value
+	}
+
+	// Extract and evaluate the math expression
+	// Split by whitespace to identify the expression
+	parts := strings.Fields(value)
+	if len(parts) < 3 {
+		return value // Not enough parts for a math expression
+	}
+
+	// Try to parse and evaluate the expression
+	result := renderer.EvaluateExpression(value)
+	if result != "" {
+		return result
+	}
+
+	return value
 }
 
 // Variables returns the collected variables (for testing/debugging)
