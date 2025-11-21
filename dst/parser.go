@@ -181,15 +181,18 @@ func (p *Parser) parseDeclaration() (*Node, error) {
 	return node, nil
 }
 
-// parseProperty parses property: value;
+// parseProperty parses property: value; or mixin call like .mixin();
 func (p *Parser) parseProperty() (*Node, error) {
 	node := NewNodeWithPosition(NodeProperty, p.position())
 
-	// Collect property name - might be multi-part like "box-shadow" or pseudo-selectors
+	// Collect property name - might be multi-part like "box-shadow" or mixin calls like ".mixin()"
 	propStart := p.pos
 	propName := ""
-	for !p.isAtEnd() && p.pos-propStart < 5 {
-		if p.peek().Type == parser.TokenColon {
+
+	for !p.isAtEnd() && p.pos-propStart < 10 {
+		tok := p.peek()
+
+		if tok.Type == parser.TokenColon {
 			// Check if next token after colon suggests this is a pseudo-selector instead
 			if p.pos+1 < len(p.tokens) {
 				nextTok := p.tokens[p.pos+1]
@@ -204,15 +207,43 @@ func (p *Parser) parseProperty() (*Node, error) {
 			// It's a colon in a property
 			break
 		}
-		if p.peek().Type == parser.TokenLBrace {
+		if tok.Type == parser.TokenSemicolon {
+			// Found ; without :, could be a mixin call like .mixin();
+			trimmedName := strings.TrimSpace(propName)
+			if trimmedName != "" && (strings.HasPrefix(trimmedName, ".") || strings.HasPrefix(trimmedName, "#")) {
+				// This looks like a mixin call
+				node.Name = trimmedName
+				node.Value = ""
+				if !p.match(parser.TokenSemicolon) {
+					p.pos = propStart
+					return nil, nil
+				}
+				return node, nil
+			}
+			// Otherwise, not a property
+			p.pos = propStart
+			p.skipUntilStatementEnd()
+			return nil, nil
+		}
+		if tok.Type == parser.TokenLBrace {
 			// Found { without :, not a property
 			p.pos = propStart
 			return nil, nil
 		}
-		if propName != "" && p.needsSpaceBeforeToken(p.peek()) {
-			propName += " "
+		
+		// Special handling: FUNCTION tokens are things like "mixin()" or "rgb("
+		// For mixin calls, we want ".mixin()" with no spaces
+		if tok.Type == parser.TokenFunction {
+			propName += tok.Value
+		} else if tok.Type == parser.TokenLParen || tok.Type == parser.TokenRParen {
+			// No spaces around parentheses
+			propName += tok.Value
+		} else {
+			if propName != "" && p.needsSpaceBeforeToken(tok) && !strings.HasSuffix(propName, " ") {
+				propName += " "
+			}
+			propName += tok.Value
 		}
-		propName += p.peek().Value
 		p.advance()
 	}
 

@@ -112,13 +112,33 @@ func (r *Renderer) evaluateFunctionsOnly(value string) string {
 	return result
 }
 
-// isMixinDefinition checks if a declaration looks like a mixin
-// Mixins are definitions that look like they expect to be called, but pure selectors are just rules
-// Since we can't tell from the DST alone, we say nothing is a mixin - mixins are called elsewhere
+// isMixinDefinition checks if a declaration looks like a mixin definition
+// Mixins are rules that start with . or # (class or ID selector) and are meant to be included
 func (r *Renderer) isMixinDefinition(node *Node) bool {
-	// For now, treat everything as a potential selector/rule, not a mixin definition
-	// Mixins will be handled when they are invoked
-	return false
+	if node == nil || node.SelectorsRaw == "" {
+		return false
+	}
+
+	// Get the first selector
+	selectors := node.Names()
+	if len(selectors) == 0 {
+		return false
+	}
+
+	selector := strings.TrimSpace(selectors[0])
+
+	// Mixin if it starts with . or # and has no pseudo-selectors or combinators
+	// e.g., ".mixin" or "#mixin" but not ".box:hover" or ".outer .inner"
+	if !strings.HasPrefix(selector, ".") && !strings.HasPrefix(selector, "#") {
+		return false
+	}
+
+	// Check it doesn't have pseudo-selectors or descendant combinators
+	if strings.Contains(selector, ":") || strings.Contains(selector, " ") {
+		return false
+	}
+
+	return true
 }
 
 // renderNode renders a single node based on its type
@@ -146,11 +166,6 @@ func (r *Renderer) renderNode(node *Node) {
 // renderDeclaration renders a declaration (rule with selector and properties/nested rules)
 func (r *Renderer) renderDeclaration(node *Node) {
 	if node == nil || node.SelectorsRaw == "" {
-		return
-	}
-
-	// Skip if this is a mixin definition
-	if r.isMixinDefinition(node) {
 		return
 	}
 
@@ -215,12 +230,51 @@ func (r *Renderer) renderPropertyIndented(node *Node, indent int) {
 		return
 	}
 
+	// Check if this is a mixin call (e.g., ".mixin()" or ".mixin")
+	propName := strings.TrimSpace(node.Name)
+	if r.isMixinCall(propName) {
+		// Extract mixin name (remove parentheses if present)
+		mixinName := propName
+		if strings.HasSuffix(mixinName, "()") {
+			mixinName = strings.TrimSuffix(mixinName, "()")
+		}
+
+		// Look up the mixin
+		if mixin, exists := r.mixins[mixinName]; exists && mixin != nil {
+			// Render the mixin's properties
+			for _, child := range mixin.Children {
+				if child.Type == NodeProperty {
+					r.renderPropertyIndented(child, indent)
+				}
+			}
+			return
+		}
+		// Mixin not found - still don't render it as a property
+		return
+	}
+
+	// Regular property
 	indentStr := strings.Repeat(" ", indent)
 	r.output.WriteString(indentStr)
-	r.output.WriteString(node.Name)
+	r.output.WriteString(propName)
 	r.output.WriteString(": ")
 	r.output.WriteString(r.evaluateValue(node.Value))
 	r.output.WriteString(";\n")
+}
+
+// isMixinCall checks if a property name looks like a mixin call
+func (r *Renderer) isMixinCall(propName string) bool {
+	// Mixin calls look like ".name" or ".name()" or "#name" or "#name()"
+	if !strings.HasPrefix(propName, ".") && !strings.HasPrefix(propName, "#") {
+		return false
+	}
+
+	// Valid mixin call names don't have spaces or colons (those are pseudo-selectors)
+	if strings.Contains(propName, " ") || strings.Contains(propName, ":") {
+		return false
+	}
+
+	return true
 }
 
 // renderProperty renders a standalone property (shouldn't normally occur at top level)
