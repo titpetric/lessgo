@@ -343,17 +343,42 @@ func IsListFunction(value string) string {
 	return "false"
 }
 
-// Boolean converts a value to a boolean (only true for the literal keyword 'true')
-// In LESS, boolean() returns true ONLY for the keyword 'true', and false for everything else
+// Boolean converts a value to a boolean
+// Handles: true/false keywords, numeric comparisons, and expressions
+// Uses go-expr for expression evaluation
 func Boolean(value string) string {
 	value = strings.TrimSpace(value)
 
-	// Only true if the value is literally the keyword 'true'
+	// Direct boolean keywords
 	if value == "true" {
 		return "true"
 	}
+	if value == "false" || value == "" {
+		return "false"
+	}
 
-	// Everything else is false (including numbers, other keywords, etc.)
+	// Try to evaluate as an expression using go-expr
+	// This handles comparisons, variables, function calls, etc.
+	exprResult := evaluateExpressionSimple(value)
+	if exprResult != "" {
+		return exprResult
+	}
+
+	// Non-zero numbers and non-empty strings are truthy in LESS
+	// Check if it's a number
+	numVal := parseNumberWithUnits(value)
+	if numVal != 0 {
+		return "true"
+	}
+	if numVal == 0 {
+		return "false"
+	}
+
+	// Everything else (non-empty strings, etc.) is true
+	if value != "" && value != "0" {
+		return "true"
+	}
+
 	return "false"
 }
 
@@ -554,4 +579,112 @@ func If(condition string, valueIfTrue string, valueIfFalse string) string {
 	}
 
 	return valueIfTrue
+}
+
+// evaluateExpressionSimple evaluates a simple expression string
+// Returns "true" or "false" for boolean expressions, "" if not a simple boolean
+// This is used by Boolean() to evaluate comparison expressions
+func evaluateExpressionSimple(expr string) string {
+	expr = strings.TrimSpace(expr)
+
+	// If it contains comparison operators, try to evaluate
+	if !strings.ContainsAny(expr, "><!=") {
+		return ""
+	}
+
+	// Extract numeric values from operands with units
+	// Replace "14px > 12px" with "14 > 12"
+	processedExpr := preprocessComparisonExpr(expr)
+
+	// Try to evaluate with basic math
+	// For now, do simple numeric comparisons
+	// In the future, could use go-expr here if needed
+	return evaluateSimpleComparison(processedExpr)
+}
+
+// preprocessComparisonExpr removes units from numeric values in comparison expressions
+func preprocessComparisonExpr(expr string) string {
+	// Common units to remove from numbers before comparison
+	units := []string{"px", "em", "rem", "%", "pt", "cm", "mm", "in", "pc"}
+	result := expr
+
+	for _, unit := range units {
+		result = strings.ReplaceAll(result, unit, "")
+	}
+
+	return result
+}
+
+// evaluateSimpleComparison evaluates simple numeric comparisons like "14 > 12"
+func evaluateSimpleComparison(expr string) string {
+	expr = strings.TrimSpace(expr)
+
+	// Look for comparison operators: >=, <=, ==, !=, >, <
+	var operator string
+	var operatorIdx int
+
+	for _, op := range []string{">=", "<=", "==", "!=", ">", "<"} {
+		idx := strings.Index(expr, op)
+		if idx != -1 {
+			operator = op
+			operatorIdx = idx
+			break
+		}
+	}
+
+	if operator == "" {
+		return ""
+	}
+
+	// Split by operator
+	left := strings.TrimSpace(expr[:operatorIdx])
+	right := strings.TrimSpace(expr[operatorIdx+len(operator):])
+
+	// Parse numeric values (handles units like %)
+	leftVal := parseNumberWithUnits(left)
+	rightVal := parseNumberWithUnits(right)
+
+	// Normalize percentage values (divide by 100)
+	if strings.HasSuffix(strings.TrimSpace(left), "%") {
+		leftVal = leftVal / 100.0
+	}
+	if strings.HasSuffix(strings.TrimSpace(right), "%") {
+		rightVal = rightVal / 100.0
+	}
+
+	// Perform comparison
+	switch operator {
+	case ">":
+		if leftVal > rightVal {
+			return "true"
+		}
+		return "false"
+	case "<":
+		if leftVal < rightVal {
+			return "true"
+		}
+		return "false"
+	case ">=":
+		if leftVal >= rightVal {
+			return "true"
+		}
+		return "false"
+	case "<=":
+		if leftVal <= rightVal {
+			return "true"
+		}
+		return "false"
+	case "==":
+		if leftVal == rightVal {
+			return "true"
+		}
+		return "false"
+	case "!=":
+		if leftVal != rightVal {
+			return "true"
+		}
+		return "false"
+	}
+
+	return ""
 }

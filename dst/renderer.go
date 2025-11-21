@@ -2,7 +2,10 @@ package dst
 
 import (
 	"bytes"
+	"regexp"
 	"strings"
+
+	"github.com/titpetric/lessgo/renderer"
 )
 
 // Renderer walks a DST Document and renders it to CSS
@@ -33,12 +36,15 @@ func (r *Renderer) Render(doc *Document) string {
 	r.mixins = make(map[string]*Node)
 	r.selectorStack = make([]string, 0)
 
-	// First pass: collect variables and mixins
+	// First pass: collect raw variables and mixins (without evaluation)
 	for _, node := range doc.Nodes {
-		r.collectVariablesAndMixins(node)
+		r.collectRawVariablesAndMixins(node)
 	}
 
-	// Second pass: render
+	// Second pass: evaluate variable values (now that all raw variables are collected)
+	r.evaluateVariables()
+
+	// Third pass: render
 	for _, node := range doc.Nodes {
 		r.renderNode(node)
 	}
@@ -46,14 +52,14 @@ func (r *Renderer) Render(doc *Document) string {
 	return r.output.String()
 }
 
-// collectVariablesAndMixins recursively collects variables and mixins
-func (r *Renderer) collectVariablesAndMixins(node *Node) {
+// collectRawVariablesAndMixins recursively collects raw (unevaluated) variables and mixins
+func (r *Renderer) collectRawVariablesAndMixins(node *Node) {
 	if node == nil {
 		return
 	}
 
 	if node.Type == NodeVariable {
-		// Variable: store name without @ prefix
+		// Variable: store name without @ prefix, raw value
 		varName := strings.TrimPrefix(node.Name, "@")
 		r.variables[varName] = node.Value
 	}
@@ -71,41 +77,67 @@ func (r *Renderer) collectVariablesAndMixins(node *Node) {
 
 	// Recurse into children
 	for _, child := range node.Children {
-		r.collectVariablesAndMixins(child)
+		r.collectRawVariablesAndMixins(child)
 	}
 }
 
+// evaluateVariables evaluates all collected variable values (handles substitution and functions)
+func (r *Renderer) evaluateVariables() {
+	// Iterate multiple times to handle variable-to-variable references
+	maxIterations := 10
+	for iteration := 0; iteration < maxIterations; iteration++ {
+		changed := false
+		for varName, varValue := range r.variables {
+			// Evaluate this variable's value
+			evaluatedValue := r.evaluateFunctionsOnly(varValue)
+			if evaluatedValue != varValue {
+				r.variables[varName] = evaluatedValue
+				changed = true
+			}
+		}
+		if !changed {
+			break
+		}
+	}
+}
+
+// evaluateFunctionsOnly evaluates functions and variable references in a value
+// without recursing through evaluateValue (to avoid infinite loops)
+func (r *Renderer) evaluateFunctionsOnly(value string) string {
+	result := value
+
+	// First, substitute variables in the value
+	// Sort by length (longest first) to avoid partial replacements
+	varNames := make([]string, 0, len(r.variables))
+	for varName := range r.variables {
+		varNames = append(varNames, varName)
+	}
+	// Sort by length descending
+	for i := 0; i < len(varNames); i++ {
+		for j := i + 1; j < len(varNames); j++ {
+			if len(varNames[i]) < len(varNames[j]) {
+				varNames[i], varNames[j] = varNames[j], varNames[i]
+			}
+		}
+	}
+
+	for _, varName := range varNames {
+		result = strings.ReplaceAll(result, "@"+varName, r.variables[varName])
+	}
+
+	// Then evaluate functions
+	result = r.evaluateFunctions(result)
+
+	return result
+}
+
 // isMixinDefinition checks if a declaration looks like a mixin
-// Mixins start with . or # and have no @media, :pseudo, > combinator, etc
+// Mixins are definitions that look like they expect to be called, but pure selectors are just rules
+// Since we can't tell from the DST alone, we say nothing is a mixin - mixins are called elsewhere
 func (r *Renderer) isMixinDefinition(node *Node) bool {
-	if node == nil {
-		return false
-	}
-
-	selectors := node.Names()
-	if len(selectors) == 0 {
-		return false
-	}
-
-	// Check first selector
-	sel := selectors[0]
-
-	// Mixins start with . or #
-	if !strings.HasPrefix(sel, ".") && !strings.HasPrefix(sel, "#") {
-		return false
-	}
-
-	// Not a mixin if it contains pseudo-selectors (but ::before is ok for nested rules)
-	if strings.Contains(sel, ":") && !strings.Contains(sel, "::") {
-		return false
-	}
-
-	// Not a mixin if it contains combinators like >, +, ~
-	if strings.Contains(sel, ">") || strings.Contains(sel, "+") || strings.Contains(sel, "~") {
-		return false
-	}
-
-	return true
+	// For now, treat everything as a potential selector/rule, not a mixin definition
+	// Mixins will be handled when they are invoked
+	return false
 }
 
 // renderNode renders a single node based on its type
@@ -313,9 +345,24 @@ func (r *Renderer) evaluateValue(value string) string {
 	result := value
 
 	// Simple variable substitution: @varname -> value
-	for varName, varValue := range r.variables {
+	// Sort by length (longest first) to avoid partial replacements
+	// e.g., @bg-light must be replaced before @bg
+	varNames := make([]string, 0, len(r.variables))
+	for varName := range r.variables {
+		varNames = append(varNames, varName)
+	}
+	// Sort by length descending
+	for i := 0; i < len(varNames); i++ {
+		for j := i + 1; j < len(varNames); j++ {
+			if len(varNames[i]) < len(varNames[j]) {
+				varNames[i], varNames[j] = varNames[j], varNames[i]
+			}
+		}
+	}
+
+	for _, varName := range varNames {
 		// Replace @varname with the variable value
-		result = strings.ReplaceAll(result, "@"+varName, varValue)
+		result = strings.ReplaceAll(result, "@"+varName, r.variables[varName])
 	}
 
 	// Basic function evaluation
@@ -324,30 +371,279 @@ func (r *Renderer) evaluateValue(value string) string {
 	return result
 }
 
-// evaluateFunctions evaluates simple LESS functions
+// evaluateFunctions evaluates LESS functions in values
 func (r *Renderer) evaluateFunctions(value string) string {
-	// Color functions: rgb(), rgba(), hsl(), hsla(), etc
-	value = r.evaluateColorFunctions(value)
-
-	// Math functions that can be simplified
-	value = r.evaluateMathFunctions(value)
-
+	// Process functions from innermost to outermost
+	maxIterations := 10
+	for i := 0; i < maxIterations; i++ {
+		newValue := r.evalOneFunction(value)
+		if newValue == value {
+			break // No function was evaluated
+		}
+		value = newValue
+	}
 	return value
 }
 
-// evaluateColorFunctions handles color definition functions
-func (r *Renderer) evaluateColorFunctions(value string) string {
-	// rgb(r, g, b) -> #rrggbb
-	// rgba(r, g, b, a) -> rgba(r, g, b, a)
-	// For now, just return as-is - complex evaluation happens in evaluator
-	return value
+// evalOneFunction evaluates one function call in the value
+func (r *Renderer) evalOneFunction(value string) string {
+	// Find function call: functionname(...)
+	// We need to handle nested parentheses
+
+	// First, find where a function call starts
+	funcPattern := regexp.MustCompile(`(\w+)\s*\(`)
+	matches := funcPattern.FindStringSubmatchIndex(value)
+	if matches == nil {
+		return value
+	}
+
+	funcName := value[matches[2]:matches[3]]
+	matchEnd := matches[1] // End of the entire regex match (position of opening paren)
+
+	// Find the actual opening paren position (it's just before the end of the match)
+	parenStart := matchEnd - 1 // Position of the opening paren
+
+	// Find matching closing paren, handling nesting
+	parenDepth := 0
+	parenEnd := -1
+	for i := parenStart; i < len(value); i++ {
+		if value[i] == '(' {
+			parenDepth++
+		} else if value[i] == ')' {
+			parenDepth--
+			if parenDepth == 0 {
+				parenEnd = i
+				break
+			}
+		}
+	}
+
+	if parenEnd == -1 {
+		// No matching paren found
+		return value
+	}
+
+	// Extract arguments
+	argsStr := value[parenStart+1 : parenEnd]
+
+	// Parse arguments
+	args := r.parseArguments(argsStr)
+
+	// Evaluate the function
+	result := r.callFunction(funcName, args)
+	if result == "" {
+		return value // Function not recognized, return as-is
+	}
+
+	// Replace the function call with the result
+	return value[:matches[0]] + result + value[parenEnd+1:]
 }
 
-// evaluateMathFunctions handles math operations
-func (r *Renderer) evaluateMathFunctions(value string) string {
-	// lighten(color, amount), darken(color, amount), etc.
-	// These need more complex evaluation - for now, return as-is
-	return value
+// parseArguments splits function arguments, respecting nested parens
+func (r *Renderer) parseArguments(argsStr string) []string {
+	var args []string
+	var current string
+	parenDepth := 0
+
+	for _, ch := range argsStr {
+		switch ch {
+		case '(':
+			parenDepth++
+			current += string(ch)
+		case ')':
+			parenDepth--
+			current += string(ch)
+		case ',':
+			if parenDepth == 0 {
+				args = append(args, strings.TrimSpace(current))
+				current = ""
+			} else {
+				current += string(ch)
+			}
+		default:
+			current += string(ch)
+		}
+	}
+	if current != "" {
+		args = append(args, strings.TrimSpace(current))
+	}
+	return args
+}
+
+// callFunction calls a LESS function
+func (r *Renderer) callFunction(name string, args []string) string {
+	name = strings.ToLower(name)
+
+	// Substitute variables in arguments
+	for i, arg := range args {
+		args[i] = r.evaluateValue(arg)
+	}
+
+	switch name {
+	// Color definition functions
+	case "rgb":
+		if len(args) >= 3 {
+			return renderer.RGB(args[0], args[1], args[2])
+		}
+	case "rgba":
+		if len(args) >= 4 {
+			return renderer.RGBA(args[0], args[1], args[2], args[3])
+		}
+	case "hsl":
+		if len(args) >= 3 {
+			return renderer.HSL(args[0], args[1], args[2])
+		}
+	case "hsla":
+		if len(args) >= 4 {
+			return renderer.HSLA(args[0], args[1], args[2], args[3])
+		}
+
+	// Color channel extraction
+	case "hue":
+		if len(args) >= 1 {
+			return renderer.Hue(args[0])
+		}
+	case "saturation":
+		if len(args) >= 1 {
+			return renderer.Saturation(args[0])
+		}
+	case "lightness":
+		if len(args) >= 1 {
+			return renderer.Lightness(args[0])
+		}
+	case "luma", "luminance":
+		if len(args) >= 1 {
+			return renderer.LumaFunction(args[0])
+		}
+	case "red":
+		if len(args) >= 1 {
+			return renderer.Red(args[0])
+		}
+	case "green":
+		if len(args) >= 1 {
+			return renderer.Green(args[0])
+		}
+	case "blue":
+		if len(args) >= 1 {
+			return renderer.Blue(args[0])
+		}
+	case "alpha":
+		if len(args) >= 1 {
+			return renderer.Alpha(args[0])
+		}
+
+	// Color operations
+	case "lighten":
+		if len(args) >= 2 {
+			return renderer.Lighten(args[0], args[1])
+		}
+	case "darken":
+		if len(args) >= 2 {
+			return renderer.Darken(args[0], args[1])
+		}
+	case "saturate":
+		if len(args) >= 2 {
+			return renderer.Saturate(args[0], args[1])
+		}
+	case "desaturate":
+		if len(args) >= 2 {
+			return renderer.Desaturate(args[0], args[1])
+		}
+	case "spin":
+		if len(args) >= 2 {
+			return renderer.Spin(args[0], args[1])
+		}
+	case "mix":
+		if len(args) >= 2 {
+			weight := "50%"
+			if len(args) >= 3 {
+				weight = args[2]
+			}
+			return renderer.Mix(args[0], args[1], weight)
+		}
+	case "greyscale":
+		if len(args) >= 1 {
+			return renderer.Greyscale(args[0])
+		}
+
+	// Math functions
+	case "ceil":
+		if len(args) >= 1 {
+			return renderer.Ceil(args[0])
+		}
+	case "floor":
+		if len(args) >= 1 {
+			return renderer.Floor(args[0])
+		}
+	case "round":
+		if len(args) >= 1 {
+			return renderer.Round(args[0])
+		}
+	case "abs":
+		if len(args) >= 1 {
+			return renderer.Abs(args[0])
+		}
+	case "sqrt":
+		if len(args) >= 1 {
+			return renderer.Sqrt(args[0])
+		}
+	case "pow":
+		if len(args) >= 2 {
+			return renderer.Pow(args[0], args[1])
+		}
+	case "min":
+		return renderer.Min(args...)
+	case "max":
+		return renderer.Max(args...)
+	case "mod":
+		if len(args) >= 2 {
+			return renderer.Mod(args[0], args[1])
+		}
+	case "pi":
+		return renderer.Pi()
+	case "percentage":
+		if len(args) >= 1 {
+			return renderer.Percentage(args[0])
+		}
+
+	// Trigonometric functions
+	case "sin":
+		if len(args) >= 1 {
+			return renderer.Sin(args[0])
+		}
+	case "cos":
+		if len(args) >= 1 {
+			return renderer.Cos(args[0])
+		}
+	case "tan":
+		if len(args) >= 1 {
+			return renderer.Tan(args[0])
+		}
+	case "asin":
+		if len(args) >= 1 {
+			return renderer.Asin(args[0])
+		}
+	case "acos":
+		if len(args) >= 1 {
+			return renderer.Acos(args[0])
+		}
+	case "atan":
+		if len(args) >= 1 {
+			return renderer.Atan(args[0])
+		}
+
+	// Logical functions
+	case "if":
+		if len(args) >= 3 {
+			return renderer.If(args[0], args[1], args[2])
+		}
+	case "boolean":
+		if len(args) >= 1 {
+			return renderer.Boolean(args[0])
+		}
+	}
+
+	return ""
 }
 
 // Variables returns the collected variables (for testing/debugging)

@@ -92,7 +92,7 @@ func (p *Parser) parseDeclarationOrNestedNode() (*Node, error) {
 	savePos := p.pos
 	hasColon := false
 	hasBrace := false
-	
+
 	for i := 0; i < 20 && !p.isAtEnd(); i++ {
 		if p.peek().Type == parser.TokenColon {
 			hasColon = true
@@ -123,7 +123,7 @@ func (p *Parser) parseDeclarationOrNestedNode() (*Node, error) {
 		// Has {, try as declaration
 		return p.parseDeclaration()
 	}
-	
+
 	if hasColon {
 		// Has :, it's likely a property
 		return p.parseProperty()
@@ -223,17 +223,16 @@ func (p *Parser) parseProperty() (*Node, error) {
 		return nil, nil
 	}
 
-	// Collect value preserving original source
+	// Collect value from tokens until ; or }
 	valueStart := p.pos
-	value := p.collectUntilForValue(parser.TokenSemicolon, parser.TokenRBrace, parser.TokenEOF)
+	for !p.isAtEnd() && p.peek().Type != parser.TokenSemicolon && p.peek().Type != parser.TokenRBrace {
+		p.advance()
+	}
 	valueEnd := p.pos
 
-	// Prefer raw source for property values to preserve exact formatting
-	if valueEnd > valueStart && valueStart < len(p.tokens) {
-		node.Raw = p.extractRawSource(valueStart, valueEnd)
-		node.Value = strings.TrimSpace(node.Raw)
-	} else {
-		node.Value = strings.TrimSpace(value)
+	// Extract raw source
+	if valueEnd > valueStart {
+		node.Value = strings.TrimSpace(p.extractRawSource(valueStart, valueEnd))
 	}
 
 	p.match(parser.TokenSemicolon)
@@ -246,7 +245,8 @@ func (p *Parser) parseVariable() (*Node, error) {
 	node := NewNodeWithPosition(NodeVariable, p.position())
 
 	varTok := p.advance()
-	node.Name = varTok.Value // includes @
+	// Token value is just the name part, add @ prefix
+	node.Name = "@" + varTok.Value
 
 	if !p.match(parser.TokenColon) {
 		// Not a simple variable declaration - might be interpolation like @{prop}
@@ -415,10 +415,24 @@ func (p *Parser) extractRawSource(startPos, endPos int) string {
 
 	if startPos < len(p.tokens) {
 		start = p.tokens[startPos].Offset
+		// For VARIABLE tokens, the offset points to @ but value doesn't include it
+		// We need to account for the actual token length
+		tok := p.tokens[startPos]
+		if tok.Type == parser.TokenVariable && start < len(p.source) && p.source[start] == '@' {
+			// Token offset correctly points to @, but length only covers the name
+			// So we're good, just use offset as-is
+		}
 	}
 
 	if endPos > 0 && endPos <= len(p.tokens) {
-		end = p.tokens[endPos-1].Offset + len(p.tokens[endPos-1].Value)
+		endTok := p.tokens[endPos-1]
+		end = endTok.Offset
+		// For VARIABLE at endPos, add 1 for the @ plus the name length
+		if endTok.Type == parser.TokenVariable && end < len(p.source) && p.source[end] == '@' {
+			end += 1 + len(endTok.Value) // @name
+		} else {
+			end += len(endTok.Value)
+		}
 	}
 
 	if start < end && end <= len(p.source) {
@@ -445,7 +459,12 @@ func (p *Parser) collectUntil(stopTypes ...parser.TokenType) string {
 		if result != "" && p.needsSpaceBeforeToken(tok) && !strings.HasSuffix(result, " ") {
 			result += " "
 		}
-		result += tok.Value
+		// Preserve @ prefix for variable references
+		if tok.Type == parser.TokenVariable {
+			result += "@" + tok.Value
+		} else {
+			result += tok.Value
+		}
 		p.advance()
 	}
 	return result
@@ -466,18 +485,18 @@ func (p *Parser) looksLikePropertyName(tokens []parser.Token) bool {
 	if len(tokens) == 0 {
 		return false
 	}
-	
+
 	// Single identifier or identifier with hyphens (common CSS property names)
 	if len(tokens) == 1 {
 		return p.isLikelyPropertyName(tokens[0].Value)
 	}
-	
+
 	// Multiple tokens - check if it's an identifier sequence with hyphens/minus signs
 	first := tokens[0]
 	if first.Type != parser.TokenIdent {
 		return false
 	}
-	
+
 	if len(tokens) == 2 {
 		second := tokens[1]
 		// identifier - identifier (like "font-size")
@@ -485,7 +504,7 @@ func (p *Parser) looksLikePropertyName(tokens []parser.Token) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
