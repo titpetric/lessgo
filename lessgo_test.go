@@ -3,15 +3,13 @@ package lessgo_test
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/titpetric/lessgo/importer"
+	"github.com/titpetric/lessgo/dst"
 	"github.com/titpetric/lessgo/parser"
-	"github.com/titpetric/lessgo/renderer"
 )
 
 func TestFixtures(t *testing.T) {
@@ -79,33 +77,16 @@ func compileLESS(lessSource string) (string, error) {
 	lexer := parser.NewLexer(lessSource)
 	tokens := lexer.Tokenize()
 
-	// Parse with source for comment preservation
-	p := parser.NewParserWithSource(tokens, lessSource)
-	stylesheet, err := p.Parse()
+	// Parse with new DST parser
+	dstParser := dst.NewParser(tokens, lessSource)
+	doc, err := dstParser.Parse()
 	if err != nil {
 		return "", fmt.Errorf("parse error: %w", err)
 	}
 
-	// Resolve imports from the fixtures directory
-	fixturesDir, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("failed to get working directory: %w", err)
-	}
-	// Construct path to fixtures directory
-	if !strings.HasSuffix(fixturesDir, "testdata") {
-		fixturesDir = filepath.Join(fixturesDir, "testdata")
-	}
-	fixturesDir = filepath.Join(fixturesDir, "fixtures")
-
-	imp := importer.New(os.DirFS(fixturesDir))
-	// Use a placeholder filename - imports resolve relative to this
-	if err := imp.ResolveImports(stylesheet, "main.less"); err != nil {
-		return "", fmt.Errorf("import error: %w", err)
-	}
-
-	// Render
-	r := renderer.NewRenderer()
-	css := r.Render(stylesheet)
+	// Render from DST
+	r := dst.NewRenderer()
+	css := r.Render(doc)
 
 	return css, nil
 }

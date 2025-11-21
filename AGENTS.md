@@ -19,11 +19,8 @@ lessgo/
 ├── parser/                     # Lexer and parser
 │   ├── lexer.go
 │   ├── parser.go
+│   ├── dst.go                  # Document Structure Tree (simpler alternative to AST)
 │   └── lexer_test.go
-│
-├── ast/                        # Abstract Syntax Tree
-│   ├── types.go
-│   └── ast_test.go
 │
 ├── renderer/                   # CSS output generation
 │   └── renderer.go
@@ -53,6 +50,22 @@ lessgo/
     ├── progress.md            # Implementation status
     └── *.md                   # Other reference docs
 ```
+
+## Architecture Refactoring: From AST to DST
+
+**Current Status**: Migrating from complex AST to simpler Document Structure Tree (DST)
+
+**DST (Document Structure Tree)** is a simpler, entity-focused alternative to a full Abstract Syntax Tree:
+- Generic `Node` structure: `Type`, `Name`, `Value`, `Children`, `Parent`
+- Simpler node types: "stylesheet", "rule", "declaration", "variable", "atrule", etc
+- Direct parent-child relationships for DOM-like traversal
+- Easier to manipulate and debug than complex typed AST nodes
+
+**Benefits of DST**:
+- Reduced complexity in tree manipulation
+- Better for generic traversal (all nodes are same type)
+- Simpler code generation and transformation
+- More flexible for LESS-specific features (nested rules, variables)
 
 ## Debug Scripts
 

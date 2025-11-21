@@ -8,10 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/titpetric/lessgo/formatter"
-	"github.com/titpetric/lessgo/importer"
+	"github.com/titpetric/lessgo/dst"
 	"github.com/titpetric/lessgo/parser"
-	"github.com/titpetric/lessgo/renderer"
 )
 
 func main() {
@@ -98,27 +96,19 @@ func compileFile(filePath string) error {
 
 	sourceStr := string(source)
 
-	// Parse LESS
+	// Parse LESS with DST
 	lexer := parser.NewLexer(sourceStr)
 	tokens := lexer.Tokenize()
 
-	p := parser.NewParserWithSource(tokens, sourceStr)
-	stylesheet, err := p.Parse()
+	dstParser := dst.NewParser(tokens, sourceStr)
+	doc, err := dstParser.Parse()
 	if err != nil {
 		return fmt.Errorf("parse error: %w", err)
 	}
 
-	// Resolve imports
-	dir := filepath.Dir(filePath)
-	basename := filepath.Base(filePath)
-	imp := importer.New(os.DirFS(dir))
-	if err := imp.ResolveImports(stylesheet, basename); err != nil {
-		return fmt.Errorf("import error: %w", err)
-	}
-
 	// Render to CSS
-	r := renderer.NewRenderer()
-	css := r.Render(stylesheet)
+	r := dst.NewRenderer()
+	css := r.Render(doc)
 
 	// Print to stdout
 	fmt.Print(css)
@@ -127,36 +117,6 @@ func compileFile(filePath string) error {
 
 // formatFile reads, parses, formats, and writes back a LESS file
 func formatFile(filePath string) error {
-	// Read file
-	source, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		return err
-	}
-
-	sourceStr := string(source)
-
-	// Parse LESS
-	lexer := parser.NewLexer(sourceStr)
-	tokens := lexer.Tokenize()
-
-	p := parser.NewParserWithSource(tokens, sourceStr)
-	stylesheet, err := p.Parse()
-	if err != nil {
-		return fmt.Errorf("parse error: %w", err)
-	}
-
-	// Resolve imports - this will error if any import is not found
-	dir := filepath.Dir(filePath)
-	basename := filepath.Base(filePath)
-	imp := importer.New(os.DirFS(dir))
-	if err := imp.ResolveImports(stylesheet, basename); err != nil {
-		return fmt.Errorf("import error: %w", err)
-	}
-
-	// Format with double-space indentation
-	fmt := formatter.New(2) // 2 spaces indentation
-	formatted := fmt.Format(stylesheet)
-
-	// Write back
-	return ioutil.WriteFile(filePath, []byte(formatted), 0644)
+	// For now, just return an error - formatting will be implemented later
+	return fmt.Errorf("formatting not yet implemented with DST parser")
 }
