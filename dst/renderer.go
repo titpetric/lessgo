@@ -103,31 +103,12 @@ func (r *Renderer) evaluateVariables() {
 
 // evaluateFunctionsOnly evaluates functions and variable references in a value
 // without recursing through evaluateValue (to avoid infinite loops)
+// This is used during variable evaluation to avoid infinite loops with variable references
 func (r *Renderer) evaluateFunctionsOnly(value string) string {
 	result := value
-
-	// First, substitute variables in the value
-	// Sort by length (longest first) to avoid partial replacements
-	varNames := make([]string, 0, len(r.variables))
-	for varName := range r.variables {
-		varNames = append(varNames, varName)
-	}
-	// Sort by length descending
-	for i := 0; i < len(varNames); i++ {
-		for j := i + 1; j < len(varNames); j++ {
-			if len(varNames[i]) < len(varNames[j]) {
-				varNames[i], varNames[j] = varNames[j], varNames[i]
-			}
-		}
-	}
-
-	for _, varName := range varNames {
-		result = strings.ReplaceAll(result, "@"+varName, r.variables[varName])
-	}
-
-	// Then evaluate functions
+	// Just evaluate functions - don't substitute variables yet, to avoid breaking argument parsing
+	// Variables will be substituted inside evalOneFunction -> callFunction -> evaluateValue
 	result = r.evaluateFunctions(result)
-
 	return result
 }
 

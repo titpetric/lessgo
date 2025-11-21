@@ -386,29 +386,27 @@ func Boolean(value string) string {
 func Length(value string) string {
 	value = strings.TrimSpace(value)
 
-	// If it's a string, return the character count
+	// Check if it's a comma-separated list
+	if strings.Contains(value, ",") {
+		items := strings.Split(value, ",")
+		return strconv.Itoa(len(items))
+	}
+
+	// Check if it's a space-separated list
+	items := strings.Fields(value)
+	if len(items) > 1 {
+		return strconv.Itoa(len(items))
+	}
+
+	// Single item or quoted string
 	if IsString(value) {
-		// Remove quotes
+		// Remove quotes and return character count
 		if len(value) >= 2 {
 			value = value[1 : len(value)-1]
 		}
 		return strconv.Itoa(len(value))
 	}
 
-	// For space or comma-separated lists, count items
-	// Split by space first
-	items := strings.Fields(value)
-	if len(items) > 1 {
-		return strconv.Itoa(len(items))
-	}
-
-	// Split by comma
-	items = strings.Split(value, ",")
-	if len(items) > 1 {
-		return strconv.Itoa(len(items))
-	}
-
-	// Single item
 	return "1"
 }
 
@@ -420,10 +418,8 @@ func Extract(list string, index string) string {
 		return ""
 	}
 
-	// Determine if this is comma-separated or space-separated
-	// If there are commas at the top level (not inside quotes), it's comma-separated
+	// Comma-separated list
 	if strings.Contains(list, ",") {
-		// Comma-separated list
 		items := strings.Split(list, ",")
 		if len(items) >= idx {
 			return strings.TrimSpace(items[idx-1])
