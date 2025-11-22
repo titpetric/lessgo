@@ -18,6 +18,15 @@ tasks:
     cmds:
       - go test -timeout 5s -failfast -count=1 -cover -coverpkg=./... -coverprofile=pkg.cov ./...
 
+  bench:
+    desc: "Run benchmarks with multiple CPU configurations"
+    deps:
+      - fmt
+    env:
+      GOTOOLCHAIN: '{{.toolchain}}'
+    cmds:
+      - go test -bench=. -benchmem -benchtime=5s -cpu 1,2,4 -count=1 ./...
+
   cover:
     desc: "Show source coverage"
     cmds:
