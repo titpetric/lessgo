@@ -6,6 +6,8 @@ import (
 }
 ```
 
+Package lessgo is a comprehensive Less CSS compiler implementation in pure Go.
+
 ## Types
 
 ```go
