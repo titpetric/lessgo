@@ -372,7 +372,7 @@ func (r *Renderer) renderCommentIndented(node *Node, indent int) {
 func (r *Renderer) buildSelector(selector string) string {
 	// Clean up selector - remove comments and trim
 	selector = cleanSelector(selector)
-	
+
 	if len(r.selectorStack) == 0 {
 		return selector
 	}

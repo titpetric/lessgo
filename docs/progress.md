@@ -293,9 +293,6 @@ Need to add evaluator that:
 
 ### Not Implemented
 
-- [ ] Pattern matching in mixins
-- [ ] Recursive mixins
-- [ ] Namespace mixins (#ns > .mixin)
 - [ ] Maps/object literals
 - [ ] Plugin system
 - [ ] Source maps

@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/expr-lang/expr"
 )
 
@@ -120,6 +121,8 @@ func preprocessExpression(expr string) string {
 			}
 		}
 	}
+
+	spew.Dump(parts)
 
 	return strings.Join(parts, " ")
 }

@@ -2,3 +2,6 @@
 /lessgo*
 /*.cov
 /*.json
+/*.prof
+/*.test
+/*.out

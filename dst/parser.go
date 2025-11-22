@@ -96,7 +96,7 @@ func (p *Parser) parseDeclarationOrNestedNode() (*Node, error) {
 
 	for i := 0; i < 20 && !p.isAtEnd(); i++ {
 		tok := p.peek()
-		
+
 		if tok.Type == parser.TokenColon && colonPos == -1 {
 			colonPos = i
 		}
@@ -125,7 +125,7 @@ func (p *Parser) parseDeclarationOrNestedNode() (*Node, error) {
 	if bracePos != -1 {
 		return p.parseDeclaration()
 	}
-	
+
 	// Otherwise if we have colon, treat as property
 	if colonPos != -1 {
 		return p.parseProperty()
@@ -230,7 +230,7 @@ func (p *Parser) parseProperty() (*Node, error) {
 			p.pos = propStart
 			return nil, nil
 		}
-		
+
 		// Special handling: FUNCTION tokens are things like "mixin()" or "rgb("
 		// For mixin calls, we want ".mixin()" with no spaces
 		if tok.Type == parser.TokenFunction {

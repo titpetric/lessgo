@@ -221,7 +221,7 @@ func EvaluateExpression(expr string) string {
 
 	// Simple parser for left operand, operator, right operand
 	// Handle operators: +, -, *, /
-	
+
 	// Find the operator (rightmost operator with lowest precedence first)
 	// Look for + or - first (lower precedence)
 	for i := len(expr) - 1; i > 0; i-- {
