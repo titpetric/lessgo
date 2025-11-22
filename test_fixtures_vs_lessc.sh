@@ -20,8 +20,8 @@
 #
 # For local debugging:
 #   lessc testdata/fixtures/999-sinog-index.less           # See lessc output
-#   ./bin/lessgo compile testdata/fixtures/999-sinog-index.less  # See lessgo output
-#   diff -u <(lessc ...) <(lessgo compile ...)             # Compare
+#   ./bin/lessgo generate testdata/fixtures/999-sinog-index.less  # See lessgo output
+#   diff -u <(lessc ...) <(lessgo generate ...)             # Compare
 
 FIXTURES_DIR="testdata/fixtures"
 LESSC_BIN="/usr/bin/lessc"
@@ -33,38 +33,13 @@ ERRORS=0
 PREFIX="${1:-}"  # Optional prefix filter (e.g., "999" or "001-")
 
 # Build lessgo if needed
-if [ ! -f "$LESSGO_BIN" ]; then
-    go build -o "$LESSGO_BIN" ./cmd/lessgo
-fi
+set -e
+go build -o "$LESSGO_BIN" ./cmd/lessgo
+set +e
 
-echo "Regenerating fixture .css files from lessc..."
 if [ -n "$PREFIX" ]; then
     echo "Filtering by prefix: $PREFIX"
 fi
-echo ""
-
-# Find all .less files and regenerate from lessc
-for less_file in $(find "$FIXTURES_DIR" -maxdepth 1 -name "${PREFIX}*.less" | sort); do
-    base_name=$(basename "$less_file" .less)
-    css_file="$FIXTURES_DIR/${base_name}.css"
-    
-    # Compile with official lessc (run from fixtures dir)
-    lessc_output=$(cd "$FIXTURES_DIR" && "$LESSC_BIN" "$base_name.less" 2>&1)
-    lessc_exit=$?
-    
-    if [ $lessc_exit -ne 0 ]; then
-        echo "✗ $base_name - lessc error:"
-        echo "$lessc_output" | sed 's/^/    /'
-        ((ERRORS++))
-        continue
-    fi
-    
-    # Write to .css file
-    echo "$lessc_output" > "$css_file"
-    echo "✓ $base_name: Regenerated from lessc"
-    ((REGENERATED++))
-done
-
 echo ""
 echo "================================="
 echo "Testing lessgo against regenerated fixtures..."
@@ -80,7 +55,7 @@ for less_file in $(find "$FIXTURES_DIR" -maxdepth 1 -name "${PREFIX}*.less" | so
     fi
     
     # Compile with lessgo (1 second timeout)
-    lessgo_output=$(timeout 1s "$LESSGO_BIN" compile "$less_file" 2>&1)
+    lessgo_output=$(timeout 1s "$LESSGO_BIN" generate "$less_file" 2>&1)
     lessgo_exit=$?
     
     if [ $lessgo_exit -ne 0 ]; then
@@ -89,13 +64,11 @@ for less_file in $(find "$FIXTURES_DIR" -maxdepth 1 -name "${PREFIX}*.less" | so
         continue
     fi
     
-    # Normalize whitespace for comparison
-    normalize() {
-        echo "$1" | sed 's/^[[:space:]]*//g; s/[[:space:]]*$//g' | grep -v '^$'
-    }
-    
-    lessgo_norm=$(normalize "$lessgo_output")
-    fixture_norm=$(normalize "$(cat "$css_file")")
+
+    echo "$lessgo_output" | colordiff -u $css_file -
+
+    lessgo_norm="$lessgo_output"
+    fixture_norm="$(cat "$css_file")"
     
     if [ "$lessgo_norm" = "$fixture_norm" ]; then
         echo "✓ $base_name"

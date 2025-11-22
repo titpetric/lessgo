@@ -1,9 +1,14 @@
-package renderer
+package functions
 
 import (
 	"regexp"
 	"strconv"
 	"strings"
+)
+
+var (
+	// Cache compiled regex for format string replacements
+	formatPlaceholderRegex = regexp.MustCompile(`%[sd]`)
 )
 
 // IsNumber checks if a value is a number (with optional unit)
@@ -131,51 +136,37 @@ func IsColor(value string) bool {
 	return namedColors[value]
 }
 
-// IsKeyword checks if a value is a CSS keyword
+// IsKeyword checks if a value is a keyword
+// In LESS, any bare word/identifier (not a number, color, or string) is a keyword
 func IsKeyword(value string) bool {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return false
 	}
 
-	// Common CSS keywords
-	keywords := map[string]bool{
-		"inherit":      true,
-		"initial":      true,
-		"unset":        true,
-		"revert":       true,
-		"auto":         true,
-		"none":         true,
-		"transparent":  true,
-		"solid":        true,
-		"dashed":       true,
-		"dotted":       true,
-		"double":       true,
-		"groove":       true,
-		"ridge":        true,
-		"inset":        true,
-		"outset":       true,
-		"left":         true,
-		"right":        true,
-		"center":       true,
-		"top":          true,
-		"bottom":       true,
-		"middle":       true,
-		"absolute":     true,
-		"relative":     true,
-		"fixed":        true,
-		"static":       true,
-		"block":        true,
-		"inline":       true,
-		"inline-block": true,
-		"flex":         true,
-		"grid":         true,
-		"bold":         true,
-		"italic":       true,
-		"normal":       true,
+	// Strings (quoted) are not keywords
+	if (strings.HasPrefix(value, "\"") && strings.HasSuffix(value, "\"")) ||
+		(strings.HasPrefix(value, "'") && strings.HasSuffix(value, "'")) {
+		return false
 	}
 
-	return keywords[value]
+	// Numbers are not keywords
+	if IsNumber(value) {
+		return false
+	}
+
+	// Colors are not keywords
+	if IsColor(value) {
+		return false
+	}
+
+	// URLs are not keywords
+	if IsURL(value) {
+		return false
+	}
+
+	// If it's a bare word/identifier, it's a keyword
+	return true
 }
 
 // IsURL checks if a value is a URL
@@ -344,47 +335,38 @@ func IsListFunction(value string) string {
 }
 
 // Boolean converts a value to a boolean
-// Handles: true/false keywords, numeric comparisons, and expressions
-// Uses go-expr for expression evaluation
+// In LESS, only the literal keyword "true" returns true; everything else is false
 func Boolean(value string) string {
 	value = strings.TrimSpace(value)
 
-	// Direct boolean keywords
+	// Only the literal keyword "true" is truthy
 	if value == "true" {
 		return "true"
 	}
-	if value == "false" || value == "" {
-		return "false"
-	}
 
-	// Try to evaluate as an expression using go-expr
-	// This handles comparisons, variables, function calls, etc.
-	exprResult := evaluateExpressionSimple(value)
-	if exprResult != "" {
-		return exprResult
-	}
-
-	// Non-zero numbers and non-empty strings are truthy in LESS
-	// Check if it's a number
-	numVal := parseNumberWithUnits(value)
-	if numVal != 0 {
-		return "true"
-	}
-	if numVal == 0 {
-		return "false"
-	}
-
-	// Everything else (non-empty strings, etc.) is true
-	if value != "" && value != "0" {
-		return "true"
-	}
-
+	// Everything else (including numbers, non-empty strings, expressions) is false
 	return "false"
 }
 
 // Length returns the length of a list/string value
-func Length(value string) string {
-	value = strings.TrimSpace(value)
+// In LESS, quoted strings count as a single item (length 1), not character count
+// Can be called as length(value) or length(item1, item2, item3) where items form a list
+func Length(values ...string) string {
+	if len(values) == 0 {
+		return "0"
+	}
+
+	// If multiple arguments, they form a list, so return the count
+	if len(values) > 1 {
+		return strconv.Itoa(len(values))
+	}
+
+	value := strings.TrimSpace(values[0])
+
+	// Quoted strings are single items, return 1
+	if IsString(value) {
+		return "1"
+	}
 
 	// Check if it's a comma-separated list
 	if strings.Contains(value, ",") {
@@ -398,25 +380,38 @@ func Length(value string) string {
 		return strconv.Itoa(len(items))
 	}
 
-	// Single item or quoted string
-	if IsString(value) {
-		// Remove quotes and return character count
-		if len(value) >= 2 {
-			value = value[1 : len(value)-1]
-		}
-		return strconv.Itoa(len(value))
-	}
-
+	// Single item
 	return "1"
 }
 
 // Extract gets an item from a list by index (1-based)
-func Extract(list string, index string) string {
-	list = strings.TrimSpace(list)
-	idx, err := strconv.Atoi(strings.TrimSpace(index))
+// Can be called as extract(list, index) or extract(item1, item2, item3, index)
+func Extract(args ...string) string {
+	if len(args) < 2 {
+		return ""
+	}
+
+	// Last argument is always the index
+	indexStr := args[len(args)-1]
+	idx, err := strconv.Atoi(strings.TrimSpace(indexStr))
 	if err != nil || idx < 1 {
 		return ""
 	}
+
+	var list string
+
+	// If multiple arguments (more than just list and index), join them as a list
+	if len(args) > 2 {
+		// Items are passed as separate arguments, they form a list
+		listItems := args[:len(args)-1]
+		if idx <= len(listItems) {
+			return strings.TrimSpace(listItems[idx-1])
+		}
+		return ""
+	}
+
+	// Single argument before index - could be a list or single item
+	list = strings.TrimSpace(args[0])
 
 	// Comma-separated list
 	if strings.Contains(list, ",") {
@@ -437,11 +432,27 @@ func Extract(list string, index string) string {
 
 // Range generates a comma-separated list of numbers from start to end
 // Supports: range(end), range(start, end), range(start, end, step)
-func Range(start string, end string, step ...string) string {
-	// Handle single argument case: range(4) means 1 to 4
-	if strings.TrimSpace(end) == "" {
-		end = start
+func Range(args ...string) string {
+	if len(args) == 0 {
+		return ""
+	}
+
+	var start, end, step string
+
+	// Handle different argument counts
+	if len(args) == 1 {
+		// range(4) means 1 to 4
 		start = "1"
+		end = args[0]
+	} else if len(args) == 2 {
+		// range(start, end)
+		start = args[0]
+		end = args[1]
+	} else {
+		// range(start, end, step)
+		start = args[0]
+		end = args[1]
+		step = args[2]
 	}
 
 	startTrimmed := strings.TrimSpace(start)
@@ -452,15 +463,26 @@ func Range(start string, end string, step ...string) string {
 	e := parseNumberWithUnits(endTrimmed)
 
 	stepVal := 1.0
-	if len(step) > 0 && step[0] != "" {
-		stepVal = parseNumberWithUnits(strings.TrimSpace(step[0]))
+	if step != "" {
+		stepVal = parseNumberWithUnits(strings.TrimSpace(step))
 	}
 
 	if stepVal == 0 {
 		stepVal = 1
 	}
 
-	var result []string
+	// Calculate approximate capacity
+	resultLen := 0
+	if s <= e {
+		resultLen = int((e-s)/stepVal + 1)
+	} else {
+		resultLen = int((s-e)/stepVal + 1)
+	}
+	if resultLen < 0 {
+		resultLen = 0
+	}
+
+	result := make([]string, 0, resultLen)
 	if s <= e {
 		for i := s; i <= e; i += stepVal {
 			result = append(result, formatNumber(i, startTrimmed))
@@ -543,9 +565,9 @@ func Format(format string, args ...string) string {
 		format = format[1 : len(format)-1]
 	}
 
-	// Replace %s with arguments in order
+	// Replace %s and %d with arguments in order
 	argIdx := 0
-	result := regexp.MustCompile(`%[sd]`).ReplaceAllStringFunc(format, func(match string) string {
+	result := formatPlaceholderRegex.ReplaceAllStringFunc(format, func(match string) string {
 		if argIdx < len(args) {
 			arg := args[argIdx]
 			argIdx++
@@ -554,19 +576,129 @@ func Format(format string, args ...string) string {
 			if len(arg) >= 2 && ((arg[0] == '"' && arg[len(arg)-1] == '"') ||
 				(arg[0] == '\'' && arg[len(arg)-1] == '\'')) {
 				arg = arg[1 : len(arg)-1]
+			} else {
+				// If not quoted and contains operators, try to evaluate as an expression
+				if strings.ContainsAny(arg, "+-*/") {
+					// Try simple evaluation for numeric expressions
+					evaluated := tryEvaluateSimpleExpr(arg)
+					if evaluated != "" {
+						arg = evaluated
+					}
+				}
 			}
 			return arg
 		}
 		return match
 	})
 
-	return result
+	// Wrap result in quotes as format returns a string
+	return `"` + result + `"`
+}
+
+// tryEvaluateSimpleExpr tries to evaluate a simple arithmetic expression
+func tryEvaluateSimpleExpr(expr string) string {
+	expr = strings.TrimSpace(expr)
+
+	// Handle simple addition like "1 + 2"
+	if strings.Contains(expr, "+") {
+		parts := strings.Split(expr, "+")
+		if len(parts) == 2 {
+			left := strings.TrimSpace(parts[0])
+			right := strings.TrimSpace(parts[1])
+			lNum := parseNumber(left)
+			rNum := parseNumber(right)
+			result := lNum + rNum
+			return strconv.FormatFloat(result, 'f', -1, 64)
+		}
+	}
+
+	// Handle simple subtraction
+	if strings.Count(expr, "-") > 0 && !strings.HasPrefix(expr, "-") {
+		parts := strings.SplitN(expr, "-", 2)
+		if len(parts) == 2 {
+			left := strings.TrimSpace(parts[0])
+			right := strings.TrimSpace(parts[1])
+			lNum := parseNumber(left)
+			rNum := parseNumber(right)
+			result := lNum - rNum
+			return strconv.FormatFloat(result, 'f', -1, 64)
+		}
+	}
+
+	// Handle simple multiplication
+	if strings.Contains(expr, "*") {
+		parts := strings.Split(expr, "*")
+		if len(parts) == 2 {
+			left := strings.TrimSpace(parts[0])
+			right := strings.TrimSpace(parts[1])
+			lNum := parseNumber(left)
+			rNum := parseNumber(right)
+			result := lNum * rNum
+			return strconv.FormatFloat(result, 'f', -1, 64)
+		}
+	}
+
+	return ""
 }
 
 // If - logical conditional function
 // if(condition, value-if-true, value-if-false)
 func If(condition string, valueIfTrue string, valueIfFalse string) string {
 	condition = strings.TrimSpace(condition)
+
+	// If condition is a function call or expression, evaluate it
+	if strings.Contains(condition, "(") && strings.Contains(condition, ")") {
+		// Try to evaluate as a comparison expression first
+		evaluated := evaluateExpressionSimple(condition)
+		if evaluated != "" {
+			condition = evaluated
+		} else {
+			// Strip outer parentheses to get to the actual content
+			stripped := strings.TrimSpace(condition)
+			if strings.HasPrefix(stripped, "(") && strings.HasSuffix(stripped, ")") {
+				stripped = strings.TrimSpace(stripped[1 : len(stripped)-1])
+			}
+
+			// Now try to extract and evaluate function calls
+			if strings.Contains(stripped, "(") {
+				// Extract function name - everything before the first (
+				openParen := strings.Index(stripped, "(")
+				if openParen > 0 {
+					funcName := strings.ToLower(strings.TrimSpace(stripped[:openParen]))
+
+					// Find matching closing paren
+					closeParen := strings.LastIndex(stripped, ")")
+					if closeParen > openParen {
+						funcBody := strings.TrimSpace(stripped[openParen+1 : closeParen])
+
+						// Handle type checking functions specially
+						switch funcName {
+						case "iscolor":
+							// Check if the argument is a color
+							_, err := ParseColor(funcBody)
+							if err == nil {
+								condition = "true"
+							} else {
+								condition = "false"
+							}
+						case "isnumber":
+							if IsNumber(funcBody) {
+								condition = "true"
+							} else {
+								condition = "false"
+							}
+						case "isstring":
+							if IsString(funcBody) {
+								condition = "true"
+							} else {
+								condition = "false"
+							}
+						}
+					}
+				}
+			}
+		}
+	}
 
 	// Check if condition is true
 	// In LESS, non-empty strings and non-zero numbers are true
@@ -582,6 +714,12 @@ func If(condition string, valueIfTrue string, valueIfFalse string) string {
 // This is used by Boolean() to evaluate comparison expressions
 func evaluateExpressionSimple(expr string) string {
 	expr = strings.TrimSpace(expr)
+
+	// Strip outer parentheses if present
+	if strings.HasPrefix(expr, "(") && strings.HasSuffix(expr, ")") {
+		expr = expr[1 : len(expr)-1]
+		expr = strings.TrimSpace(expr)
+	}
 
 	// If it contains comparison operators, try to evaluate
 	if !strings.ContainsAny(expr, "><!=") {

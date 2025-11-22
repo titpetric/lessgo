@@ -1,86 +1,187 @@
-# Lessgo - LESS CSS Compiler in Go
+# lessgo
 
-A comprehensive LESS CSS compiler implementation in Go with no CGO dependencies for core functionality.
-
-## Why?
-
-I want some measure of portability of .less assets to a different runtime. This allows me to avoid the nodejs runtime and dependencies in typical MVC development flow. As support for CSS parsing is non existant in Go (or at least not discovered), this is an attempt to provide an importable package and cli tool aiding compilation.
-
-- https://github.com/tystuyfzand/less-go
-
-This lovely person decided that embedding the javascript source code into a go app and evaluate it using a javascript VM package. While I appreciate the ingenuity (it's not stupid if it works), I did want to address formatting of the source code (`lessgo fmt`).
-
-In the spirit of being efficient, I've started a reimplementation not based on sourcecode, but rather based on test fixtures that cover some required functionality like mixins, functions and everything else.
-
-> **Status**: Currently the project has 3 failing test fixtures of 64. The failures are related to mixins in certain styles without parametrization. Likely some swaths of syntax are unsupported.
->
-> Image functions are currently not implemented, there's no particular reason why that is, it's just an isolated thing in the backlog.
+A comprehensive LESS to CSS compiler written in Go with a minimal DST (Decorated Syntax Tree) parser, formatter, and renderer. Compiles 65/65 fixture tests with 100% compatibility with `lessc`.
 
 ## Quick Start
 
-**Install:**
+### Installation
+
+The package:
 
 ```bash
-go install github.com/sourcegraph/lessgo/cmd/lessgo@latest
+go get github.com/titpetric/lessgo
 ```
 
-**CLI Usage:**
+The CLI:
 
 ```bash
-lessgo compile styles.less > styles.css
-lessgo fmt styles.less
+go install github.com/titpetric/lessgo/cmd/lessgo@latest
 ```
 
-**Library Usage:**
+### Middleware (Recommended)
+
+Use as HTTP middleware for on-the-fly LESS compilation:
 
 ```go
-package main
-
 import (
-	"fmt"
-	"github.com/sourcegraph/lessgo/parser"
-	"github.com/sourcegraph/lessgo/renderer"
+	"os"
+	"github.com/titpetric/lessgo"
 )
 
-func main() {
-	lexer := parser.NewLexer("@color: #333; body { color: @color; }")
-	tokens := lexer.Tokenize()
-	p := parser.NewParser(tokens)
-	stylesheet, _ := p.Parse()
-	r := renderer.NewRenderer()
-	fmt.Println(r.Render(stylesheet))
-}
+middleware := lessgo.NewMiddleware("/assets/css", os.DirFS("assets/css"))
 ```
 
-See [testdata/README.md](testdata/README.md) for more examples.
+Requests to `/assets/css/style.less` are automatically compiled to CSS when wrapped around your handler.
+
+### Custom HTTP Handler
+
+For more control, create a handler:
+
+```go
+import (
+	"os"
+	"github.com/titpetric/lessgo"
+)
+
+handler := lessgo.NewHandler("/assets/css", os.DirFS("assets/css"))
+```
+
+See `examples/` for complete working implementations with tests.
 
 ## Features
 
-- Variables (`@name: value`)
-- Nesting with parent selector (`&`)
-- Mixins (simple, parametric, with guards)
-- Operations and color functions
-- Imports with `@import`
-- Extend with `&:extend()`
-- Type and math functions
+### Core LESS Features
+- **Variables** - Block-scoped variable definitions and interpolation
+- **Nesting** - Nested selectors with automatic parent reference resolution
+- **Parent Selector** - `&` reference in nested contexts
+- **Operations** - Arithmetic operations (`+`, `-`, `*`, `/`) with unit handling
+- **Comments** - Single-line (`//`) and multi-line (`/* */`) comments
+- **@import** - Import other LESS files
 
-See [docs/features.md](docs/features.md) for complete status.
+### Functions
+- **Math Functions** - `ceil()`, `floor()`, `round()`, `abs()`, `sqrt()`, `pow()`, `min()`, `max()`, `sin()`, `cos()`, `tan()`, `asin()`, `acos()`, `atan()`, `pi()`, `mod()`, `log()`, `exp()`, `percentage()`
+- **Color Functions** - `rgb()`, `rgba()`, `hsl()`, `hsla()`, `hsv()`, `hsva()`, `hex colors`
+- **Color Operations** - `lighten()`, `darken()`, `saturate()`, `desaturate()`, `fade()`, `spin()`, `mix()`, `greyscale()`, `multiply()`, `overlay()`, `difference()`
+- **Color Channels** - `hue()`, `saturation()`, `lightness()`, `hsv()`, `red()`, `green()`, `blue()`, `alpha()`, `luma()`
+- **Type Functions** - `isnumber()`, `isstring()`, `iscolor()`, `iskeyword()`, `isurl()`, `ispixel()`, `isem()`, `ispercentage()`, `isunit()`, `isgradient()`, `isdefined()`
+- **String Functions** - `escape()`, `e()`, `format()`, `replace()`, `length()`, `extract()`
+- **List Functions** - `range()`, `length()`, `extract()`, `each()`
+- **Logical Functions** - `boolean()`, `if()`, `luma()`
+- **Misc Functions** - `unit()`, `get-unit()`, `convert()`, `color()`
+
+### Mixins & Extends
+- **Basic Mixins** - Define and invoke mixins with parameters
+- **Parametric Mixins** - Support default parameters and multiple arities
+- **Mixin Guards** - Conditional mixin application with comparison operators
+- **Pattern Matching** - Arity-based mixin overloading
+- **Mixin Namespace** - Nested mixin definitions via `#namespace > .mixin()`
+- **Extends** - `&:extend()` selector composition and multiple extends
+
+### Advanced Features
+- **Detached Rulesets** - Block variables (`@var: { ... }`) and invocation
+- **Maps** - Namespace blocks used as maps
+- **Nested @media** - Media queries bubble to top level with selector context
+- **CSS3 Variables** - `--var` custom properties (pass-through)
+
+## CLI Usage
+
+### Build
+
+```bash
+go build -o bin/lessgo ./cmd/lessgo
+```
+
+### Format LESS (`fmt` command)
+
+Format LESS files with consistent indentation, expand inline blocks, add missing semicolons:
+
+```bash
+# Output formatted LESS to stdout
+./lessgo fmt style.less
+
+# Format and write back to file
+./lessgo fmt -w style.less
+
+# Format multiple files
+./lessgo fmt -w testdata/fixtures/*.less
+
+# Example: Before and after
+# Before: .button { color: red; padding: 10px }
+# After:  .button {
+#           color: red;
+#           padding: 10px;
+#         }
+```
+
+### Compile to CSS (`generate` command)
+
+Compile LESS to CSS with full feature support (variables, mixins, functions, nesting, etc):
+
+```bash
+# Compile single file to stdout
+./lessgo generate style.less
+
+# Compile to output file
+./lessgo generate style.less -o style.css
+
+# Compile with glob pattern
+./lessgo generate 'styles/**/*.less' -o all.css
+
+# Example usage in build pipeline
+./lessgo generate 'src/**/*.less' -o dist/app.css
+```
+
+### Inspect AST (`ast` command)
+
+Debug LESS parsing by inspecting the Abstract Syntax Tree:
+
+```bash
+# Print AST structure for a file
+./lessgo ast style.less
+
+# Example output:
+# Block: selectors=[".button"] (mixin)
+#   Var: @padding = 10px
+#   Decl: color = red
+#   Block: selectors=["&:hover"]
+#     Decl: background = darkred
+```
 
 ## Development
 
-```bash
-task          # Format and test
-task test     # Run tests
-task fmt      # Format code
-```
+See AGENTS.md for development workflow and package organization details. See FEATURES.md for complete feature checklist.
 
-## Documentation
+## Architecture
 
-- [testdata/README.md](testdata/README.md) - Code examples and testing
-- [docs/features.md](docs/features.md) - Feature completeness
-- [docs/progress.md](docs/progress.md) - Implementation status
-- [AGENTS.md](AGENTS.md) - Developer guide
+![Architecture Diagram](ARCHITECTURE.svg)
 
-## License
+### Package Responsibilities
 
-MIT - See [LICENSE](LICENSE)
+| Package                 | Purpose               | Key Types                                           | Responsibility                                                                                    |
+|-------------------------|-----------------------|-----------------------------------------------------|---------------------------------------------------------------------------------------------------|
+| `dst/`                  | Data Structure Tree   | `File`, `Node`, `Block`, `Decl`, `Comment`, `Stack` | Parse LESS files into AST, provide node interfaces, manage variable scope                         |
+| `renderer/`             | CSS Code Generation   | `Renderer`                                          | Traverse AST, evaluate expressions, generate CSS output with proper nesting/selectors             |
+| `expression/`           | Expression Evaluation | `Evaluator`, `Value`, `Color`                       | Parse and evaluate numeric/color expressions, handle arithmetic with units, variable substitution |
+| `expression/functions/` | Built-in Functions    | Math, Color, String, List, Type, Logical            | Implement 40+ LESS functions (lighten, ceil, rgb, etc)                                            |
+| `evaluator/`            | Guard Conditions      | `Tokenizer`                                         | Tokenize and evaluate mixin guard conditions (@media, comparison operators)                       |
+| `cmd/lessgo/`           | CLI Tool              | Commands: `ast`, `fmt`, `generate`                  | Entry point for parsing, formatting, and compiling LESS files                                     |
+
+### Data Flow
+
+1. **Parse** (`cmd/lessgo fmt` / `generate`)
+   - `Parser` reads `.less` file
+   - Creates `File` AST with `Node` hierarchy
+   - Builds `VarStack` for scoped variables
+
+2. **Generate** (`cmd/lessgo generate`)
+   - `Renderer` traverses AST depth-first
+   - `ExprEvaluator` evaluates variable substitutions and expressions
+   - `Functions` package applies LESS functions (color ops, math, etc)
+   - Outputs CSS with resolved selectors and values
+
+3. **Format** (`cmd/lessgo fmt`)
+   - `Formatter` traverses AST and outputs LESS source
+   - Adds missing semicolons to declarations
+   - Expands inline blocks (one property per line)
+   - Proper 2-space indentation
+   - Blank lines between top-level definitions

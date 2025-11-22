@@ -1,185 +1,267 @@
-# Lessgo Agent Guide
+# Agent Workflow for lessgo (LESS to CSS compiler)
 
-A comprehensive LESS CSS compiler implementation in Go with no external dependencies for core functionality.
+Module: `github.com/titpetric/lessgo`
 
-## Project Structure
+## Architectural Constraints
 
-```
-lessgo/
-├── AGENTS.md                   # This file (developer guide)
-├── README.md                   # Quick start and overview
-├── LICENSE                     # MIT License
-├── go.mod
-├── go.sum
-│
-├── cmd/lessgo/                 # CLI tool
-│   ├── main.go
-│   └── README.md
-│
-├── parser/                     # Lexer and parser
-│   ├── lexer.go
-│   ├── parser.go
-│   ├── dst.go                  # Document Structure Tree (simpler alternative to AST)
-│   └── lexer_test.go
-│
-├── renderer/                   # CSS output generation
-│   └── renderer.go
-│
-├── evaluator/                  # Expression evaluation
-│   └── evaluator.go
-│
-├── functions/                  # Built-in LESS functions
-│   ├── colors.go
-│   ├── math.go
-│   ├── strings.go
-│   └── functions_test.go
-│
-├── importer/                   # Import resolution
-│   └── importer.go
-│
-├── formatter/                  # LESS code formatting
-│   └── formatter.go
-│
-├── testdata/                   # Fixture tests
-│   ├── README.md              # Code examples
-│   ├── testdata_test.go       # Fixture test runner
-│   └── fixtures/              # Test cases (*.less and *.css pairs)
-│
-└── docs/                       # Documentation
-    ├── features.md            # Feature status
-    ├── progress.md            # Implementation status
-    └── *.md                   # Other reference docs
-```
+### ⚠️ DO NOT MODIFY `dst/` Package Without Explicit Confirmation
 
-## Architecture Refactoring: From AST to DST
+The `dst/` package contains the parser and formatter. Before making ANY changes to files in `dst/`:
+1. Request explicit confirmation from the user
+2. Understand that changes may impact parsing behavior globally
+3. Document the change in this AGENTS.md file
+4. Test against all fixtures
 
-**Current Status**: Migrating from complex AST to simpler Document Structure Tree (DST)
+### Expression Evaluation Strategy
+- Use `expression/` package for token parsing and function evaluation
+- `evaluator/` package tokenizer is for guard conditions (simple expressions)
+- `expression/` package should handle quoted strings and nested function calls properly
+- Prefer to solve problems in `renderer/`, `expression/functions/`, and evaluator chains
 
-**DST (Document Structure Tree)** is a simpler, entity-focused alternative to a full Abstract Syntax Tree:
-- Generic `Node` structure: `Type`, `Name`, `Value`, `Children`, `Parent`
-- Simpler node types: "stylesheet", "rule", "declaration", "variable", "atrule", etc
-- Direct parent-child relationships for DOM-like traversal
-- Easier to manipulate and debug than complex typed AST nodes
+### Package Consolidation Notes
 
-**Benefits of DST**:
-- Reduced complexity in tree manipulation
-- Better for generic traversal (all nodes are same type)
-- Simpler code generation and transformation
-- More flexible for LESS-specific features (nested rules, variables)
+**Potential Future Cleanup: Merge evaluator/ → expression/**
+- The `evaluator/` package only contains a tokenizer for guard conditions
+- The `expression/` package is the full expression evaluator with variables & functions
+- They solve related problems but at different abstraction levels
+- When consolidating, move evaluator tokenizer into expression/ (or deprecate in favor of expression)
+- This is NOT urgent - the current separation works fine and maintains clarity
 
-## Debug Scripts
+## Development Commands
 
-Create test programs in the `debug/` folder for reusable testing:
-```bash
-go run ./debug/test_selector.go
-go run ./debug/test_parse.go
-```
+### Import Management
 
-This keeps the codebase clean and allows iterating on test cases.
-
-## Common Commands
-
-### Using Task (recommended)
+**Fix missing/unused imports automatically**:
 
 ```bash
-task fmt          # Format Go files (goimports + go fmt)
-task test         # Run all tests (5s budget for test, 5s for compile)
-task test:fixture # Run fixture tests only (5s timeout)
-task test:lexer   # Run lexer tests only (5s timeout)
-task build        # Build the project
-task              # Default: fmt + test
+goimports -w .
 ```
 
-### Manual commands
+This should be used instead of manually adjusting imports to ensure consistency.
+
+### Testing & Validation
+
+**Run all tests with coverage** (via task runner):
 
 ```bash
-# Always use -timeout 5s - this is our strict budget
-go test ./... -timeout 5s           # Run all tests
-go test ./testdata -v -timeout 5s   # Run fixture tests
-go test ./parser -v -timeout 5s     # Run lexer tests  
-timeout 5s go run ./cmd/lessgo compile <file>.less  # Compile with 5s timeout
-timeout 5s go run ./cmd/lessgo fmt <file>.less      # Format with 5s timeout
-goimports -w . && go fmt ./...      # Format code
+task test
 ```
 
-### Best Practices
-- **Always run `task fmt` after modifying .go files** - This ensures consistent formatting
-- **Run `task test` before committing** - Verify all tests pass
-- **Use `task` for rapid development** - Combines formatting and testing in one command
-- **Do NOT modify Taskfile.yml unless explicitly requested** - Keep build tasks stable
-- **Always use -timeout flag on tests** - Parser can hang on invalid input
-
-## Development Workflow
-
-1. **Check docs/progress.md** - Review the current status and next tasks
-2. **Implement feature** - Add parser, AST, and renderer support
-3. **Create fixtures** - Add test .less and expected .css files
-4. **Run tests** - `go test ./...`
-5. **Update docs/progress.md** - Mark completion and note any issues
-6. **Update docs/features.md** - Check off implemented features
-
-## Testing Strategy
-
-### Fixture Tests (Preferred for Agent Work)
-- Located in `testdata/fixtures/`
-- File pairs: `name.less` and `name.css`
-- Use `./test_fixtures_vs_lessc.sh` to validate against official lessc
-- Each fixture name is a test case
-
-**Recommended workflow for fixing failing tests:**
-```bash
-# 1. Run tests with prefix to focus on specific failures
-./test_fixtures_vs_lessc.sh 999          # Test only 999-* fixtures
-./test_fixtures_vs_lessc.sh 200-         # Test only 200-* fixtures
-
-# 2. Compare lessc vs lessgo output for a specific test
-lessc testdata/fixtures/999-sinog-index.less                    # Official output
-./bin/lessgo compile testdata/fixtures/999-sinog-index.less     # Our output
-
-# 3. Use diff to see exact differences
-diff -u <(lessc testdata/fixtures/999-sinog-index.less) <(./bin/lessgo compile testdata/fixtures/999-sinog-index.less)
-
-# 4. After fixes, re-run with same prefix to verify
-./test_fixtures_vs_lessc.sh 999
-```
-
-### Integration Tests
-- Compare output with actual LESS compiler (lessc)
-- Document feature compatibility/incompatibility
-- Use the test script above for validation
-
-### Unit Tests
-- Direct testing of parser, AST, and renderer
-- Use `testify/require` for assertions
-- Test edge cases and error conditions
-
-## Key Implementation Notes
-
-- **No external dependencies** for core functionality
-- **DOM/AST-based** - Parse to tree, manipulate, render to CSS
-- **Separate concerns** - Lexer → Parser → AST → Renderer
-- **Variable resolution** - Scoped variable lookups following LESS semantics
-- **Lazy evaluation** - Variables evaluated when needed, not at parse time
-
-## References
-
-- See docs/progress.md for current work and blockers
-- See docs/features.md for complete feature list
-- LESS official docs: https://lesscss.org/features/
-
-## Integration Points
-
-When working on integration with the actual LESS compiler, use:
-- **lessc command-line tool** - Available as `lessc` in the environment
-- **less command** - LESS CLI available for testing
-- Node.js less package (if needed)
-- Docker container with less compiler
-- Online playground: https://lesscss.org/less-preview
-
-### Using lessc for validation
+**Test specific fixture**:
 
 ```bash
-lessc testdata/fixtures/001-basic-css.less # Compile with official LESS
-lessc testdata/fixtures/001-basic-css.less > /tmp/official.css
-# Compare against our output
+go test -v -run 'TestFixtures/NNN-description' ./...
 ```
+
+**Clear test cache before running tests with -count=1**:
+
+```bash
+go clean -testcache && go test ./... -count=1
+```
+
+Use `-count=1` to disable caching and force fresh test runs. Without clearing the cache first, you'll see "(cached)" in output even with `-count=1`.
+
+**Run benchmarks with multi-CPU profiling**:
+
+```bash
+task bench
+```
+
+**Generate coverage reports**:
+
+```bash
+task cover
+```
+
+**Note**: Fixture tests now read pre-computed `.css` files (via lessc) instead of calling lessc at test time. This speeds up tests 280x (15s → 53ms). The .css files are the ground truth and are maintained in version control.
+
+**Render via lessgo (direct CSS output)**:
+
+```bash
+./bin/lessgo generate 'testdata/fixtures/FILE.less' > /tmp/lessgo_out.css
+```
+
+**Verify identical CSS output**:
+
+```bash
+diff /tmp/lessc_out.css /tmp/lessgo_out.css
+```
+
+### Formatting (LESS to LESS)
+
+**Format single file** (stdout):
+
+```bash
+./bin/lessgo fmt testdata/fixtures/FILE.less
+```
+
+**Format in-place**:
+
+```bash
+./bin/lessgo fmt -w testdata/fixtures/FILE.less
+```
+
+**Format multiple files**:
+
+```bash
+./bin/lessgo fmt -w testdata/fixtures/*.less
+```
+
+### Compilation (LESS to CSS)
+
+**Generate CSS from single file**:
+
+```bash
+./bin/lessgo generate 'testdata/fixtures/FILE.less'
+```
+
+**Generate CSS from multiple files**:
+
+```bash
+./bin/lessgo generate 'testdata/fixtures/*.less' -o output.css
+```
+
+### Inspecting AST
+
+To inspect the AST for a `.less` file:
+
+```bash
+go run ./cmd/lessgo ast testdata/fixtures/FILE.less
+```
+
+### Building
+
+```bash
+go build -o bin/lessgo ./cmd/lessgo
+```
+
+### Testing Packages
+
+```bash
+go test ./dst ./expr ./fn ./renderer -v
+```
+
+## Testing Fixtures
+
+Test fixtures are organized by feature number (e.g., `004-operations.less`, `050-math-functions-basic.less`).
+
+Run against all fixtures:
+
+```bash
+for f in testdata/fixtures/*.less; do
+  echo "Testing $f..."
+  ./bin/lessgo fmt "$f" | lessc - > /tmp/out.css 2>/dev/null
+  lessc "$f" > /tmp/expected.css 2>/dev/null
+  diff -q /tmp/out.css /tmp/expected.css || echo "FAIL: $f"
+done
+```
+
+## Development Pattern
+
+1. Add feature to `FEATURES.md` in "In Progress" section
+2. Create test fixture in `testdata/fixtures/NNN-description.less`
+3. Verify fixture compiles with lessc
+4. Implement feature in appropriate package (dst, expr, fn, etc)
+5. Validate: `./bin/lessgo fmt fixture.less | lessc - | diff - <(lessc fixture.less)`
+6. Move feature to "Done" in FEATURES.md
+
+## Integration Test Runner
+
+Run all fixtures against lessc to identify failures:
+
+**Failfast mode (stop on first failure with diff)**:
+
+```bash
+./bin/lessgo fmt fixture.less | lessc - > /tmp/out.css 2>/dev/null
+lessc fixture.less > /tmp/expected.css 2>/dev/null
+diff /tmp/expected.css /tmp/out.css
+```
+
+**Count passing/failing**:
+
+```bash
+for f in testdata/fixtures/*.less; do
+  ./bin/lessgo fmt "$f" | lessc - > /tmp/out.css 2>/dev/null
+  lessc "$f" > /tmp/expected.css 2>/dev/null
+  if ! diff -q /tmp/out.css /tmp/expected.css > /dev/null 2>&1; then
+    echo "FAIL: $f"
+  fi
+done
+```
+
+## Package Organization
+
+- **dst/**: Data structure tree (parser, formatter, node types)
+  - `parser.go`: Parses .less files into DST
+  - `formatter.go`: Formats DST back to .less (less->less)
+  - `node.go`: Node types (Block, Decl, Comment, MixinCall)
+  - `resolver.go`: Variable and expression resolution (used by formatter)
+  - `stack.go`: Variable scope stack management
+
+- **renderer/**: CSS code generation (less->css)
+  - `renderer.go`: Renders DST to CSS with expression evaluation
+  - Handles nested selectors, parent references (&), mixin expansion
+  - Evaluates embedded LESS functions in property values
+
+- **expr/**: Expression evaluation (Value, Parse, Evaluator)
+  - `parse.go`: Parses numeric values with units
+  - `evaluator.go`: Evaluates expressions with variables and functions
+  - `color.go`: Color representation and parsing
+  - `value.go`: Value type with arithmetic operations
+
+- **fn/**: LessCSS functions (math, color, type, list functions)
+  - `init.go`: Function registration with evaluator
+  - `math.go`: ceil, floor, round, abs, sqrt, pow, min, max
+  - `color.go`: lighten, darken, saturate, desaturate, rgb, rgba
+  - `type_functions.go`: isnumber, isstring, iscolor, etc.
+  - `list.go`: range, length, extract
+
+- **cmd/lessgo/**: CLI tool
+  - `fmt` command: Format .less files for consistent indentation
+  - `generate` command: Compile .less files to CSS
+
+## Expression Evaluation
+
+The expr package handles arithmetic with units:
+
+```go
+v, _ := expr.Parse("10px")
+v2, _ := expr.Parse("5")
+result, _ := v.Multiply(v2) // 50px
+
+// Percentages convert to decimals
+pct, _ := expr.Parse("50%") // 0.5 (no unit)
+```
+
+## Function Organization
+
+Math functions are separated into the `fn` package for independent testing:
+
+```bash
+go test ./fn -v          # Test only functions
+go test ./expr -v        # Test only expression evaluation
+go test ./dst -v         # Test only DST parsing
+go test ./... -v         # Test everything
+```
+
+## Workflow with lessc
+
+When implementing a feature:
+
+1. Create fixture: `testdata/fixtures/NNN-description.less`
+2. Verify with lessc: `lessc testdata/fixtures/NNN-description.less > /tmp/expected.css`
+3. Implement feature in appropriate package (dst, expr, fn, renderer)
+4. Test with lessgo: `./bin/lessgo generate testdata/fixtures/NNN-description.less > /tmp/actual.css`
+5. Verify match: `diff /tmp/expected.css /tmp/actual.css`
+
+## Key Principles
+
+- **DST is data model**: Parse .less as declarative structure, not imperative
+- **Lessc is source of truth**: All CSS output must match lessc compilation
+- **Separate concerns**:
+  - `dst` handles LESS->LESS formatting
+  - `renderer` handles LESS->CSS code generation
+  - `expr` handles expression evaluation
+  - `fn` handles LESS/CSS functions
+- **Unit test packages separately**: expr and fn packages should have isolated tests
+- **Minimal parser**: Keep parser simple, complexity goes in expr/fn/renderer packages

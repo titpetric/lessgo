@@ -1,0 +1,14 @@
+body {
+  color: #3498db;
+  font-size: 14px;
+}
+.card {
+  background: #e74c3c;
+  color: #e74c3c;
+}
+.card .title {
+  font-size: 14px;
+}
+a {
+  color: #3498db;
+}

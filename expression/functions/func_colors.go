@@ -1,4 +1,4 @@
-package renderer
+package functions
 
 import (
 	"fmt"
@@ -614,17 +614,6 @@ func RGB(r, g, b string) string {
 	return color.ToHex()
 }
 
-// RGBA creates a color from RGBA components (0-255, 0-1)
-func RGBA(r, g, b, a string) string {
-	rNum := parseChannelNumber(r)
-	gNum := parseChannelNumber(g)
-	bNum := parseChannelNumber(b)
-	aNum := parseAlpha(a)
-
-	color := &Color{rNum, gNum, bNum, aNum}
-	return color.ToRGB()
-}
-
 // HSL creates a color from HSL components (hue 0-360, saturation 0-100, lightness 0-100)
 // Returns in hsl() format, not hex
 func HSL(h, s, l string) string {
@@ -1085,9 +1074,16 @@ func ColorFunction(colorStr string) string {
 // Unit removes or changes the unit of a dimension
 // unit(value) returns dimensionless number
 // unit(value, newUnit) returns the number part of value with the new unit
-func Unit(value string, newUnit string) string {
-	value = strings.TrimSpace(value)
-	newUnit = strings.TrimSpace(newUnit)
+func Unit(args ...string) string {
+	if len(args) == 0 {
+		return ""
+	}
+
+	value := strings.TrimSpace(args[0])
+	newUnit := ""
+	if len(args) > 1 {
+		newUnit = strings.TrimSpace(args[1])
+	}
 
 	// Extract the numeric part first
 	num := parseNumber(value)

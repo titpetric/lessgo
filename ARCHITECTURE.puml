@@ -1,0 +1,50 @@
+@startuml lessgo
+skinparam backgroundColor #FEFEFE
+
+package cmd/lessgo {
+  [CLI]
+}
+
+package dst {
+  [Parser]
+  [Print]
+  [File]
+  [Formatter]
+}
+
+package renderer {
+  [Renderer]
+}
+
+package expression {
+  [ExprEvaluator]
+  [Value]
+  [Color]
+}
+
+package expression/functions {
+  [Functions]
+}
+
+package evaluator {
+  [Tokenizer]
+}
+
+CLI --> Parser : parse LESS
+CLI --> Renderer : compile to CSS
+CLI --> Print : introspect AST
+CLI --> Formatter : format LESS
+
+Parser --> File : produces
+Renderer --> File : consumes
+Formatter --> File : consumes
+Print --> File : consumes
+
+Renderer --> ExprEvaluator : evaluate expressions
+Renderer --> Functions : call functions
+ExprEvaluator --> Value : arithmetic
+ExprEvaluator --> Color : color ops
+ExprEvaluator --> Functions : evaluate functions
+Tokenizer --> Evaluator : guard conditions
+
+@enduml

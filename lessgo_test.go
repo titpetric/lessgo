@@ -1,151 +1,87 @@
-package lessgo_test
+package lessgo
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/require"
 	"github.com/titpetric/lessgo/dst"
-	"github.com/titpetric/lessgo/parser"
+	"github.com/titpetric/lessgo/renderer"
 )
 
+// TestFixtures tests all fixture files against lessc output
 func TestFixtures(t *testing.T) {
-	// Find all .less files in fixtures directory
-	fixturesDir := "testdata/fixtures"
-	entries, err := ioutil.ReadDir(fixturesDir)
-	require.NoError(t, err, "failed to read fixtures directory")
-
-	// Group by fixture name
-	fixtures := make(map[string]map[string]string)
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		name := entry.Name()
-		// Skip helper files starting with underscore
-		if strings.HasPrefix(name, "_") {
-			continue
-		}
-		ext := filepath.Ext(name)
-		baseName := strings.TrimSuffix(name, ext)
-
-		if fixtures[baseName] == nil {
-			fixtures[baseName] = make(map[string]string)
-		}
-
-		path := filepath.Join(fixturesDir, name)
-		content, err := ioutil.ReadFile(path)
-		require.NoError(t, err, "failed to read %s", name)
-
-		// Store by extension (without the dot)
-		fixtures[baseName][strings.TrimPrefix(ext, ".")] = string(content)
+	fixturesFS := os.DirFS("testdata/fixtures")
+	entries, err := fs.ReadDir(fixturesFS, ".")
+	if err != nil {
+		t.Fatalf("failed to read fixtures directory: %v", err)
 	}
 
-	// Test each fixture
-	for fixtureName, files := range fixtures {
+	for _, entry := range entries {
+		if entry.IsDir() || strings.HasPrefix(entry.Name(), "_") {
+			continue
+		}
+
+		if !strings.HasSuffix(entry.Name(), ".less") {
+			continue
+		}
+
+		fixtureName := entry.Name()
 		t.Run(fixtureName, func(t *testing.T) {
-			less, ok := files["less"]
-			require.True(t, ok, "missing .less file for fixture %s", fixtureName)
-
-			expected, ok := files["css"]
-			require.True(t, ok, "missing .css file for fixture %s", fixtureName)
-
-			// Parse and compile
-			compiled, err := compileLESS(less)
-			require.NoError(t, err, "failed to compile LESS")
-
-			// Normalize whitespace for comparison
-			compiledNorm := normalizeCSS(compiled)
-			expectedNorm := normalizeCSS(expected)
-
-			if testing.Verbose() {
-				require.Equal(t, expectedNorm, compiledNorm,
-					"compiled CSS does not match expected output for fixture %s", fixtureName)
-			}
+			fixturePath := filepath.Join("testdata/fixtures", fixtureName)
+			testFixture(t, fixturePath)
 		})
 	}
 }
 
-// compileLESS takes LESS source and returns compiled CSS
-func compileLESS(lessSource string) (string, error) {
-	// Tokenize
-	lexer := parser.NewLexer(lessSource)
-	tokens := lexer.Tokenize()
-
-	// Parse with new DST parser
-	dstParser := dst.NewParser(tokens, lessSource)
-	doc, err := dstParser.Parse()
+// testFixture tests a single fixture file
+func testFixture(t *testing.T, fixturePath string) {
+	// Parse the .less file with lessgo
+	file, err := os.Open(fixturePath)
 	if err != nil {
-		return "", fmt.Errorf("parse error: %w", err)
+		t.Fatalf("failed to open fixture: %v", err)
+	}
+	defer file.Close()
+
+	// Get the directory of the file for resolving imports
+	dir := filepath.Dir(fixturePath)
+	fileSystem := os.DirFS(dir)
+
+	parser := dst.NewParserWithFS(file, fileSystem)
+	astFile, err := parser.Parse()
+	if err != nil {
+		t.Fatalf("failed to parse fixture: %v", err)
 	}
 
-	// Render from DST
-	r := dst.NewRenderer()
-	css := r.Render(doc)
+	// Render to CSS with lessgo
+	lessgoRenderer := renderer.NewRenderer()
+	lessgoCSS, err := lessgoRenderer.Render(astFile)
+	require.NoError(t, err)
 
-	return css, nil
+	// Read expected CSS output from the .css file
+	expectedCSS, err := readExpectedCSS(fixturePath)
+	if err != nil {
+		t.Fatalf("failed to read expected CSS: %v", err)
+	}
+
+	diff := cmp.Diff(expectedCSS, lessgoCSS)
+
+	if diff != "" {
+		t.Error(diff)
+	}
 }
 
-// CompareCSS compares two CSS strings, ignoring blank lines and extra whitespace
-func CompareCSS(expected, actual string) error {
-	// Remove leading/trailing whitespace
-	expected = strings.TrimSpace(expected)
-	actual = strings.TrimSpace(actual)
-
-	// Split into lines
-	expectedLines := strings.Split(expected, "\n")
-	actualLines := strings.Split(actual, "\n")
-
-	// Filter out blank lines and trim each line
-	expectedLines = filterBlankLines(expectedLines)
-	actualLines = filterBlankLines(actualLines)
-
-	// Compare
-	if len(expectedLines) != len(actualLines) {
-		return fmt.Errorf("line count mismatch: expected %d, got %d", len(expectedLines), len(actualLines))
+// readExpectedCSS reads the expected CSS from the .css file adjacent to the .less file
+func readExpectedCSS(lessPath string) (string, error) {
+	cssPath := strings.TrimSuffix(lessPath, ".less") + ".css"
+	data, err := os.ReadFile(cssPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read CSS file %s: %w", cssPath, err)
 	}
-
-	for i := range expectedLines {
-		if expectedLines[i] != actualLines[i] {
-			return fmt.Errorf("line %d mismatch:\nexpected: %s\ngot:      %s", i+1, expectedLines[i], actualLines[i])
-		}
-	}
-
-	return nil
-}
-
-// filterBlankLines removes blank lines and trims whitespace from each line
-func filterBlankLines(lines []string) []string {
-	var result []string
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed != "" {
-			result = append(result, trimmed)
-		}
-	}
-	return result
-}
-
-// normalizeCSS normalizes CSS for comparison by removing extra whitespace
-func normalizeCSS(css string) string {
-	// Remove leading/trailing whitespace
-	css = strings.TrimSpace(css)
-
-	// Replace multiple newlines with single newline
-	for strings.Contains(css, "\n\n") {
-		css = strings.ReplaceAll(css, "\n\n", "\n")
-	}
-
-	// Trim each line
-	lines := strings.Split(css, "\n")
-	for i, line := range lines {
-		lines[i] = strings.TrimSpace(line)
-	}
-
-	return strings.Join(lines, "\n")
+	return string(data), nil
 }
