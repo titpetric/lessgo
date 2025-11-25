@@ -1,0 +1,11 @@
+.hero {
+  width: 533px;
+  height: 300px;
+  background: url('hero-16-9.png');
+  background-size: 533px 300px;
+}
+.thumbnail {
+  width: 1px;
+  height: 1px;
+  background: url('thumb-1x1.png');
+}

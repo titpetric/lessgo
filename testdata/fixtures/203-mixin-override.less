@@ -1,0 +1,21 @@
+.base-styles {
+  padding: 5px;
+  margin: 10px;
+  color: red;
+}
+
+.apply-padding(@p) {
+  padding: @p;
+  border: 1px solid black;
+}
+
+.button {
+  .base-styles;
+  .apply-padding(15px);
+}
+
+.card {
+  .apply-padding(20px);
+  padding: 8px;
+  margin: 20px;
+}

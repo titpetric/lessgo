@@ -1,6 +1,6 @@
 # lessgo Feature Roadmap
 
-## Done (100% Complete - 65/65 Fixtures Passing)
+## Done (100% Complete - 67/67 Fixtures Passing)
 
 ### CLI Commands
 - [x] `lessgo generate` - Compile LESS to CSS with full feature support
@@ -34,7 +34,9 @@
 - [x] 200 - Mixin pattern matching (arity-based overloading)
 - [x] 202 - Mixin namespace (#namespace > .mixin() calls)
 - [x] 203 - Detached rulesets (@var: { ... } and @var() calls)
+- [x] 203 - Mixin override (mixins can override parent declarations)
 - [x] 204 - Maps (namespace blocks with variables only)
+- [x] 130 - Image functions (`image-width()`, `image-height()`, `image-size()` for local files)
 
 ## In Progress
 
@@ -115,6 +117,6 @@
 
 ## Test Statistics
 
-Total fixtures: 65
-Passing: 65 (100% pass rate)
+Total fixtures: 67
+Passing: 67 (100% pass rate)
 Failing: 0

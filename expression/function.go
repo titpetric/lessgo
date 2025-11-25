@@ -124,8 +124,6 @@ func IsFunctionCall(expr string) bool {
 // IsRegisteredFunction checks if a function name is registered
 func IsRegisteredFunction(name string) bool {
 	name = strings.ToLower(strings.TrimSpace(name))
-	// Normalize function names: remove hyphens
-	name = strings.ReplaceAll(name, "-", "")
 	_, ok := funcMap[name]
 	return ok
 }

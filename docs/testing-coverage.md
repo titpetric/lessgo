@@ -17,9 +17,9 @@ Low cognitive complexity means there are few conditional branches to cover. Test
 | ❌     | titpetric/lessgo/dst                  | 47.05%   | 647       | 1900  |
 | ❌     | titpetric/lessgo/evaluator            | 34.36%   | 73        | 170   |
 | ✅     | titpetric/lessgo/examples             | 85.29%   | 15        | 168   |
-| ❌     | titpetric/lessgo/expression           | 62.82%   | 332       | 1384  |
-| ❌     | titpetric/lessgo/expression/functions | 77.09%   | 477       | 2287  |
-| ✅     | titpetric/lessgo/renderer             | 80.47%   | 474       | 1213  |
+| ❌     | titpetric/lessgo/expression           | 62.79%   | 332       | 1386  |
+| ❌     | titpetric/lessgo/expression/functions | 76.50%   | 491       | 2377  |
+| ✅     | titpetric/lessgo/renderer             | 80.94%   | 474       | 1224  |
 
 ## Functions
 
@@ -105,7 +105,7 @@ Low cognitive complexity means there are few conditional branches to cover. Test
 | ✅     | titpetric/lessgo/examples             | LessCompilerHandler.compileLess            | 80.00%   | 3         |
 | ✅     | titpetric/lessgo/examples             | LessCompilerHandler.isValidLessFile        | 66.70%   | 3         |
 | ✅     | titpetric/lessgo/examples             | NewLessCompilerHandler                     | 80.00%   | 3         |
-| ✅     | titpetric/lessgo/expression           | Call                                       | 80.00%   | 1         |
+| ✅     | titpetric/lessgo/expression           | Call                                       | 75.00%   | 1         |
 | ❌     | titpetric/lessgo/expression           | Color.Darken                               | 0.00%    | 2         |
 | ❌     | titpetric/lessgo/expression           | Color.Desaturate                           | 0.00%    | 2         |
 | ❌     | titpetric/lessgo/expression           | Color.Lighten                              | 0.00%    | 2         |
@@ -158,7 +158,7 @@ Low cognitive complexity means there are few conditional branches to cover. Test
 | ✅     | titpetric/lessgo/expression           | parseHSLColor                              | 81.80%   | 17        |
 | ✅     | titpetric/lessgo/expression           | parseHexColor                              | 80.60%   | 15        |
 | ❌     | titpetric/lessgo/expression           | parseRGBColor                              | 76.70%   | 17        |
-| ❌     | titpetric/lessgo/expression           | register                                   | 78.10%   | 30        |
+| ✅     | titpetric/lessgo/expression           | register                                   | 81.20%   | 30        |
 | ✅     | titpetric/lessgo/expression           | registerFunctions                          | 100.00%  | 0         |
 | ❌     | titpetric/lessgo/expression           | rgbToHSL                                   | 0.00%    | 5         |
 | ✅     | titpetric/lessgo/expression           | splitArgs                                  | 100.00%  | 16        |
@@ -174,6 +174,7 @@ Low cognitive complexity means there are few conditional branches to cover. Test
 | ✅     | titpetric/lessgo/expression/functions | Blue                                       | 75.00%   | 1         |
 | ✅     | titpetric/lessgo/expression/functions | Boolean                                    | 100.00%  | 1         |
 | ✅     | titpetric/lessgo/expression/functions | Ceil                                       | 100.00%  | 0         |
+| ✅     | titpetric/lessgo/expression/functions | ClearImageDimCache                         | 0.00%    | 0         |
 | ✅     | titpetric/lessgo/expression/functions | Color.Darken                               | 100.00%  | 0         |
 | ✅     | titpetric/lessgo/expression/functions | Color.Desaturate                           | 100.00%  | 0         |
 | ✅     | titpetric/lessgo/expression/functions | Color.Greyscale                            | 100.00%  | 0         |
@@ -218,6 +219,9 @@ Low cognitive complexity means there are few conditional branches to cover. Test
 | ✅     | titpetric/lessgo/expression/functions | Hardlight                                  | 83.30%   | 4         |
 | ✅     | titpetric/lessgo/expression/functions | Hue                                        | 80.00%   | 1         |
 | ❌     | titpetric/lessgo/expression/functions | If                                         | 13.80%   | 45        |
+| ✅     | titpetric/lessgo/expression/functions | ImageHeight                                | 71.40%   | 3         |
+| ✅     | titpetric/lessgo/expression/functions | ImageSize                                  | 71.40%   | 3         |
+| ✅     | titpetric/lessgo/expression/functions | ImageWidth                                 | 71.40%   | 3         |
 | ❌     | titpetric/lessgo/expression/functions | IsColor                                    | 78.60%   | 19        |
 | ✅     | titpetric/lessgo/expression/functions | IsColorFunction                            | 100.00%  | 1         |
 | ✅     | titpetric/lessgo/expression/functions | IsDefined                                  | 0.00%    | 0         |
@@ -284,6 +288,7 @@ Low cognitive complexity means there are few conditional branches to cover. Test
 | ✅     | titpetric/lessgo/expression/functions | formatNumber                               | 100.00%  | 0         |
 | ✅     | titpetric/lessgo/expression/functions | formatNumberWithUnit                       | 100.00%  | 5         |
 | ✅     | titpetric/lessgo/expression/functions | gammaCorrect                               | 100.00%  | 1         |
+| ✅     | titpetric/lessgo/expression/functions | getImageDimensions                         | 89.50%   | 5         |
 | ✅     | titpetric/lessgo/expression/functions | hasRegexMetacharacters                     | 80.00%   | 3         |
 | ❌     | titpetric/lessgo/expression/functions | isPartOfNumber                             | 0.00%    | 3         |
 | ✅     | titpetric/lessgo/expression/functions | parseAlpha                                 | 100.00%  | 0         |
@@ -301,7 +306,8 @@ Low cognitive complexity means there are few conditional branches to cover. Test
 | ✅     | titpetric/lessgo/renderer             | NewResolver                                | 100.00%  | 0         |
 | ✅     | titpetric/lessgo/renderer             | NewStack                                   | 100.00%  | 0         |
 | ✅     | titpetric/lessgo/renderer             | NodeContext.Depth                          | 100.00%  | 0         |
-| ✅     | titpetric/lessgo/renderer             | Renderer.Render                            | 88.90%   | 2         |
+| ✅     | titpetric/lessgo/renderer             | Renderer.Render                            | 100.00%  | 0         |
+| ✅     | titpetric/lessgo/renderer             | Renderer.RenderWithBaseDir                 | 90.00%   | 2         |
 | ✅     | titpetric/lessgo/renderer             | Renderer.collectBlockVariables             | 100.00%  | 3         |
 | ✅     | titpetric/lessgo/renderer             | Renderer.collectMixinsAndExtends           | 100.00%  | 0         |
 | ✅     | titpetric/lessgo/renderer             | Renderer.collectMixinsAndExtendsWithPrefix | 100.00%  | 65        |

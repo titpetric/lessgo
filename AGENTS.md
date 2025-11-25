@@ -209,12 +209,12 @@ done
   - `color.go`: Color representation and parsing
   - `value.go`: Value type with arithmetic operations
 
-- **fn/**: LessCSS functions (math, color, type, list functions)
-  - `init.go`: Function registration with evaluator
-  - `math.go`: ceil, floor, round, abs, sqrt, pow, min, max
-  - `color.go`: lighten, darken, saturate, desaturate, rgb, rgba
-  - `type_functions.go`: isnumber, isstring, iscolor, etc.
-  - `list.go`: range, length, extract
+- **expression/functions/**: LessCSS functions (math, color, type, list, image functions)
+  - `func_math.go`: ceil, floor, round, abs, sqrt, pow, min, max
+  - `func_colors.go`: lighten, darken, saturate, desaturate, rgb, rgba
+  - `func_types.go`: isnumber, isstring, iscolor, etc.
+  - `func_strings.go`: escape, e, replace, format
+  - `func_images.go`: image-width, image-height, image-size (for local files)
 
 - **cmd/lessgo/**: CLI tool
   - `fmt` command: Format .less files for consistent indentation
@@ -253,6 +253,40 @@ When implementing a feature:
 3. Implement feature in appropriate package (dst, expr, fn, renderer)
 4. Test with lessgo: `./bin/lessgo generate testdata/fixtures/NNN-description.less > /tmp/actual.css`
 5. Verify match: `diff /tmp/expected.css /tmp/actual.css`
+
+## Rendering Context
+
+The `NodeContext` struct holds rendering state including:
+- `Buf`: Output buffer
+- `Stack`: Variable scope stack
+- `BaseDir`: Base directory for resolving relative file paths (e.g., for image functions)
+
+When implementing file-aware features (like image functions):
+1. Store context in `NodeContext.BaseDir`
+2. Call `renderer.RenderWithBaseDir(astFile, baseDir)` to set the directory
+3. Functions can access `functions.BaseDir` global variable
+4. The global is set during rendering and automatically propagated through NodeContext
+
+## Image Functions
+
+The `image-width()`, `image-height()`, and `image-size()` functions read local image files to extract dimensions:
+
+- Registered as `image-width`, `image-height`, `image-size` in expression/html_template.go
+- Implemented in expression/functions/func_images.go
+- Support PNG, JPEG, GIF formats via Go's standard image packages
+- Resolve relative paths from the base directory passed to Renderer
+- Return unimplemented error for external URLs (http://, https://)
+- Cache dimensions to avoid re-reading files
+
+Example usage:
+
+```less
+.hero {
+  width: image-width('hero.png');
+  height: image-height('hero.png');
+  background-size: image-size('hero.png');
+}
+```
 
 ## Key Principles
 

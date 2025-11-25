@@ -60,7 +60,7 @@ func testFixture(t *testing.T, fixturePath string) {
 
 	// Render to CSS with lessgo
 	lessgoRenderer := renderer.NewRenderer()
-	lessgoCSS, err := lessgoRenderer.Render(astFile)
+	lessgoCSS, err := lessgoRenderer.RenderWithBaseDir(astFile, dir)
 	require.NoError(t, err)
 
 	// Read expected CSS output from the .css file

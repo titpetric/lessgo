@@ -9,6 +9,7 @@ import (
 	"github.com/titpetric/lessgo/dst"
 	"github.com/titpetric/lessgo/evaluator"
 	"github.com/titpetric/lessgo/expression"
+	"github.com/titpetric/lessgo/expression/functions"
 )
 
 // Renderer converts a DST into CSS output
@@ -68,6 +69,7 @@ type NodeContext struct {
 	//    }
 	// }
 	SelName string
+	BaseDir string // Base directory for resolving relative file paths
 }
 
 func (n *NodeContext) Depth() int {
@@ -86,6 +88,14 @@ func NewRenderer() *Renderer {
 
 // Render converts a File into CSS output, resolving variables and expressions
 func (r *Renderer) Render(file *dst.File) (string, error) {
+	return r.RenderWithBaseDir(file, "")
+}
+
+// RenderWithBaseDir converts a File into CSS output with a base directory for file resolution
+func (r *Renderer) RenderWithBaseDir(file *dst.File, baseDir string) (string, error) {
+	// Set the base directory for image functions
+	functions.BaseDir = baseDir
+
 	r.resolver = NewResolver(file)
 
 	// First pass: collect mixin definitions, extends, and block variables
@@ -98,6 +108,7 @@ func (r *Renderer) Render(file *dst.File) (string, error) {
 		Node:    nil,
 		Stack:   NewStack(),
 		SelName: "",
+		BaseDir: baseDir,
 	}
 
 	// Store block variables in the global scope so they can be checked with isruleset()
@@ -238,6 +249,7 @@ func (r *Renderer) renderNode(parentCtx *NodeContext, parent dst.Node, selName s
 			Stack:   ctx.Stack,
 			Node:    parent,
 			SelName: selName,
+			BaseDir: parentCtx.BaseDir,
 		}
 	}
 
@@ -493,6 +505,7 @@ func (r *Renderer) renderBlock(ctx *NodeContext, b *dst.Block) error {
 				Stack:   ctx.Stack,
 				Node:    b,
 				SelName: parentSelName,
+				BaseDir: ctx.BaseDir,
 			}
 
 			for _, nestedBlock := range nestedBlocks {
@@ -752,6 +765,7 @@ func (r *Renderer) renderMediaQueriesForSelector(ctx *NodeContext, parentSelName
 			Stack:   ctx.Stack,
 			Node:    nil,
 			SelName: parentSelName,
+			BaseDir: ctx.BaseDir,
 		}
 
 		// Push another scope for proper indentation

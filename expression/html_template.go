@@ -116,6 +116,7 @@ func registerFunctions() {
 	register("unit", functions.Unit)
 	register("convert", functions.Convert)
 	register("getunit", functions.GetUnit)
+	register("get-unit", functions.GetUnit)
 
 	// Additional missing functions
 	register("negation", functions.Negation)
@@ -138,6 +139,11 @@ func registerFunctions() {
 	register("isunitfunction", functions.IsUnitFunction)
 	register("isruleset", functions.IsRuleset)
 	register("isrulesetfunction", functions.IsRulesetFunction)
+
+	// Image functions
+	register("image-width", functions.ImageWidth)
+	register("image-height", functions.ImageHeight)
+	register("image-size", functions.ImageSize)
 }
 
 func register(name string, fn any) {
@@ -208,8 +214,6 @@ func register(name string, fn any) {
 
 func Call(name string, args ...any) (any, error) {
 	name = strings.ToLower(name)
-	// Normalize function names: remove hyphens
-	name = strings.ReplaceAll(name, "-", "")
 	if fn, ok := funcMap[name]; ok {
 		return fn.(func(...any) (any, error))(args...)
 	}
