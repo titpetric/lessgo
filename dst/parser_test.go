@@ -1,10 +1,10 @@
 package dst
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/titpetric/lessgo/internal/strings"
 )
 
 func TestParserBlockDetection(t *testing.T) {

@@ -2,7 +2,8 @@ package dst
 
 import (
 	"bytes"
-	"strings"
+
+	"github.com/titpetric/lessgo/internal/strings"
 )
 
 // Formatter formats a DST back into .less source with consistent indentation

@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
-	"strings"
+
+	"github.com/titpetric/lessgo/internal/strings"
 )
 
 var (

@@ -3,13 +3,13 @@ package renderer
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/expr-lang/expr"
 	"github.com/titpetric/lessgo/dst"
 	"github.com/titpetric/lessgo/evaluator"
 	"github.com/titpetric/lessgo/expression"
 	"github.com/titpetric/lessgo/expression/functions"
+	"github.com/titpetric/lessgo/internal/strings"
 )
 
 // Renderer converts a DST into CSS output
@@ -19,6 +19,9 @@ type Renderer struct {
 	mediaQueries []*MediaQuery                 // Collected media queries to render after main content
 	extends      map[string][]string           // Tracks extends: extended selector -> list of extending selectors
 	blockVars    map[string]*dst.BlockVariable // Detached rulesets: @var: { ... }
+
+	// Pre-allocated buffers for zero-alloc splitting
+	selectorBuf []string // For selector splitting (comma-separated)
 }
 
 // MediaQuery represents an @media block with its selector context
@@ -83,6 +86,7 @@ func NewRenderer() *Renderer {
 		mediaQueries: make([]*MediaQuery, 0),
 		extends:      make(map[string][]string),
 		blockVars:    make(map[string]*dst.BlockVariable),
+		selectorBuf:  make([]string, 0, 16),
 	}
 }
 
@@ -177,8 +181,8 @@ func (r *Renderer) collectMixinsAndExtendsWithPrefix(nodes []dst.Node, prefix st
 						// Each arg is a selector being extended
 						// (parser splits by comma, but may also parse as single arg with spaces)
 						for _, arg := range mixin.Args {
-							// Parse the argument in case it contains multiple selectors
-							extendedSelectors := parseExtendSelectors(arg)
+							// Parse the argument in case it contains multiple selectors (zero-alloc)
+							extendedSelectors := r.parseExtendSelectors(arg)
 
 							// For each selector being extended, track that this block extends it
 							for _, extendedSel := range extendedSelectors {
@@ -702,17 +706,16 @@ func (r *Renderer) renderMixinCall(ctx *NodeContext, m *dst.MixinCall) error {
 }
 
 // parseExtendSelectors parses a selector string that may contain multiple selectors
-// e.g., ".base, .success" or ".base .success"
-func parseExtendSelectors(selString string) []string {
+// e.g., ".base, .success" or ".base .success" (zero-alloc)
+func (r *Renderer) parseExtendSelectors(selString string) []string {
 	// First try splitting by comma (explicit list)
 	selString = strings.TrimSpace(selString)
 
 	if strings.Contains(selString, ",") {
-		parts := strings.Split(selString, ",")
-		result := make([]string, len(parts))
-		for i, part := range parts {
-			result[i] = strings.TrimSpace(part)
-		}
+		strings.SplitCommaNoAlloc(selString, &r.selectorBuf)
+		// Make a copy since the buffer will be reused
+		result := make([]string, len(r.selectorBuf))
+		copy(result, r.selectorBuf)
 		return result
 	}
 

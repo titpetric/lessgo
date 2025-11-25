@@ -1,6 +1,6 @@
 package renderer
 
-import "strings"
+import "github.com/titpetric/lessgo/internal/strings"
 
 // isValueChar checks if a character can be part of a value
 func isValueChar(r rune) bool {

@@ -3,7 +3,8 @@ package expression
 import (
 	"fmt"
 	"regexp"
-	"strings"
+
+	"github.com/titpetric/lessgo/internal/strings"
 )
 
 var (

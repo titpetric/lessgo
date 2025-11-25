@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"io/fs"
 	"net/http"
-	"strings"
 
 	"github.com/titpetric/lessgo/dst"
+	"github.com/titpetric/lessgo/internal/strings"
 	"github.com/titpetric/lessgo/renderer"
 )
 

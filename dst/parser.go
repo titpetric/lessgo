@@ -5,9 +5,9 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"strings"
 
 	"github.com/titpetric/lessgo/expression"
+	"github.com/titpetric/lessgo/internal/strings"
 )
 
 // Parser reads and parses .less files into a DST
@@ -16,23 +16,34 @@ type Parser struct {
 	line    string
 	eof     bool
 	fs      fs.FS // filesystem for resolving imports
+
+	// Pre-allocated buffers for zero-alloc splitting
+	selectorBuf []string // For selector splitting (comma-separated)
+	declBuf     []string // For declaration splitting (semicolon-separated)
+	argBuf      []string // For argument splitting (comma-separated)
 }
 
 // NewParser creates a new parser from a reader with OS filesystem
 func NewParser(r io.Reader) *Parser {
 	return &Parser{
-		scanner: bufio.NewScanner(r),
-		eof:     false,
-		fs:      os.DirFS("."),
+		scanner:     bufio.NewScanner(r),
+		eof:         false,
+		fs:          os.DirFS("."),
+		selectorBuf: make([]string, 0, 16),
+		declBuf:     make([]string, 0, 32),
+		argBuf:      make([]string, 0, 16),
 	}
 }
 
 // NewParserWithFS creates a new parser with a custom filesystem
 func NewParserWithFS(r io.Reader, filesystem fs.FS) *Parser {
 	return &Parser{
-		scanner: bufio.NewScanner(r),
-		eof:     false,
-		fs:      filesystem,
+		scanner:     bufio.NewScanner(r),
+		eof:         false,
+		fs:          filesystem,
+		selectorBuf: make([]string, 0, 16),
+		declBuf:     make([]string, 0, 32),
+		argBuf:      make([]string, 0, 16),
 	}
 }
 
@@ -379,13 +390,11 @@ func (p *Parser) parseBlock(line string) (*Block, error) {
 
 			contentStr := strings.TrimSpace(line[braceOpen+1 : braceClose])
 
-			// Split comma-separated selectors
-
-			var selectors []string
-
-			for _, sel := range strings.Split(selectorStr, ",") {
-				selectors = append(selectors, strings.TrimSpace(sel))
-			}
+			// Split comma-separated selectors (zero-alloc)
+			strings.SplitCommaNoAlloc(selectorStr, &p.selectorBuf)
+			// Make a copy since the buffer will be reused
+			selectors := make([]string, len(p.selectorBuf))
+			copy(selectors, p.selectorBuf)
 
 			inlineBlock := &Block{
 				SelNames: selectors,
@@ -395,12 +404,9 @@ func (p *Parser) parseBlock(line string) (*Block, error) {
 				Children: []Node{},
 			}
 
-			// Parse declarations in the inline block
-
-			for _, declStr := range strings.Split(contentStr, ";") {
-
-				declStr = strings.TrimSpace(declStr)
-
+			// Parse declarations in the inline block (zero-alloc)
+			strings.SplitByteNoAlloc(contentStr, ';', &p.declBuf)
+			for _, declStr := range p.declBuf {
 				if declStr == "" {
 					continue
 				}
@@ -459,11 +465,11 @@ func (p *Parser) parseBlock(line string) (*Block, error) {
 					argsStr := strings.TrimSpace(line[parenIdx+1 : len(line)-2])
 
 					var args []string
-
 					if argsStr != "" {
-						for _, arg := range strings.Split(argsStr, ",") {
-							args = append(args, strings.TrimSpace(arg))
-						}
+						strings.SplitCommaNoAlloc(argsStr, &p.argBuf)
+						// Make a copy since the buffer will be reused
+						args = make([]string, len(p.argBuf))
+						copy(args, p.argBuf)
 					}
 
 					block.Children = append(block.Children, &MixinCall{Name: firstPart, Args: args})
@@ -537,9 +543,9 @@ func (p *Parser) parseBlockVariable(line string) (*BlockVariable, error) {
 			Children: []Node{},
 		}
 
-		// Parse simple single-line declarations
-		for _, declStr := range strings.Split(blockContent, ";") {
-			declStr = strings.TrimSpace(declStr)
+		// Parse simple single-line declarations (zero-alloc)
+		strings.SplitByteNoAlloc(blockContent, ';', &p.declBuf)
+		for _, declStr := range p.declBuf {
 			if declStr == "" {
 				continue
 			}

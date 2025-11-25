@@ -2,8 +2,9 @@ package evaluator
 
 import (
 	"fmt"
-	"strings"
 	"unicode"
+
+	"github.com/titpetric/lessgo/internal/strings"
 )
 
 type TokenType int

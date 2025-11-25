@@ -5,8 +5,52 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"strings"
+
+	"github.com/titpetric/lessgo/internal/strings"
 )
+
+// getTrimmed returns a trimmed view of the string (no allocation via bounds check)
+func getTrimmed(s string) string {
+	start := 0
+	end := len(s)
+
+	// Trim leading whitespace
+	for start < end && (s[start] == ' ' || s[start] == '\t' || s[start] == '\r') {
+		start++
+	}
+
+	// Trim trailing whitespace
+	for end > start && (s[end-1] == ' ' || s[end-1] == '\t' || s[end-1] == '\r') {
+		end--
+	}
+
+	return s[start:end]
+}
+
+// splitCommaNoAlloc splits by comma and trims each part, appending to buffer (no Split allocation)
+func splitCommaNoAlloc(s string, buf *[]string) {
+	*buf = (*buf)[:0]
+
+	start := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] == ',' {
+			// Extract and trim substring
+			part := getTrimmed(s[start:i])
+			if part != "" {
+				*buf = append(*buf, part)
+			}
+			start = i + 1
+		}
+	}
+
+	// Add last part
+	if start < len(s) {
+		part := getTrimmed(s[start:])
+		if part != "" {
+			*buf = append(*buf, part)
+		}
+	}
+}
 
 // ParserNoAlloc is a zero-allocation variant of the parser using pre-allocated buffers
 // It trades memory usage for speed by pre-allocating large slices
@@ -75,7 +119,7 @@ func (p *ParserNoAlloc) Parse() (*File, error) {
 		}
 
 		// Check for each() function call first (high priority, specific pattern)
-		line := strings.TrimSpace(p.line)
+		line := getTrimmed(p.line)
 		if strings.HasPrefix(line, "each(") {
 			each, err := p.parseEachNoAlloc(line)
 			if err != nil {
@@ -93,9 +137,9 @@ func (p *ParserNoAlloc) Parse() (*File, error) {
 			// Could be single or multi-line comment
 			if p.lineLen >= 2 && p.line[1] == '/' {
 				// Single-line comment - trim and extract text
-				text := strings.TrimSpace(p.line)
+				text := getTrimmed(p.line)
 				text = strings.TrimPrefix(text, "//")
-				text = strings.TrimSpace(text)
+				text = getTrimmed(text)
 				p.nodeBuffer = append(p.nodeBuffer, &Comment{
 					Text:      text,
 					Multiline: false,
@@ -103,7 +147,7 @@ func (p *ParserNoAlloc) Parse() (*File, error) {
 				continue
 			} else if p.lineLen >= 2 && p.line[1] == '*' {
 				// Multi-line comment start
-				text := strings.TrimSpace(p.line)
+				text := getTrimmed(p.line)
 				comment := &Comment{Text: "", Multiline: true}
 				p.readMultilineCommentNoAlloc(comment, text)
 				p.nodeBuffer = append(p.nodeBuffer, comment)
@@ -112,7 +156,7 @@ func (p *ParserNoAlloc) Parse() (*File, error) {
 
 		case '@':
 			// Variable or directive (@import, @name:)
-			line := strings.TrimSpace(p.line)
+			line := getTrimmed(p.line)
 			if strings.HasPrefix(line, "@import") {
 				p.parseImportNoAlloc(file, line)
 				continue
@@ -132,12 +176,12 @@ func (p *ParserNoAlloc) Parse() (*File, error) {
 					// Possible multi-line block variable (@name: <EOL>, next line should be {)
 					// Save the variable name for now
 					colonIdx := strings.Index(line, ":")
-					varName := strings.TrimPrefix(strings.TrimSpace(line[:colonIdx]), "@")
+					varName := strings.TrimPrefix(getTrimmed(line[:colonIdx]), "@")
 
 					// Peek ahead to see if next line is opening brace
 					blockFound := false
 					for p.scan() {
-						nextLine := strings.TrimSpace(p.line)
+						nextLine := getTrimmed(p.line)
 						if nextLine == "" {
 							continue
 						}
@@ -174,7 +218,7 @@ func (p *ParserNoAlloc) Parse() (*File, error) {
 
 		default:
 			// Regular selector or declaration
-			line := strings.TrimSpace(p.line)
+			line := getTrimmed(p.line)
 
 			// Block (selector { ... })
 			if p.hasOpen {
@@ -204,7 +248,7 @@ func (p *ParserNoAlloc) Parse() (*File, error) {
 			if p.hasSemi && strings.Contains(line, "(") {
 				parenIdx := strings.Index(line, "(")
 				if parenIdx > 0 {
-					firstPart := strings.TrimSpace(line[:parenIdx])
+					firstPart := getTrimmed(line[:parenIdx])
 					// Check if mixin (starts with . # &)
 					if p.isMixinName(firstPart) {
 						args := p.parseArgsNoAlloc(line)
@@ -245,7 +289,7 @@ func (p *ParserNoAlloc) readMultilineCommentNoAlloc(comment *Comment, line strin
 	}
 
 	for p.scan() {
-		line := strings.TrimSpace(p.line)
+		line := getTrimmed(p.line)
 
 		if idx := strings.Index(line, "*/"); idx != -1 {
 			if idx > 0 {
@@ -299,7 +343,7 @@ func (p *ParserNoAlloc) parseBlockVariableNoAlloc(line string) (*BlockVariable, 
 		return nil, nil
 	}
 
-	name := strings.TrimPrefix(strings.TrimSpace(line[:colonIdx]), "@")
+	name := strings.TrimPrefix(getTrimmed(line[:colonIdx]), "@")
 
 	// Check for opening brace
 	braceStart := strings.Index(line, "{")
@@ -320,7 +364,7 @@ func (p *ParserNoAlloc) parseBlockVariableNoAlloc(line string) (*BlockVariable, 
 	if braceEnd != -1 && braceEnd > braceStart {
 		// Single-line block variable
 		// Parse any declarations on the first line after {
-		contentOnFirstLine := strings.TrimSpace(line[braceStart+1 : braceEnd])
+		contentOnFirstLine := getTrimmed(line[braceStart+1 : braceEnd])
 		if contentOnFirstLine != "" && strings.Contains(contentOnFirstLine, ":") {
 			if decl, err := p.parseDeclNoAlloc(contentOnFirstLine + ";"); err == nil && decl != nil {
 				p.childBuffer = append(p.childBuffer, decl)
@@ -329,7 +373,7 @@ func (p *ParserNoAlloc) parseBlockVariableNoAlloc(line string) (*BlockVariable, 
 	} else {
 		// Multi-line block variable - read until closing }
 		for p.scan() {
-			trimmedLine := strings.TrimSpace(p.line)
+			trimmedLine := getTrimmed(p.line)
 
 			if trimmedLine == "" {
 				continue
@@ -360,15 +404,15 @@ func (p *ParserNoAlloc) parseDeclNoAlloc(line string) (*Decl, error) {
 		return nil, nil
 	}
 
-	key := strings.TrimSpace(line[:colonIdx])
-	value := strings.TrimSpace(line[colonIdx+1:])
+	key := getTrimmed(line[:colonIdx])
+	value := getTrimmed(line[colonIdx+1:])
 
 	// Remove trailing semicolon
 	if strings.HasSuffix(value, ";") {
 		value = value[:len(value)-1]
 	}
 
-	value = strings.TrimSpace(value)
+	value = getTrimmed(value)
 
 	return &Decl{Key: key, Value: value}, nil
 }
@@ -404,7 +448,7 @@ func (p *ParserNoAlloc) parseEachNoAlloc(line string) (*Each, error) {
 	}
 
 	// Extract the list expression (between each( and ,)
-	listExpr := strings.TrimSpace(line[openParen:commaIdx])
+	listExpr := getTrimmed(line[openParen:commaIdx])
 
 	// The block variable name is "value" by default for each()
 	each := &Each{
@@ -426,7 +470,7 @@ func (p *ParserNoAlloc) parseEachNoAlloc(line string) (*Each, error) {
 		// Parse as a sub-block
 		blockLine := "{" + strings.TrimPrefix(line[blockStart:], "{")
 		firstContent := blockLine[1 : len(blockLine)-2] // Remove { and });
-		firstContent = strings.TrimSpace(firstContent)
+		firstContent = getTrimmed(firstContent)
 
 		// If there's content on the first line, it's part of the block
 		if firstContent != "" {
@@ -449,7 +493,7 @@ func (p *ParserNoAlloc) parseEachNoAlloc(line string) (*Each, error) {
 	p.childBuffer = p.childBuffer[:0]
 
 	// Parse first line content if any
-	firstLineContent := strings.TrimSpace(line[blockStart+1:])
+	firstLineContent := getTrimmed(line[blockStart+1:])
 	if firstLineContent != "" && !strings.HasPrefix(firstLineContent, "}") {
 		// Parse selector or content from first line
 		if strings.Contains(firstLineContent, "{") {
@@ -462,7 +506,7 @@ func (p *ParserNoAlloc) parseEachNoAlloc(line string) (*Each, error) {
 
 	// Read remaining lines until we find });
 	for p.scan() {
-		trimmedLine := strings.TrimSpace(p.line)
+		trimmedLine := getTrimmed(p.line)
 
 		if trimmedLine == "" {
 			continue
@@ -517,7 +561,7 @@ func (p *ParserNoAlloc) parseBlockNoAlloc(line string) (*Block, error) {
 		return nil, nil
 	}
 
-	selectorStr := strings.TrimSpace(line[:braceIdx])
+	selectorStr := getTrimmed(line[:braceIdx])
 	if selectorStr == "" {
 		return nil, nil
 	}
@@ -528,10 +572,8 @@ func (p *ParserNoAlloc) parseBlockNoAlloc(line string) (*Block, error) {
 		// Single selector fast path
 		p.selectorBuffer = append(p.selectorBuffer, selectorStr)
 	} else {
-		// Multiple selectors
-		for _, sel := range strings.Split(selectorStr, ",") {
-			p.selectorBuffer = append(p.selectorBuffer, strings.TrimSpace(sel))
-		}
+		// Multiple selectors without Split allocation
+		splitCommaNoAlloc(selectorStr, &p.selectorBuffer)
 	}
 
 	block := &Block{
@@ -556,12 +598,12 @@ func (p *ParserNoAlloc) parseBlockNoAlloc(line string) (*Block, error) {
 			break
 		}
 
-		trimmedLine := strings.TrimSpace(p.line)
+		trimmedLine := getTrimmed(p.line)
 
 		// Single-line comment
 		if p.firstChar == '/' && p.lineLen >= 2 && p.line[1] == '/' {
 			text := strings.TrimPrefix(trimmedLine, "//")
-			text = strings.TrimSpace(text)
+			text = getTrimmed(text)
 			p.childBuffer = append(p.childBuffer, &Comment{
 				Text:      text,
 				Multiline: false,
@@ -598,7 +640,7 @@ func (p *ParserNoAlloc) parseBlockNoAlloc(line string) (*Block, error) {
 		if p.hasSemi && strings.Contains(trimmedLine, "(") {
 			parenIdx := strings.Index(trimmedLine, "(")
 			if parenIdx > 0 {
-				firstPart := strings.TrimSpace(trimmedLine[:parenIdx])
+				firstPart := getTrimmed(trimmedLine[:parenIdx])
 
 				// Check if this is a block variable call (@varname();)
 				if strings.HasPrefix(firstPart, "@") && !strings.Contains(firstPart, "{") {
@@ -638,14 +680,12 @@ func (p *ParserNoAlloc) parseArgsNoAlloc(line string) []string {
 	}
 
 	argStr := line[parenStart+1 : parenEnd]
-	if strings.TrimSpace(argStr) == "" {
+	if getTrimmed(argStr) == "" {
 		return []string{}
 	}
 
-	p.argBuffer = p.argBuffer[:0]
-	for _, arg := range strings.Split(argStr, ",") {
-		p.argBuffer = append(p.argBuffer, strings.TrimSpace(arg))
-	}
+	// Split arguments without allocation
+	splitCommaNoAlloc(argStr, &p.argBuffer)
 
 	// Copy to new slice
 	args := make([]string, len(p.argBuffer))

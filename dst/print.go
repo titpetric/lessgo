@@ -2,7 +2,8 @@ package dst
 
 import (
 	"fmt"
-	"strings"
+
+	"github.com/titpetric/lessgo/internal/strings"
 )
 
 // Print prints the AST structure in a readable hierarchical format

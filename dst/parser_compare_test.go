@@ -2,8 +2,9 @@ package dst
 
 import (
 	"bufio"
-	"strings"
 	"testing"
+
+	"github.com/titpetric/lessgo/internal/strings"
 )
 
 // Sample LESS file for benchmarking

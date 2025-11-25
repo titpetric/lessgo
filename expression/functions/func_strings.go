@@ -2,7 +2,8 @@ package functions
 
 import (
 	"regexp"
-	"strings"
+
+	"github.com/titpetric/lessgo/internal/strings"
 )
 
 // Replace replaces a pattern in a string with a replacement string

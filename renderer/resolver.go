@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"log"
 	"regexp"
-	"strings"
 
 	"github.com/titpetric/lessgo/dst"
 	"github.com/titpetric/lessgo/evaluator"
 	"github.com/titpetric/lessgo/expression"
+	"github.com/titpetric/lessgo/internal/strings"
 )
 
 var (
@@ -277,6 +277,9 @@ var (
 	// Cached list of function names to evaluate in property values
 	// Populated once at init time
 	evaluableEmbeddedFuncNames []string
+
+	// Pre-cached search strings (funcName + "(") to avoid repeated allocation
+	evaluableEmbeddedFuncSearches map[string]struct{}
 )
 
 func initEvaluableFuncNames() {
@@ -301,71 +304,100 @@ func initEvaluableFuncNames() {
 
 	allFuncNames := expression.GetRegisteredFunctionNames()
 	evaluableEmbeddedFuncNames = make([]string, 0, len(allFuncNames))
+	evaluableEmbeddedFuncSearches = make(map[string]struct{}, len(allFuncNames))
+
 	for _, name := range allFuncNames {
 		if !excludeFuncs[name] {
 			evaluableEmbeddedFuncNames = append(evaluableEmbeddedFuncNames, name)
+			// Pre-cache the search string to avoid repeated allocation
+			evaluableEmbeddedFuncSearches[name+"("] = struct{}{}
 		}
 	}
 }
 
 // extractFunctionsFromValue extracts all function calls from a string value
-// Uses registered LESS evaluation functions from the expression package
+// Uses single-pass algorithm with pre-cached search strings
 func (r *Resolver) extractFunctionsFromValue(value string) []string {
 	initEvaluableFuncNames()
 
+	// Quick pre-check: if value doesn't contain '(', no functions possible
+	if !strings.Contains(value, "(") {
+		return nil
+	}
+
+	// Pre-compute quote positions to avoid repeated quote counting
+	inQuote := make([]bool, len(value))
+	var quoteChar byte
+	for i := 0; i < len(value); i++ {
+		if i > 0 {
+			inQuote[i] = inQuote[i-1]
+		}
+		c := value[i]
+		if (c == '"' || c == '\'') && (i == 0 || value[i-1] != '\\') {
+			if !inQuote[i] || c == quoteChar {
+				if inQuote[i] {
+					inQuote[i] = false
+					quoteChar = 0
+				} else {
+					inQuote[i] = true
+					quoteChar = c
+				}
+			}
+		}
+	}
+
+	// Single pass through value, matching function patterns
 	var functions []string
-	funcNames := evaluableEmbeddedFuncNames
+	searches := evaluableEmbeddedFuncSearches
 
-	for _, fnName := range funcNames {
-		searchStr := fnName + "("
-		pos := 0
+	for i := 0; i < len(value); i++ {
+		// Skip if inside quotes
+		if inQuote[i] {
+			continue
+		}
 
-		for {
-			idx := strings.Index(value[pos:], searchStr)
-			if idx == -1 {
-				break
-			}
-			idx += pos
-
-			// Skip if this function call is inside quotes
-			// Count quotes before this position to determine if we're inside a quoted string
-			quoteCount := 0
-			for i := 0; i < idx; i++ {
-				if (value[i] == '"' || value[i] == '\'') && (i == 0 || value[i-1] != '\\') {
-					quoteCount++
-				}
-			}
-			if quoteCount%2 != 0 {
-				// We're inside a quoted string, skip this match
-				pos = idx + len(searchStr)
-				continue
+		// Check if we're at the start of a function call
+		// Look for valid function name characters followed by '('
+		if value[i] >= 'a' && value[i] <= 'z' {
+			// Scan for function name end
+			j := i + 1
+			for j < len(value) && ((value[j] >= 'a' && value[j] <= 'z') ||
+				(value[j] >= '0' && value[j] <= '9') || value[j] == '-') {
+				j++
 			}
 
-			// Find the closing paren
-			depth := 0
-			endIdx := -1
-			for i := idx + len(searchStr); i < len(value); i++ {
-				if value[i] == '(' {
-					depth++
-				} else if value[i] == ')' {
-					if depth == 0 {
-						endIdx = i
-						break
+			// Check if followed by '('
+			if j < len(value) && value[j] == '(' && j-i <= 30 {
+				// Potential function found, check if it's registered
+				searchStr := value[i : j+1]
+				if _, exists := searches[searchStr]; exists && !inQuote[j] {
+					// Find closing paren
+					depth := 0
+					endIdx := -1
+					for k := j; k < len(value); k++ {
+						if inQuote[k] {
+							continue
+						}
+						if value[k] == '(' {
+							depth++
+						} else if value[k] == ')' {
+							depth--
+							if depth == 0 {
+								endIdx = k
+								break
+							}
+						}
 					}
-					depth--
+
+					if endIdx != -1 {
+						// Extract the function
+						funcCall := value[i : endIdx+1]
+						functions = append(functions, funcCall)
+						i = endIdx // Skip past this function
+						continue
+					}
 				}
 			}
-
-			if endIdx == -1 {
-				break
-			}
-
-			// Extract the function
-			funcCall := value[idx : endIdx+1]
-			functions = append(functions, funcCall)
-
-			// Move past this function
-			pos = endIdx + 1
 		}
 	}
 

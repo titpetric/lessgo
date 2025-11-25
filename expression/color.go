@@ -3,7 +3,8 @@ package expression
 import (
 	"fmt"
 	"strconv"
-	"strings"
+
+	"github.com/titpetric/lessgo/internal/strings"
 )
 
 // Color represents a color value (RGB, HSL, named colors, etc)

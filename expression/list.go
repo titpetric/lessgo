@@ -2,7 +2,8 @@ package expression
 
 import (
 	"fmt"
-	"strings"
+
+	"github.com/titpetric/lessgo/internal/strings"
 )
 
 // List represents a LESS list (comma-separated or space-separated values)

@@ -3,7 +3,8 @@ package functions
 import (
 	"regexp"
 	"strconv"
-	"strings"
+
+	"github.com/titpetric/lessgo/internal/strings"
 )
 
 var (

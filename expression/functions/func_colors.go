@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"math"
 	"strconv"
-	"strings"
+
+	"github.com/titpetric/lessgo/internal/strings"
 )
 
 // Color represents an RGBA color

@@ -14,12 +14,13 @@ Low cognitive complexity means there are few conditional branches to cover. Test
 |--------|---------------------------------------|----------|-----------|-------|
 | ✅     | titpetric/lessgo                      | 91.47%   | 24        | 126   |
 | ❌     | titpetric/lessgo/cmd/lessgo           | 0.00%    | 30        | 211   |
-| ❌     | titpetric/lessgo/dst                  | 47.05%   | 647       | 1900  |
+| ❌     | titpetric/lessgo/dst                  | 47.12%   | 652       | 1938  |
 | ❌     | titpetric/lessgo/evaluator            | 34.36%   | 73        | 170   |
 | ✅     | titpetric/lessgo/examples             | 85.29%   | 15        | 168   |
 | ❌     | titpetric/lessgo/expression           | 62.79%   | 332       | 1386  |
 | ❌     | titpetric/lessgo/expression/functions | 76.50%   | 491       | 2377  |
-| ✅     | titpetric/lessgo/renderer             | 80.94%   | 474       | 1224  |
+| ✅     | titpetric/lessgo/internal/strings     | 97.92%   | 23        | 112   |
+| ✅     | titpetric/lessgo/renderer             | 81.21%   | 507       | 1253  |
 
 ## Functions
 
@@ -63,8 +64,8 @@ Low cognitive complexity means there are few conditional branches to cover. Test
 | ✅     | titpetric/lessgo/dst                  | NewParserNoAllocWithFS                     | 0.00%    | 0         |
 | ✅     | titpetric/lessgo/dst                  | NewParserWithFS                            | 100.00%  | 0         |
 | ✅     | titpetric/lessgo/dst                  | Parser.Parse                               | 89.30%   | 57        |
-| ✅     | titpetric/lessgo/dst                  | Parser.parseBlock                          | 97.90%   | 87        |
-| ❌     | titpetric/lessgo/dst                  | Parser.parseBlockVariable                  | 71.70%   | 40        |
+| ✅     | titpetric/lessgo/dst                  | Parser.parseBlock                          | 96.90%   | 79        |
+| ❌     | titpetric/lessgo/dst                  | Parser.parseBlockVariable                  | 69.60%   | 40        |
 | ✅     | titpetric/lessgo/dst                  | Parser.parseDecl                           | 87.50%   | 1         |
 | ❌     | titpetric/lessgo/dst                  | Parser.parseEach                           | 71.70%   | 34        |
 | ❌     | titpetric/lessgo/dst                  | Parser.parseImport                         | 73.70%   | 7         |
@@ -73,8 +74,8 @@ Low cognitive complexity means there are few conditional branches to cover. Test
 | ❌     | titpetric/lessgo/dst                  | ParserNoAlloc.Parse                        | 46.00%   | 122       |
 | ✅     | titpetric/lessgo/dst                  | ParserNoAlloc.analyzeLinePattern           | 100.00%  | 11        |
 | ❌     | titpetric/lessgo/dst                  | ParserNoAlloc.isMixinName                  | 0.00%    | 2         |
-| ❌     | titpetric/lessgo/dst                  | ParserNoAlloc.parseArgsNoAlloc             | 0.00%    | 4         |
-| ❌     | titpetric/lessgo/dst                  | ParserNoAlloc.parseBlockNoAlloc            | 67.70%   | 50        |
+| ❌     | titpetric/lessgo/dst                  | ParserNoAlloc.parseArgsNoAlloc             | 0.00%    | 3         |
+| ❌     | titpetric/lessgo/dst                  | ParserNoAlloc.parseBlockNoAlloc            | 68.90%   | 49        |
 | ❌     | titpetric/lessgo/dst                  | ParserNoAlloc.parseBlockVariableNoAlloc    | 0.00%    | 25        |
 | ✅     | titpetric/lessgo/dst                  | ParserNoAlloc.parseDeclNoAlloc             | 88.90%   | 2         |
 | ❌     | titpetric/lessgo/dst                  | ParserNoAlloc.parseEachNoAlloc             | 0.00%    | 43        |
@@ -85,11 +86,13 @@ Low cognitive complexity means there are few conditional branches to cover. Test
 | ✅     | titpetric/lessgo/dst                  | UseParser                                  | 0.00%    | 0         |
 | ✅     | titpetric/lessgo/dst                  | containsRealBrace                          | 100.00%  | 8         |
 | ✅     | titpetric/lessgo/dst                  | findBlockBraces                            | 81.50%   | 18        |
+| ✅     | titpetric/lessgo/dst                  | getTrimmed                                 | 100.00%  | 6         |
 | ✅     | titpetric/lessgo/dst                  | isDigitFunc                                | 100.00%  | 1         |
 | ✅     | titpetric/lessgo/dst                  | isLetterFunc                               | 100.00%  | 3         |
 | ❌     | titpetric/lessgo/dst                  | isValidVarName                             | 62.50%   | 7         |
 | ✅     | titpetric/lessgo/dst                  | normalizeCommas                            | 100.00%  | 23        |
 | ❌     | titpetric/lessgo/dst                  | printNode                                  | 0.00%    | 27        |
+| ❌     | titpetric/lessgo/dst                  | splitCommaNoAlloc                          | 0.00%    | 9         |
 | ❌     | titpetric/lessgo/dst                  | splitParameterList                         | 61.50%   | 12        |
 | ✅     | titpetric/lessgo/dst                  | splitSelectorList                          | 100.00%  | 14        |
 | ✅     | titpetric/lessgo/evaluator            | IsExpression                               | 100.00%  | 3         |
@@ -302,6 +305,10 @@ Low cognitive complexity means there are few conditional branches to cover. Test
 | ✅     | titpetric/lessgo/expression/functions | roundHSLValue                              | 100.00%  | 0         |
 | ✅     | titpetric/lessgo/expression/functions | stringReplace                              | 66.70%   | 2         |
 | ❌     | titpetric/lessgo/expression/functions | tryEvaluateSimpleExpr                      | 34.50%   | 10        |
+| ✅     | titpetric/lessgo/internal/strings     | SplitByteNoAlloc                           | 91.70%   | 9         |
+| ✅     | titpetric/lessgo/internal/strings     | SplitCommaNoAlloc                          | 100.00%  | 9         |
+| ✅     | titpetric/lessgo/internal/strings     | TrimSpace                                  | 100.00%  | 4         |
+| ✅     | titpetric/lessgo/internal/strings     | isSpace                                    | 100.00%  | 1         |
 | ✅     | titpetric/lessgo/renderer             | NewRenderer                                | 100.00%  | 0         |
 | ✅     | titpetric/lessgo/renderer             | NewResolver                                | 100.00%  | 0         |
 | ✅     | titpetric/lessgo/renderer             | NewStack                                   | 100.00%  | 0         |
@@ -312,6 +319,7 @@ Low cognitive complexity means there are few conditional branches to cover. Test
 | ✅     | titpetric/lessgo/renderer             | Renderer.collectMixinsAndExtends           | 100.00%  | 0         |
 | ✅     | titpetric/lessgo/renderer             | Renderer.collectMixinsAndExtendsWithPrefix | 100.00%  | 65        |
 | ✅     | titpetric/lessgo/renderer             | Renderer.evaluateGuard                     | 80.40%   | 38        |
+| ✅     | titpetric/lessgo/renderer             | Renderer.parseExtendSelectors              | 42.90%   | 1         |
 | ✅     | titpetric/lessgo/renderer             | Renderer.renderBlock                       | 89.70%   | 101       |
 | ✅     | titpetric/lessgo/renderer             | Renderer.renderComment                     | 100.00%  | 1         |
 | ✅     | titpetric/lessgo/renderer             | Renderer.renderDecl                        | 92.30%   | 11        |
@@ -325,7 +333,7 @@ Low cognitive complexity means there are few conditional branches to cover. Test
 | ✅     | titpetric/lessgo/renderer             | Resolver.ResolveValue                      | 86.70%   | 38        |
 | ❌     | titpetric/lessgo/renderer             | Resolver.containsOperator                  | 0.00%    | 49        |
 | ✅     | titpetric/lessgo/renderer             | Resolver.evaluateEmbeddedFunctions         | 100.00%  | 3         |
-| ✅     | titpetric/lessgo/renderer             | Resolver.extractFunctionsFromValue         | 91.20%   | 35        |
+| ✅     | titpetric/lessgo/renderer             | Resolver.extractFunctionsFromValue         | 97.80%   | 70        |
 | ✅     | titpetric/lessgo/renderer             | Resolver.substituteVariables               | 86.70%   | 11        |
 | ✅     | titpetric/lessgo/renderer             | Stack.All                                  | 100.00%  | 3         |
 | ❌     | titpetric/lessgo/renderer             | Stack.Any                                  | 0.00%    | 1         |
@@ -343,6 +351,5 @@ Low cognitive complexity means there are few conditional branches to cover. Test
 | ❌     | titpetric/lessgo/renderer             | isValueChar                                | 0.00%    | 4         |
 | ✅     | titpetric/lessgo/renderer             | isVarChar                                  | 100.00%  | 4         |
 | ✅     | titpetric/lessgo/renderer             | normalizeSelectorSpacing                   | 88.90%   | 1         |
-| ✅     | titpetric/lessgo/renderer             | parseExtendSelectors                       | 37.50%   | 3         |
 | ✅     | titpetric/lessgo/renderer             | parseNumberForGuard                        | 100.00%  | 7         |
 | ✅     | titpetric/lessgo/renderer             | selector                                   | 100.00%  | 2         |

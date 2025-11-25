@@ -3,7 +3,8 @@ package functions
 import (
 	"math"
 	"strconv"
-	"strings"
+
+	"github.com/titpetric/lessgo/internal/strings"
 )
 
 // Ceil returns the smallest integer >= x
