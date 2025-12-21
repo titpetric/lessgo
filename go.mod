@@ -3,7 +3,7 @@ module github.com/titpetric/lessgo
 go 1.25.4
 
 require (
-	github.com/expr-lang/expr v1.17.6
+	github.com/expr-lang/expr v1.17.7
 	github.com/google/go-cmp v0.7.0
 	github.com/stretchr/testify v1.11.1
 )
