@@ -272,7 +272,17 @@ func (r *Renderer) renderNode(parentCtx *NodeContext, parent dst.Node, selName s
 		return nil
 	case *dst.Each:
 		return r.renderEach(ctx, n)
+	case *dst.Import:
+		return r.renderImport(ctx, n)
 	}
+	return nil
+}
+
+// renderImport renders an @import statement (for URL imports that pass through)
+func (r *Renderer) renderImport(ctx *NodeContext, i *dst.Import) error {
+	ctx.Buf.WriteString("@import \"")
+	ctx.Buf.WriteString(i.Path)
+	ctx.Buf.WriteString("\";\n")
 	return nil
 }
 
@@ -360,6 +370,11 @@ func (r *Renderer) renderBlock(ctx *NodeContext, b *dst.Block) error {
 	satisfied, err := r.evaluateGuard(ctx.Stack, b.Guard)
 	if !satisfied || err != nil {
 		return nil
+	}
+
+	// Handle top-level @media blocks specially
+	if len(b.SelNames) > 0 && strings.HasPrefix(b.SelNames[0], "@media") && ctx.SelName == "" {
+		return r.renderTopLevelMediaBlock(ctx, b)
 	}
 
 	// Compute the full selector names for this block (combining parent context)
@@ -792,6 +807,32 @@ func (r *Renderer) renderMediaQueriesForSelector(ctx *NodeContext, parentSelName
 		r.writeIndent(ctx.Buf, ctx.Depth()-1)
 		ctx.Buf.WriteString("}\n")
 	}
+
+	return nil
+}
+
+// renderTopLevelMediaBlock renders a top-level @media block (not nested inside another selector)
+func (r *Renderer) renderTopLevelMediaBlock(ctx *NodeContext, b *dst.Block) error {
+	condition := b.SelNames[0] // "@media ..."
+
+	// Write the media query opening
+	ctx.Buf.WriteString(condition)
+	ctx.Buf.WriteString(" {\n")
+
+	// Push scope for media query content
+	ctx.Stack.Push()
+
+	// Render the children (which are blocks like .container, h1, etc.)
+	for _, child := range b.Children {
+		if err := r.renderNode(ctx, nil, "", child); err != nil {
+			ctx.Stack.Pop()
+			return err
+		}
+	}
+
+	ctx.Stack.Pop()
+
+	ctx.Buf.WriteString("}\n")
 
 	return nil
 }

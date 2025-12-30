@@ -18,6 +18,7 @@ const (
 	TypeMixinCall     NodeType = "mixin_call"     // Mixin invocation (.mixin();)
 	TypeBlockVariable NodeType = "block_variable" // Block variable (@var: { ... };)
 	TypeEach          NodeType = "each"           // Each loop (each(list, { ... });)
+	TypeImport        NodeType = "import"         // CSS @import passthrough
 )
 
 // Decl represents a CSS declaration (property: value;)
@@ -90,6 +91,14 @@ type Each struct {
 
 func (e *Each) Names() []string { return nil }
 func (e *Each) Type() NodeType  { return TypeEach }
+
+// Import represents a CSS @import statement that should pass through to output
+type Import struct {
+	Path string // the import path (URL or file reference)
+}
+
+func (i *Import) Names() []string { return nil }
+func (i *Import) Type() NodeType  { return TypeImport }
 
 // File represents the entire parsed .less file
 type File struct {

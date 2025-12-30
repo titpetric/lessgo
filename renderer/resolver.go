@@ -359,6 +359,15 @@ func (r *Resolver) extractFunctionsFromValue(value string) []string {
 		// Check if we're at the start of a function call
 		// Look for valid function name characters followed by '('
 		if value[i] >= 'a' && value[i] <= 'z' {
+			// Must be at start of identifier (not preceded by letter/digit/hyphen)
+			if i > 0 {
+				prev := value[i-1]
+				if (prev >= 'a' && prev <= 'z') || (prev >= 'A' && prev <= 'Z') ||
+					(prev >= '0' && prev <= '9') || prev == '-' || prev == '_' {
+					continue
+				}
+			}
+
 			// Scan for function name end
 			j := i + 1
 			for j < len(value) && ((value[j] >= 'a' && value[j] <= 'z') ||

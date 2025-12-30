@@ -217,6 +217,13 @@ func (p *Parser) parseImport(file *File, line string) {
 		return
 	}
 
+	// Check if this is a URL import (http://, https://, or protocol-relative //)
+	// These should pass through to CSS output, not be processed
+	if strings.HasPrefix(filePath, "http://") || strings.HasPrefix(filePath, "https://") || strings.HasPrefix(filePath, "//") {
+		file.Nodes = append(file.Nodes, &Import{Path: filePath})
+		return
+	}
+
 	// Open the file from the filesystem
 
 	f, err := p.fs.Open(filePath)
@@ -281,7 +288,12 @@ func (p *Parser) parseBlock(line string) (*Block, error) {
 
 	}
 
-	isMixinFunction := strings.Contains(selectorStr, "(") && strings.Contains(selectorStr, ")")
+	// Only treat as mixin function if contains parentheses AND starts with . or # (valid mixin prefixes)
+	// Exclude at-rules (@media) and pseudo-classes (:nth-child, :hover, etc.)
+	trimmedSel := strings.TrimSpace(selectorStr)
+	isMixinFunction := strings.Contains(selectorStr, "(") && strings.Contains(selectorStr, ")") &&
+		(strings.HasPrefix(trimmedSel, ".") || strings.HasPrefix(trimmedSel, "#")) &&
+		!strings.Contains(selectorStr, ":")
 
 	// Parse selectors and parameters
 	// Split selectors by comma, but respect @{...} interpolation blocks
@@ -297,9 +309,14 @@ func (p *Parser) parseBlock(line string) (*Block, error) {
 		sel = strings.TrimSpace(sel)
 
 		// Check if this is a parametric mixin (e.g., .mixin(@v))
-		// Only treat as mixin if it starts with . or # (not @ at-rules like @media)
+		// Only treat as mixin if it starts with . or # (valid mixin prefixes)
+		// Do not treat CSS pseudo-classes like :nth-child() or at-rules like @media as mixins
 
-		if !strings.HasPrefix(sel, "@") && strings.Contains(sel, "(") && strings.HasSuffix(sel, ")") {
+		isMixinSelector := (strings.HasPrefix(sel, ".") || strings.HasPrefix(sel, "#")) &&
+			strings.Contains(sel, "(") && strings.HasSuffix(sel, ")") &&
+			!strings.Contains(sel, ":")
+
+		if isMixinSelector {
 
 			parenIdx := strings.Index(sel, "(")
 

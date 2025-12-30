@@ -45,6 +45,20 @@ func TestResolveValue(t *testing.T) {
 			expected:  "15px",
 			wantErr:   false,
 		},
+		{
+			name:      "CSS grid minmax passthrough",
+			value:     "repeat(auto-fit, minmax(250px, 1fr))",
+			variables: map[string]string{},
+			expected:  "repeat(auto-fit, minmax(250px, 1fr))",
+			wantErr:   false,
+		},
+		{
+			name:      "standalone minmax passthrough",
+			value:     "minmax(100px, 1fr)",
+			variables: map[string]string{},
+			expected:  "minmax(100px, 1fr)",
+			wantErr:   false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -65,6 +79,41 @@ func TestResolveValue(t *testing.T) {
 			if got != tt.expected {
 				t.Errorf("ResolveValue() got %q, want %q\nValue: %q\nVariables: %v",
 					got, tt.expected, tt.value, tt.variables)
+			}
+		})
+	}
+}
+
+func TestResolveValue_ExtractFunctions(t *testing.T) {
+	resolver := NewResolver(nil)
+
+	tests := []struct {
+		name     string
+		value    string
+		expected []string
+	}{
+		{
+			name:     "minmax should not match min",
+			value:    "minmax(250px, 1fr)",
+			expected: []string{},
+		},
+		{
+			name:     "repeat with minmax should not match min",
+			value:    "repeat(auto-fit, minmax(250px, 1fr))",
+			expected: []string{},
+		},
+		{
+			name:     "actual min function should match",
+			value:    "min(5px, 10px)",
+			expected: []string{"min(5px, 10px)"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := resolver.extractFunctionsFromValue(tt.value)
+			if len(got) != len(tt.expected) {
+				t.Errorf("extractFunctionsFromValue(%q) got %v, want %v", tt.value, got, tt.expected)
 			}
 		})
 	}

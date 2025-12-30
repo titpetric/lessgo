@@ -336,6 +336,24 @@ func (e *Evaluator) extractFunctions(value string) []string {
 			}
 			idx += pos
 
+			// Check that this is a complete function name (not part of a larger identifier)
+			// e.g., "min(" should not match in "minmax("
+			if idx > 0 {
+				prevChar := value[idx-1]
+				if isIdentifierChar(rune(prevChar)) {
+					// This is part of a larger identifier, skip it
+					pos = idx + 1
+					continue
+				}
+			}
+			// Also check that the character after the function name (before '(') is the '('
+			// This is already ensured by the searchStr, but verify the match is exact
+			endOfName := idx + len(fnName)
+			if endOfName < len(value) && value[endOfName] == '(' {
+				// Check character after closing function name is '('
+				// and not followed by more identifier chars (which would mean it's a different function)
+			}
+
 			// Find the closing paren
 			depth := 0
 			endIdx := -1
