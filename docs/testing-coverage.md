@@ -13,7 +13,7 @@ Low cognitive complexity means there are few conditional branches to cover. Test
 | Status | Package                               | Coverage | Cognitive | Lines |
 |--------|---------------------------------------|----------|-----------|-------|
 | ✅     | titpetric/lessgo                      | 91.47%   | 24        | 126   |
-| ❌     | titpetric/lessgo/cmd/lessgo           | 0.00%    | 30        | 211   |
+| ❌     | titpetric/lessgo/cmd/lessgo           | 0.00%    | 30        | 209   |
 | ❌     | titpetric/lessgo/dst                  | 45.54%   | 656       | 1957  |
 | ❌     | titpetric/lessgo/evaluator            | 34.36%   | 73        | 170   |
 | ✅     | titpetric/lessgo/examples             | 85.29%   | 15        | 168   |

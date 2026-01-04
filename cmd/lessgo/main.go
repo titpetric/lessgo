@@ -28,9 +28,7 @@ func main() {
 	case "help":
 		printUsage()
 	default:
-		fmt.Fprintf(os.Stderr, "unknown command: %s\n", cmd)
-		printUsage()
-		os.Exit(1)
+		generateCmd(os.Args[1:])
 	}
 }
 

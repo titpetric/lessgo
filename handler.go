@@ -1,7 +1,7 @@
 package lessgo
 
 import (
-	"fmt"
+	"errors"
 	"io/fs"
 	"net/http"
 
@@ -12,8 +12,8 @@ import (
 
 // Error types for LESS compilation and serving
 var (
-	ErrNotFound          = fmt.Errorf("not found")
-	ErrCompilationFailed = fmt.Errorf("compilation failed")
+	ErrNotFound          = errors.New("not found")
+	ErrCompilationFailed = errors.New("compilation failed")
 )
 
 // Handler handles LESS file compilation and serving

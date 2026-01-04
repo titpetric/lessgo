@@ -23,8 +23,8 @@ type Handler struct {
 ```go
 // Error types for LESS compilation and serving
 var (
-	ErrNotFound          = fmt.Errorf("not found")
-	ErrCompilationFailed = fmt.Errorf("compilation failed")
+	ErrNotFound          = errors.New("not found")
+	ErrCompilationFailed = errors.New("compilation failed")
 )
 ```
 
