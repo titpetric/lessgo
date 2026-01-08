@@ -125,7 +125,7 @@ func NewLessCompilerHandler(baseDir string, optionalFS ...fs.FS) *LessCompilerHa
 // Example2_CustomHandler demonstrates using the custom handler
 func Example2_CustomHandler() http.Handler {
 	// Create a custom handler that compiles LESS files from a specific directory
-	return lessgo.NewHandler("/", os.DirFS("testdata/custom"))
+	return lessgo.NewHandler(os.DirFS("testdata/custom"), "/")
 }
 
 // Example2_MuxWithHandler demonstrates using multiple handlers with http.ServeMux

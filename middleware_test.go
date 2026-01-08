@@ -16,7 +16,7 @@ func TestMiddlewarePassthrough(t *testing.T) {
 		"style.less": &fstest.MapFile{Data: []byte("body { color: red; }")},
 	}
 
-	middleware := NewMiddleware("/assets/css", mockFS)
+	middleware := NewMiddleware(mockFS, "/assets/css")
 
 	// Create a simple next handler that we can verify is called
 	nextCalled := false
@@ -83,7 +83,7 @@ body {
 `)},
 	}
 
-	middleware := NewMiddleware("/assets/css", mockFS)
+	middleware := NewMiddleware(mockFS, "/assets/css")
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	})
@@ -106,7 +106,7 @@ body {
 func TestMiddlewareNotFound(t *testing.T) {
 	mockFS := fstest.MapFS{}
 
-	middleware := NewMiddleware("/assets/css", mockFS)
+	middleware := NewMiddleware(mockFS, "/assets/css")
 
 	nextCalled := false
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -131,7 +131,7 @@ func TestMiddlewareHEADRequest(t *testing.T) {
 		"style.less": &fstest.MapFile{Data: []byte("body { color: red; }")},
 	}
 
-	middleware := NewMiddleware("/assets/css", mockFS)
+	middleware := NewMiddleware(mockFS, "/assets/css")
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	})
@@ -168,7 +168,7 @@ body {
 `)},
 	}
 
-	middleware := NewMiddleware("/assets/css", mockFS)
+	middleware := NewMiddleware(mockFS, "/assets/css")
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	})
@@ -206,7 +206,7 @@ func TestMiddlewareNesting(t *testing.T) {
 `)},
 	}
 
-	middleware := NewMiddleware("/assets/css", mockFS)
+	middleware := NewMiddleware(mockFS, "/assets/css")
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	})
@@ -236,7 +236,7 @@ func TestMiddlewareBasePathWithoutSlash(t *testing.T) {
 		"style.less": &fstest.MapFile{Data: lessContent},
 	}
 
-	middleware := NewMiddleware("/assets/css", mockFS)
+	middleware := NewMiddleware(mockFS, "/assets/css")
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	})
@@ -266,7 +266,7 @@ func TestMiddlewareNestedDirectory(t *testing.T) {
 		"components/button.less": &fstest.MapFile{Data: lessContent},
 	}
 
-	middleware := NewMiddleware("/css", mockFS)
+	middleware := NewMiddleware(mockFS, "/css")
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	})
@@ -295,7 +295,7 @@ func BenchmarkMiddleware(b *testing.B) {
 		"style.less": &fstest.MapFile{Data: lessContent},
 	}
 
-	middleware := NewMiddleware("/assets/css", mockFS)
+	middleware := NewMiddleware(mockFS, "/assets/css")
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	})

@@ -23,9 +23,9 @@ type Handler struct {
 }
 
 // NewHandler creates a new LESS compilation handler.
-// pathPrefix is the URL path prefix to match and strip (e.g., "/assets/css")
 // fileSystem is where to read .less files from
-func NewHandler(pathPrefix string, fileSystem fs.FS) http.Handler {
+// pathPrefix is the URL path prefix to match and strip (e.g., "/assets/css")
+func NewHandler(fileSystem fs.FS, pathPrefix string) http.Handler {
 	return &Handler{
 		pathPrefix: pathPrefix,
 		fileSystem: fileSystem,

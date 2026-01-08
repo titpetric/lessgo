@@ -14,7 +14,7 @@ import (
 func Example1_Middleware() http.Handler {
 	// Create a middleware that intercepts requests to /assets/css/*.less
 	// and compiles them to CSS on-the-fly
-	lessMiddleware := lessgo.NewMiddleware("/assets/css", os.DirFS("testdata/assets/css"))
+	lessMiddleware := lessgo.NewMiddleware(os.DirFS("testdata/assets/css"), "/assets/css")
 
 	// Wrap your main handler with the LESS middleware
 	mainHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -41,7 +41,7 @@ func Example1_Middleware() http.Handler {
 // Example1_MiddlewareWithChain demonstrates chaining multiple middleware
 func Example1_MiddlewareWithChain(h http.Handler) http.Handler {
 	// Create the LESS middleware
-	lessMiddleware := lessgo.NewMiddleware("/styles", os.DirFS("testdata/styles"))
+	lessMiddleware := lessgo.NewMiddleware(os.DirFS("testdata/styles"), "/styles")
 
 	// Apply it to your handler
 	h = lessMiddleware(h)

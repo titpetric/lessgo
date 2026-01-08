@@ -11,8 +11,8 @@ import (
 // and returns the resulting CSS with the appropriate Content-Type header.
 //
 // Parameters:
-//   - basePath: The URL path prefix to match (e.g., "/assets/css")
 //   - fileSystem: The filesystem to read .less files from (e.g., os.DirFS("./assets/css"))
+//   - basePath: The URL path prefix to match (e.g., "/assets/css")
 //
 // Example usage with chi:
 //
@@ -24,9 +24,9 @@ import (
 // 3. Parse and compile it from LESS to CSS
 // 4. Return the compiled CSS with Content-Type: text/css
 // 5. If the file is not .less or doesn't exist, pass to next handler
-func NewMiddleware(basePath string, fileSystem fs.FS) func(http.Handler) http.Handler {
+func NewMiddleware(fileSystem fs.FS, basePath string) func(http.Handler) http.Handler {
 	// Handle the .less request
-	handler := NewHandler(basePath, fileSystem)
+	handler := NewHandler(fileSystem, basePath)
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
