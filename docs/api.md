@@ -30,16 +30,16 @@ var (
 
 ## Function symbols
 
-- `func NewHandler (pathPrefix string, fileSystem fs.FS) http.Handler`
-- `func NewMiddleware (basePath string, fileSystem fs.FS) func(http.Handler) http.Handler`
+- `func NewHandler (fileSystem fs.FS, pathPrefix string) http.Handler`
+- `func NewMiddleware (fileSystem fs.FS, basePath string) func(http.Handler) http.Handler`
 - `func (*Handler) ServeHTTP (w http.ResponseWriter, r *http.Request)`
 
 ### NewHandler
 
-NewHandler creates a new LESS compilation handler. pathPrefix is the URL path prefix to match and strip (e.g., "/assets/css") fileSystem is where to read .less files from
+NewHandler creates a new LESS compilation handler. fileSystem is where to read .less files from pathPrefix is the URL path prefix to match and strip (e.g., "/assets/css")
 
 ```go
-func NewHandler(pathPrefix string, fileSystem fs.FS) http.Handler
+func NewHandler(fileSystem fs.FS, pathPrefix string) http.Handler
 ```
 
 ### NewMiddleware
@@ -47,8 +47,8 @@ func NewHandler(pathPrefix string, fileSystem fs.FS) http.Handler
 NewMiddleware creates an HTTP middleware that compiles .less files to CSS on-the-fly. It intercepts requests to files with .less extension, compiles them using lessgo, and returns the resulting CSS with the appropriate Content-Type header.
 
 Parameters:
-- basePath: The URL path prefix to match (e.g., "/assets/css")
 - fileSystem: The filesystem to read .less files from (e.g., os.DirFS("./assets/css"))
+- basePath: The URL path prefix to match (e.g., "/assets/css")
 
 Example usage with chi:
 
@@ -64,7 +64,7 @@ When a request to /assets/css/style.less is made, it will:
 5. If the file is not .less or doesn't exist, pass to next handler
 
 ```go
-func NewMiddleware(basePath string, fileSystem fs.FS) func(http.Handler) http.Handler
+func NewMiddleware(fileSystem fs.FS, basePath string) func(http.Handler) http.Handler
 ```
 
 ### ServeHTTP
