@@ -1,4 +1,4 @@
-# lessgo
+# lessgo - A Go based Less CSS compiler
 
 A comprehensive LESS to CSS compiler written in Go with a minimal DST (Decorated Syntax Tree) parser, formatter, and renderer. Compiles 65/65 fixture tests with 100% compatibility with `lessc`.
 
