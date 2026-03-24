@@ -192,7 +192,3 @@ Debug LESS parsing by inspecting the Abstract Syntax Tree:
 - **Maps** - Namespace blocks used as maps
 - **Nested @media** - Media queries bubble to top level with selector context
 - **CSS3 Variables** - `--var` custom properties (pass-through)
-
-## Development
-
-See AGENTS.md for development workflow and package organization details. See FEATURES.md for complete feature checklist.

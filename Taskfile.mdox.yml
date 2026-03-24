@@ -6,7 +6,7 @@ version: "3"
 
 vars:
   folder: docs
-  files: README.md AGENTS.md
+  files: README.md
 
 tasks:
   default:
