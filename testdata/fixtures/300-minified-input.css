@@ -1,0 +1,7 @@
+.classname {
+  font-weight: bold;
+  color: #f70;
+}
+.classname a {
+  text-decoration: underline;
+}

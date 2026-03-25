@@ -26,7 +26,7 @@ type Parser struct {
 // NewParser creates a new parser from a reader with OS filesystem
 func NewParser(r io.Reader) *Parser {
 	return &Parser{
-		scanner:     bufio.NewScanner(r),
+		scanner:     bufio.NewScanner(SanitizeReader(r)),
 		eof:         false,
 		fs:          os.DirFS("."),
 		selectorBuf: make([]string, 0, 16),
@@ -38,7 +38,7 @@ func NewParser(r io.Reader) *Parser {
 // NewParserWithFS creates a new parser with a custom filesystem
 func NewParserWithFS(r io.Reader, filesystem fs.FS) *Parser {
 	return &Parser{
-		scanner:     bufio.NewScanner(r),
+		scanner:     bufio.NewScanner(SanitizeReader(r)),
 		eof:         false,
 		fs:          filesystem,
 		selectorBuf: make([]string, 0, 16),

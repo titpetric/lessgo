@@ -80,7 +80,7 @@ type ParserNoAlloc struct {
 // NewParserNoAlloc creates a new zero-allocation parser with pre-allocated buffers
 func NewParserNoAlloc(r io.Reader) *ParserNoAlloc {
 	return &ParserNoAlloc{
-		scanner:        bufio.NewScanner(r),
+		scanner:        bufio.NewScanner(SanitizeReader(r)),
 		eof:            false,
 		fs:             os.DirFS("."),
 		nodeBuffer:     make([]Node, 0, 256),  // Typical file has ~100-300 nodes
@@ -94,7 +94,7 @@ func NewParserNoAlloc(r io.Reader) *ParserNoAlloc {
 // NewParserNoAllocWithFS creates a zero-allocation parser with custom filesystem
 func NewParserNoAllocWithFS(r io.Reader, filesystem fs.FS) *ParserNoAlloc {
 	return &ParserNoAlloc{
-		scanner:        bufio.NewScanner(r),
+		scanner:        bufio.NewScanner(SanitizeReader(r)),
 		eof:            false,
 		fs:             filesystem,
 		nodeBuffer:     make([]Node, 0, 256),
@@ -164,14 +164,25 @@ func (p *ParserNoAlloc) Parse() (*File, error) {
 			// Variable assignment or block variable
 			if p.hasColon {
 				if p.hasOpen {
-					// Block variable (@name: { ... };) - brace on same line
+					// Try block variable (@name: { ... };) - brace on same line
 					blockVar, err := p.parseBlockVariableNoAlloc(line)
 					if err != nil {
 						return nil, err
 					}
 					if blockVar != nil {
 						p.nodeBuffer = append(p.nodeBuffer, blockVar)
+						continue
 					}
+					// Not a valid block variable, fall through to block parsing
+					// (handles @media, @keyframes, etc.)
+					block, err := p.parseBlockNoAlloc(line)
+					if err != nil {
+						return nil, err
+					}
+					if block != nil {
+						p.nodeBuffer = append(p.nodeBuffer, block)
+					}
+					continue
 				} else if !p.hasSemi {
 					// Possible multi-line block variable (@name: <EOL>, next line should be {)
 					// Save the variable name for now
@@ -344,6 +355,11 @@ func (p *ParserNoAlloc) parseBlockVariableNoAlloc(line string) (*BlockVariable, 
 	}
 
 	name := strings.TrimPrefix(getTrimmed(line[:colonIdx]), "@")
+
+	// Validate variable name (must not contain spaces, parentheses, etc.)
+	if name == "" || !isValidVarName(name) {
+		return nil, nil
+	}
 
 	// Check for opening brace
 	braceStart := strings.Index(line, "{")
