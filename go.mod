@@ -1,6 +1,6 @@
 module github.com/titpetric/lessgo
 
-go 1.25.4
+go 1.27.0
 
 require (
 	github.com/expr-lang/expr v1.17.8
