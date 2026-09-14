@@ -3,12 +3,15 @@
 ```go
 import (
 	"github.com/titpetric/lessgo"
-}
+)
 ```
 
 Package lessgo is a comprehensive Less CSS compiler implementation in pure Go.
 
 ## Types
+
+<details>
+<summary><code>type Handler</code></summary>
 
 ```go
 // Handler handles LESS file compilation and serving
@@ -18,7 +21,12 @@ type Handler struct {
 }
 ```
 
+</details>
+
 ## Vars
+
+<details>
+<summary><code>var ErrNotFound, ErrCompilationFailed</code></summary>
 
 ```go
 // Error types for LESS compilation and serving
@@ -27,6 +35,8 @@ var (
 	ErrCompilationFailed = errors.New("compilation failed")
 )
 ```
+
+</details>
 
 ## Function symbols
 
@@ -52,7 +62,7 @@ Parameters:
 
 Example usage with chi:
 
-```
+```go
 chi.Use(lessgo.NewMiddleware("/assets/css", os.DirFS("./assets/css")))
 ```
 
