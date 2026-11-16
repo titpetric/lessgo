@@ -1,8 +1,8 @@
 ---
 version: "3"
 
-# Running this taskfile ensures that markdowns are
-# consistently formatted according to mdox rules.
+# Writes every markdown file of the tree in one format, and lints the language.
+# The formatter is splint, which reproduces what mdox wrote.
 
 vars:
   folder: docs
@@ -10,21 +10,30 @@ vars:
 
 tasks:
   default:
-    desc: "Run mdox to check markdowns"
+    desc: "Check the markdown formatting and language"
     cmds:
       - task: lint
 
   fmt:
-    desc: "Run mdox to format markdowns"
+    desc: "Write every markdown file of the tree in one format"
     cmds:
-      - mdox fmt -l --no-soft-wraps $(find {{.folder}} -name '*.md') {{.files}}
+      # --markdown keeps the fixer off the Go: the import rules belong to the
+      # go:fmt task.
+      - splint fix --markdown ./...
 
   lint:
     desc: "Run vale to lint language"
     cmds:
-      - mdox fmt --check --no-soft-wraps $(find {{.folder}} -name '*.md') {{.files}}
+      # There is no formatting check. The formatter settles every question it
+      # covers with no rule to configure, so a check would only report a file
+      # nobody had run the formatter over.
       - docker run --rm -v $(pwd):/docs -w /docs jdkato/vale .
+
+  prose:
+    desc: "Report the constructions this tree leans on that the standard library does not"
+    cmds:
+      - splint --linters=prose --stats ./...
 
   setup:
     cmds:
-      - go install github.com/bwplotka/mdox@latest
+      - go install github.com/titpetric/tools/splint@latest
